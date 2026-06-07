@@ -1,0 +1,219 @@
+{% include 'partials/admin_messages.twig' with {messages: model.messages|default([])} only %}
+{% set board = model.board|default(null) %}
+{% set method = model.method|default('view') %}
+{% set categories = model.categories|default([]) %}
+{% set secureLocked = board and board.effective_secure_archive|default(0) and not board.can_modify_secure_archive|default(0) %}
+
+<div class="corebb-admin-modern-page">
+    {% if model.done|default(false) %}
+        <div class="corebb-admin-modern-panel">
+            <a class="corebb-board-action-link" href="/admin/?act=manageboards">Return to Manage Boards</a>
+        </div>
+    {% elseif not board %}
+        <div class="corebb-admin-modern-panel">
+            Unknown board.
+            <a class="corebb-board-action-link" href="/admin/?act=manageboards">Return to Manage Boards</a>
+        </div>
+    {% else %}
+        <div class="corebb-admin-modern-header">
+            <div>
+                <div class="corebb-admin-modern-eyebrow">Modify Board</div>
+                <h2>{{ board.name|default('Unnamed Board') }}</h2>
+                <div class="corebb-admin-modern-meta">
+                    <span>#{{ board.id|default(0) }}</span>
+                    <span>{{ board.topic_count|default(0)|number_format }} topics</span>
+                    <span>{{ board.post_count|default(0)|number_format }} posts</span>
+                    <span>{{ board.effective_private|default(0) ? 'Private' : 'Public' }}</span>
+                    {% if board.effective_secure_archive|default(0) %}<span>Secure Archive</span>{% endif %}
+                </div>
+            </div>
+            <div class="corebb-admin-modern-actions">
+                <a class="corebb-board-action-link" href="/admin/?act=modifyboard&amp;id={{ board.id|default(0) }}&amp;method=edit">Edit Details</a>
+                <a class="corebb-board-action-link" href="/admin/?act=modifyboard&amp;id={{ board.id|default(0) }}&amp;method=access">Access</a>
+                <a class="corebb-board-action-link is-danger" href="/admin/?act=modifyboard&amp;id={{ board.id|default(0) }}&amp;method=delete">Delete</a>
+                <a class="corebb-board-action-link" href="/admin/?act=manageboards">Manage Boards</a>
+            </div>
+        </div>
+
+        {% if secureLocked %}
+            <div class="corebb-admin-modern-note is-muted">This board is a Secure Archive board. Only administrators can edit it.</div>
+        {% endif %}
+
+        {% if method == 'edit' %}
+            <div class="corebb-admin-modern-panel">
+                <form class="corebb-admin-modern-form" name="form1" method="post" action="/admin/?act=modifyboard&amp;id={{ board.id|default(0) }}&amp;method=edit">
+                    {% include 'partials/csrf_field.twig' %}
+                    <div class="corebb-admin-modern-grid">
+                        <label for="corebbBoardName">Board Name</label>
+                        <input id="corebbBoardName" name="newboardname" type="text" value="{{ board.name|default('') }}" size="50"{% if secureLocked %} disabled{% endif %}>
+
+                        <label for="corebbBoardCategory">Category</label>
+                        <select id="corebbBoardCategory" name="categoryid"{% if secureLocked %} disabled{% endif %}>
+                            {% for category in categories %}
+                                <option value="{{ category.id|default(0) }}"{% if board.categoryid|default(0) == category.id|default(0) %} selected{% endif %}>{{ category.name|default('') }}</option>
+                            {% endfor %}
+                        </select>
+
+                        <label for="corebbBoardDescription">Board Description</label>
+                        <textarea id="corebbBoardDescription" name="newboarddesc" wrap="soft" cols="50" rows="6"{% if secureLocked %} disabled{% endif %}>{{ board.description|default('') }}</textarea>
+
+                        <label for="corebbBoardTimer">Board Post Timer</label>
+                        <span>
+                            <input id="corebbBoardTimer" name="boardtimer" type="text" size="5" maxlength="3" value="{{ board.edittimer|default(30) }}"{% if secureLocked %} disabled{% endif %}>
+                            <span class="corebb-admin-modern-help">Minutes.</span>
+                        </span>
+
+                        <label for="corebbBoardPrivate">Private Board</label>
+                        <span>
+                            <select id="corebbBoardPrivate" name="private"{% if secureLocked %} disabled{% endif %}>
+                                <option value="0"{% if not board.private|default(0) %} selected{% endif %}>No</option>
+                                <option value="1"{% if board.private|default(0) %} selected{% endif %}>Yes</option>
+                            </select>
+                            <span class="corebb-admin-modern-help">If yes, only invited users and admins can see this board.</span>
+                        </span>
+
+                        <div class="corebb-admin-modern-submit corebb-admin-modern-full">
+                            {% if secureLocked %}
+                                <button class="corebb-board-action-link" type="button" disabled>Submit Disabled</button>
+                            {% else %}
+                                <button class="corebb-board-action-link" type="submit" name="Submit" value="Submit">Save Board</button>
+                            {% endif %}
+                            <input type="hidden" name="editboardid" value="{{ board.id|default(0) }}">
+                            <a class="corebb-board-action-link" href="/admin/?act=manageboards">Return to Manage Boards</a>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        {% elseif method == 'access' %}
+            {% set accessUsers = model.access_users|default([]) %}
+            <div class="corebb-board-access-page">
+                <div class="corebb-board-access-note{% if board.effective_private|default(0) %} is-private{% else %} is-public{% endif %}">
+                    {% if board.effective_private|default(0) %}
+                        This board is private because {% if board.private|default(0) %}the board itself is private{% else %}its category is private{% endif %}. Invited users can see this board only; other boards in the same private category stay hidden unless separately invited.
+                    {% else %}
+                        This board is currently public. You can still prepare an invite list before making it private.
+                    {% endif %}
+                    {% if secureLocked %}
+                        <span>Secure Archive boards do not need private access changes.</span>
+                    {% endif %}
+                </div>
+
+                <div class="corebb-board-access-add">
+                    <form class="corebb-board-access-form" method="post" action="/admin/?act=modifyboard&amp;id={{ board.id|default(0) }}&amp;method=access">
+                        {% include 'partials/csrf_field.twig' %}
+                        <input type="hidden" name="access_action" value="add">
+                        <label for="corebb-board-access-user">Add User</label>
+                        <input id="corebb-board-access-user" class="corebb-board-access-input" type="text" name="access_user" maxlength="75"{% if secureLocked %} disabled{% endif %}>
+                        <button class="corebb-board-action-link" type="submit"{% if secureLocked %} disabled{% endif %}>Invite User</button>
+                        <span class="corebb-board-access-help">Exact username or user ID.</span>
+                    </form>
+                </div>
+
+                <table class="corebb-board-access-table wb-table">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Access Level</th>
+                            <th>Granted By</th>
+                            <th>Granted</th>
+                            <th class="corebb-board-access-action-cell">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if accessUsers is empty %}
+                            <tr>
+                                <td class="corebb-board-access-empty" colspan="5">No users have been invited to this board.</td>
+                            </tr>
+                        {% else %}
+                            {% for grant in accessUsers %}
+                                {% set grantUserId = grant.userid|default(0) %}
+                                <tr>
+                                    <td>
+                                        <span class="corebb-board-access-user">{{ grant.username|default('User ' ~ grantUserId, true) }}</span>
+                                        <span class="corebb-board-access-user-id">#{{ grantUserId }}</span>
+                                    </td>
+                                    <td><span class="corebb-board-access-level">Level {{ grant.accesslevel|default(0) }}</span></td>
+                                    <td>{{ grant.granted_by_username|default('System', true) }}</td>
+                                    <td>{{ grant.created_at|default('') }}</td>
+                                    <td class="corebb-board-access-action-cell">
+                                        <form class="corebb-board-access-remove-form" method="post" action="/admin/?act=modifyboard&amp;id={{ board.id|default(0) }}&amp;method=access">
+                                            {% include 'partials/csrf_field.twig' %}
+                                            <input type="hidden" name="access_action" value="remove">
+                                            <input type="hidden" name="userid" value="{{ grantUserId }}">
+                                            <button class="corebb-board-action-link is-danger" type="submit"{% if secureLocked %} disabled{% endif %}>Remove</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        {% elseif method == 'delete' %}
+            <div class="corebb-admin-modern-note is-danger">
+                {% if secureLocked %}
+                    Delete is disabled for Secure Archive boards unless you are an administrator.
+                {% else %}
+                    Choose whether to permanently delete everything in this board, or move its topics/posts to another board first.
+                {% endif %}
+            </div>
+
+            <div class="corebb-admin-modern-split">
+                <div class="corebb-admin-modern-choice">
+                    <h3>Total Delete</h3>
+                    <span class="corebb-admin-modern-help">Permanently deletes {{ board.topic_count|default(0)|number_format }} topics and {{ board.post_count|default(0)|number_format }} posts in this board.</span>
+                    {% if secureLocked %}
+                        <span class="corebb-board-action-disabled">Total Delete disabled</span>
+                    {% else %}
+                        <a class="corebb-board-action-link is-danger" href="/admin/?act=modifyboard&amp;id={{ board.id|default(0) }}&amp;method=fulldelete">Total Delete</a>
+                    {% endif %}
+                </div>
+
+                <div class="corebb-admin-modern-choice">
+                    <h3>Move Then Delete</h3>
+                    <form class="corebb-admin-modern-form" method="post" action="/admin/?act=modifyboard&amp;method=move_delete">
+                        {% include 'partials/csrf_field.twig' %}
+                        <div class="corebb-admin-modern-submit">
+                            <select name="targetboardid"{% if secureLocked %} disabled{% endif %}>
+                                {% for targetBoard in model.target_boards|default([]) %}
+                                    <option value="{{ targetBoard.id|default(0) }}">{{ targetBoard.name|default('') }}</option>
+                                {% endfor %}
+                            </select>
+                            <input type="hidden" name="sourceforumid" value="{{ board.id|default(0) }}">
+                            <button class="corebb-board-action-link is-danger" type="submit" name="moveanddelete" value="1"{% if secureLocked %} disabled{% endif %}>Move Contents and Delete Board</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        {% elseif method == 'fulldelete' %}
+            <form class="corebb-admin-modern-form" name="form1" method="post" action="/admin/?act=modifyboard&amp;id={{ board.id|default(0) }}&amp;method=fulldelete">
+                {% include 'partials/csrf_field.twig' %}
+                <div class="corebb-admin-modern-note is-danger">
+                    <strong>You are about to delete the board: {{ board.name|default('') }}, including every topic and post it contains. This action CANNOT be undone.</strong>
+                </div>
+                <div class="corebb-admin-modern-panel">
+                    <div class="corebb-admin-modern-submit">
+                        <button class="corebb-board-action-link is-danger" type="submit" name="imsure" value="Accept"{% if secureLocked %} disabled{% endif %}>Accept</button>
+                        <input type="hidden" name="forumid" value="{{ board.id|default(0) }}">
+                        <a class="corebb-board-action-link" href="/admin/?act=manageboards">Cancel / Return to Manage Boards</a>
+                    </div>
+                </div>
+            </form>
+        {% else %}
+            <div class="corebb-admin-modern-panel">
+                <div class="corebb-admin-modern-submit">
+                    {% if secureLocked %}
+                        <span class="corebb-board-action-disabled">Edit Board Name/Description disabled for Secure Archive</span>
+                        <span class="corebb-board-action-disabled">Manage Private Access disabled for Secure Archive</span>
+                        <span class="corebb-board-action-disabled">Delete Board disabled for Secure Archive</span>
+                    {% else %}
+                        <a class="corebb-board-action-link" href="/admin/?act=modifyboard&amp;id={{ board.id|default(0) }}&amp;method=edit">Edit Board Name/Description</a>
+                        <a class="corebb-board-action-link" href="/admin/?act=modifyboard&amp;id={{ board.id|default(0) }}&amp;method=access">Manage Private Access</a>
+                        <a class="corebb-board-action-link is-danger" href="/admin/?act=modifyboard&amp;id={{ board.id|default(0) }}&amp;method=delete">Delete Board</a>
+                    {% endif %}
+                    <a class="corebb-board-action-link" href="/admin/?act=manageboards">Return to Manage Boards</a>
+                </div>
+            </div>
+        {% endif %}
+    {% endif %}
+</div>

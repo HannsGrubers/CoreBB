@@ -1,0 +1,52 @@
+{% if model.missing|default(false) %}
+<table class="wb-cellpad-3 wb-cellspace-1 wb-table" style="width: 100%;">
+    <tr><td class="BoardRowB">{{ model.message|default('Topic not found.') }}</td></tr>
+</table>
+{% else %}
+    {% set locked = model.locked|default(false) %}
+    {% set canModerate = model.canModerate|default(false) %}
+    {% set canReply = model.canReply|default(false) %}
+    {% set archiveReadOnly = model.archiveReadOnly|default(false) %}
+
+    <table class="wb-cellpad-3 wb-cellspace-1 wb-table" style="width: 100%;">
+        {% if model.isLoggedIn|default(false) %}
+            <tr>
+                <td class="MainMenuRow">
+                    {% if canReply %}
+                        <a class="MainMenuFont" href="{{ model.replyUrl|default('#') }}"><b>Post Reply</b></a>
+                        {% if locked %} <a class="MainMenuFont">(Locked - moderator override)</a>{% endif %}
+                    {% else %}
+                        <a class="MainMenuFont"><b>{{ archiveReadOnly ? 'Secure Archive - Read Only' : 'Topic Locked' }}</b></a>
+                    {% endif %}
+                </td>
+            </tr>
+        {% endif %}
+    </table>
+
+    {% include 'partials/board_pagination.twig' with {pagination: model.pagination|default({})} only %}
+
+    <table class="wb-cellpad-3 wb-cellspace-1 wb-table" style="width: 100%;">
+        <tr class="wb-text-left wb-valign-top">
+            <td class="wb-nowrap BoardColumn" style="width: 17%;">Author</td>
+            <td class="BoardColumn" style="width: 83%;">
+                <span class="wb-thread-topic-title">Topic:</span>
+                {{ model.topicTitle|default('Untitled Topic') }}
+                {% if locked %} <span class="SmallText">[Locked]</span>{% endif %}
+            </td>
+        </tr>
+
+        {% for post in model.posts|default([]) %}
+            {% set showPollHere = loop.first and model.poll.exists|default(false) %}
+            {% include 'partials/thread_post.twig' with {
+                post: post,
+                locked: locked,
+                canModerate: canModerate,
+                archiveReadOnly: archiveReadOnly,
+                pollModel: showPollHere ? model.poll|default({}) : {},
+                pollMessage: showPollHere ? model.pollMessage|default('') : ''
+            } only %}
+        {% endfor %}
+    </table>
+
+    {% include 'partials/board_pagination.twig' with {pagination: model.pagination|default({})} only %}
+{% endif %}

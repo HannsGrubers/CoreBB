@@ -1,0 +1,13 @@
+<tr>
+    <td class="BoardRowB" style="height: 28px;">
+        &raquo; <a class="SubjectLink" href="{{ topic.topicUrl|default('#') }}">{{ topic.title|default('Untitled Topic') }}</a><br>
+        <span class="SmallText">Posted in:</span>
+        {% if topic.boardId|default(0) > 0 %}
+            <a class="BoardRowBLink" href="{{ topic.boardUrl|default('#') }}">{{ topic.boardName|default('Unknown Board') }}</a>
+        {% else %}
+            <span class="SmallText">{{ topic.boardName|default('Unknown Board') }}</span>
+        {% endif %}
+    </td>
+    <td class="wb-text-center BoardRowA">{{ topic.replyCount|default(0) }}</td>
+    <td class="BoardRowB wb-text-center"><span class="SmallText">{{ topic.lastPostDisplay|default('-') }}</span></td>
+</tr>

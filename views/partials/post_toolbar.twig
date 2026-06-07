@@ -1,0 +1,15 @@
+<td class="BoardRowB" style="height: 30px;">
+    <input class="markupButton" onclick="fnMarkupBold(this);" value="B" style="font-weight: bold;" title="Bold/Strong Text" type="button">
+    <input class="markupButton" name="button2" type="button" style="font-style: italic;" title="Italic Text" onclick="fnMarkupItalic(this);" value="I">
+    <input class="markupButton" name="button3" type="button" style="text-decoration: underline;" title="Underline Text" onclick="fnMarkupUnderline(this);" value="U">
+    <input class="markupButton" name="button" type="button" style="text-decoration: Overline;" title="Overline Text" onclick="fnMarkupOverline(this);" value="O">
+    <input class="markupButton" name="button4" type="button" style="text-decoration: underline; color: #0000FF;" title="Add Link" onclick="fnMarkupLink(this);" value="Link">
+    <input class="markupButton" onclick="fnMarkupColorPrompt(this);" value="Color" title="Text Color" type="button">
+    <input class="markupButton" onclick="fnMarkupHighlightPrompt(this);" value="HL" title="Highlight Text" type="button">
+    <input class="markupButton" onclick="fnMarkupSizePrompt(this);" value="Size" title="Text Size" type="button">
+    <input class="markupButton" onclick="fnMarkupCodePrompt(this);" value="Code" title="Code Block" type="button">
+    <input class="markupButton" onclick="fnMarkupImage(this);" value="Image" title="Add Image" type="button">
+    <input class="markupButton" onclick="fnMarkupListItem(this);" value=" &bull; Bullet " title="Add Bullet" type="button">
+    <input type="button" onclick="hideShowBelow('divFacesMenu',this);" value="Emoticons" class="markupButton" title="Faces/Smilies" id="btnFaces" name="btnFaces">
+    {% include 'partials/post_faces_menu.twig' with {faces: post_faces_model()} only %}
+</td>

@@ -1,0 +1,110 @@
+{% set profile = model.profile|default({}) %}
+{% set basicKeys = ['country', 'company', 'jobtitle', 'profiletitle', 'gender', 'birthday'] %}
+{% set contactKeys = ['websiteurl', 'pubemail', 'privemail'] %}
+<table class="wb-cellspace-1 wb-cellpad-3 BoardRowB wb-usercp-workspace wb-table" style="width: 100%;">
+    <tr class="wb-text-left wb-valign-top">
+        <td class="wb-valign-top wb-usercp-nav-cell" style="width: 250px; width: 250px; min-width: 250px; max-width: 250px; padding-right: 6px;">
+            {% include 'partials/usercp_menu.twig' with {model: model} only %}
+        </td>
+        <td class="wb-usercp-content wb-valign-top">
+            <form name="profile" method="post" action="/user-cp/profile/?act=submit" style="margin:0; padding:0;">
+                {% include 'partials/csrf_field.twig' %}
+                <table class="wb-cellpad-0 wb-cellspace-1 wb-table" style="width: 100%;">
+                    <tr>
+                        <td class="BoardColumn"><b>Edit Your Profile</b></td>
+                    </tr>
+
+                    {% if model.message|default('') %}
+                        <tr class="BoardRowA">
+                            <td style="padding: 6px;"><div class="wb-text-center"><b>{{ model.message }}</b></div></td>
+                        </tr>
+                    {% endif %}
+
+                    <tr class="BoardRowB">
+                        <td style="padding: 8px;">
+                            <b>Fill in the information below as you would like it displayed on <a class="BoardRowBLink" href="/profile/{{ model.uid|default(0) }}/">Your User Page</a>.</b><br>
+                            <span class="InputNotes">Leave anything blank that you do not want to share.</span>
+                        </td>
+                    </tr>
+
+                    <tr class="BoardRowB">
+                        <td style="padding: 8px;">
+                            <table class="wb-cellpad-3 wb-cellspace-1 wb-table" style="width: 100%;">
+                                <tr>
+                                    <td colspan="2" class="BoardColumn"><b>Basic Profile Information</b></td>
+                                </tr>
+                                {% for key in basicKeys %}
+                                    {% for field in model.fields|default([]) %}
+                                        {% if field.key|default('') == key %}
+                                            <tr class="BoardRowB wb-text-left wb-valign-top">
+                                                <td class="InputSection wb-text-right wb-nowrap" style="width: 185px;">{{ field.label|default(key) }}&nbsp;</td>
+                                                <td>
+                                                    <input class="formtext" name="{{ key }}" type="text" id="{{ key }}" size="52" maxlength="{{ field.maxlength|default(255) }}" value="{{ attribute(profile, key)|default('') }}">
+                                                </td>
+                                            </tr>
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endfor %}
+
+                                <tr>
+                                    <td colspan="2" class="BoardColumn"><b>Contact Information</b></td>
+                                </tr>
+                                {% for key in contactKeys %}
+                                    {% for field in model.fields|default([]) %}
+                                        {% if field.key|default('') == key %}
+                                            <tr class="BoardRowB wb-text-left wb-valign-top">
+                                                <td class="InputSection wb-text-right wb-nowrap" style="width: 185px;">{{ field.label|default(key) }}&nbsp;</td>
+                                                <td>
+                                                    <input class="formtext" name="{{ key }}" type="text" id="{{ key }}" size="52" maxlength="{{ field.maxlength|default(255) }}" value="{{ attribute(profile, key)|default('') }}">
+                                                </td>
+                                            </tr>
+                                        {% endif %}
+                                    {% endfor %}
+                                {% endfor %}
+                                <tr class="BoardRowA">
+                                    <td>&nbsp;</td>
+                                    <td class="InputNotes">Public Email may be displayed on your profile. Private Boards Email Address is not shown publicly.</td>
+                                </tr>
+
+                                <tr>
+                                    <td colspan="2" class="BoardColumn"><b>Picture</b></td>
+                                </tr>
+                                <tr class="BoardRowB wb-text-left wb-valign-top">
+                                    <td class="InputSection wb-text-right wb-nowrap">Picture URL:&nbsp;</td>
+                                    <td><input class="formtext" name="profpic" type="text" id="profpic" size="52" maxlength="255" value="{{ profile.profpic|default('') }}"></td>
+                                </tr>
+                                <tr class="BoardRowA">
+                                    <td>&nbsp;</td>
+                                    <td class="InputNotes">Enter a link to the image you wish to be displayed on your profile.</td>
+                                </tr>
+
+                                <tr>
+                                    <td colspan="2" class="BoardColumn"><b>Bio</b></td>
+                                </tr>
+                                <tr class="BoardRowB wb-text-left wb-valign-top">
+                                    <td class="InputSection wb-text-right wb-nowrap">Bio:&nbsp;</td>
+                                    <td>
+                                        <textarea class="formtext" name="bio" cols="68" rows="7" id="bio">{{ profile.bio|default('') }}</textarea><br>
+                                        <span class="InputNotes">Tell the community about yourself. You can use Board markup to add formatting.</span>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <tr class="BoardRowA">
+                        <td class="wb-text-center" style="padding: 6px 8px;">
+                            <strong>By clicking save below, and creating a user page, you agree to abide by the {{ model.boardName|default('Board') }} Terms of Service.</strong>
+                        </td>
+                    </tr>
+                    <tr class="BoardRowB">
+                        <td class="wb-text-center" style="padding: 6px 8px;"><input type="submit" name="Submit" value="Save Profile" class="formsubmit"></td>
+                    </tr>
+                    <tr>
+                        <td class="MainMenuRow wb-text-right" style="height: 15px;"><input type="button" onclick="window.location.href='/';" value="Forum Index &raquo;" class="formsubmit" /> &nbsp;</td>
+                    </tr>
+                </table>
+            </form>
+        </td>
+    </tr>
+</table>

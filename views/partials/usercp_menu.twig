@@ -1,0 +1,28 @@
+{% set unread = model.unreadPmCount|default(0) %}
+{% set notificationCount = model.notificationCount|default(0) %}
+<table class="wb-table-center wb-cellpad-3 wb-cellspace-1 wb-control-box wb-table" style="width: 100%;">
+    <tr><td class="BoardColumn"><strong>Navigation</strong></td></tr>
+    <tr>
+        <td class="BoardRowB wb-control-links" style="line-height: 1.45; padding: 5px;">
+            <b>&middot;</b>&nbsp;<a class="MultiPages" href="/user-cp/">User CP Main</a><br>
+            <b>&middot;</b>&nbsp;<a class="MultiPages" href="/user-cp/profile/">Edit Profile</a><br>
+            <b>&middot;</b>&nbsp;<a class="MultiPages" href="/user-cp/avatar/">Edit Avatar</a><br>
+            {% if model.canEditAppearance|default(false) %}
+                <b>&middot;</b>&nbsp;<a class="MultiPages" href="/user-cp/appearance/">Edit Appearance</a><br>
+            {% endif %}
+            <b>&middot;</b>&nbsp;<a class="MultiPages" href="/user-cp/signature/">Edit Signature</a><br>
+            <b>&middot;</b>&nbsp;<a class="MultiPages" href="/user-cp/options/">Edit Forum Options</a><br>
+            <b>&middot;</b>&nbsp;<a class="MultiPages" href="/private-messages/">My Inbox ({{ unread }})</a><br>
+            <b>&middot;</b>&nbsp;<a class="MultiPages" href="/notifications/">Notifications ({{ notificationCount }})</a><br>
+        </td>
+    </tr>
+    {% if model.showAvatarCategories|default(false) %}
+    <tr><td class="BoardColumn"><strong>Icon Categories</strong></td></tr>
+    <tr>
+        <td class="BoardRowB wb-control-links" style="line-height: 1.45; padding: 5px;">
+            <b>&middot;</b>&nbsp;<a class="MultiPages" href="/user-cp/avatar/">Upload Avatar</a><br>
+            <b>&middot;</b>&nbsp;<a class="MultiPages" href="/user-cp/avatar/#available-icons">Available Icons</a><br>
+        </td>
+    </tr>
+    {% endif %}
+</table>

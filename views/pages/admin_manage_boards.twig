@@ -1,0 +1,193 @@
+{% include 'partials/admin_messages.twig' with {messages: model.messages|default([])} only %}
+{% set categories = model.categories|default([]) %}
+{% set summary = model.summary|default({}) %}
+
+<div class="corebb-board-manager">
+    <div class="corebb-board-manager-toolbar">
+        <div class="corebb-board-manager-heading">
+            <div class="corebb-board-manager-title">Board Structure</div>
+            <div class="corebb-board-manager-summary">
+                <span>{{ summary.category_count|default(categories|length)|number_format }} categories</span>
+                <span>{{ summary.board_count|default(0)|number_format }} boards</span>
+                <span>{{ summary.topic_count|default(0)|number_format }} topics</span>
+                <span>{{ summary.post_count|default(0)|number_format }} posts</span>
+            </div>
+        </div>
+        <div class="corebb-board-manager-toolbar-actions">
+            <a class="corebb-board-toolbar-link" href="/admin/?act=add_category">Add Category</a>
+            <a class="corebb-board-toolbar-link" href="/admin/">Admin Home</a>
+        </div>
+    </div>
+
+    {% if categories is empty %}
+        <div class="corebb-admin-modern-panel">No board categories exist.</div>
+    {% else %}
+        <table class="corebb-board-structure wb-table">
+            <thead>
+                <tr>
+                    <th class="corebb-board-order-cell">Order</th>
+                    <th>Board Structure</th>
+                    <th class="corebb-board-status-cell">Status</th>
+                    <th class="corebb-board-activity-cell">Activity</th>
+                    <th class="corebb-board-actions-cell">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for category in categories %}
+                    <tr class="corebb-board-category-row">
+                        <td class="corebb-board-order-cell">
+                            <div class="corebb-move-stack">
+                                {% if category.can_move_up|default(false) %}
+                                    <form method="post" action="/admin/?act=movecat&amp;pos=up&amp;id={{ category.id|default(0) }}">
+                                        {% include 'partials/csrf_field.twig' %}
+                                        <button type="submit" class="wb-link-submit corebb-move-button" title="Move category up" aria-label="Move {{ category.name|default('category') }} up">
+                                            <span class="corebb-move-arrow" aria-hidden="true"></span>
+                                        </button>
+                                    </form>
+                                {% else %}
+                                    <span class="corebb-move-placeholder"></span>
+                                {% endif %}
+                                {% if category.can_move_down|default(false) %}
+                                    <form method="post" action="/admin/?act=movecat&amp;pos=down&amp;id={{ category.id|default(0) }}">
+                                        {% include 'partials/csrf_field.twig' %}
+                                        <button type="submit" class="wb-link-submit corebb-move-button" title="Move category down" aria-label="Move {{ category.name|default('category') }} down">
+                                            <span class="corebb-move-arrow is-down" aria-hidden="true"></span>
+                                        </button>
+                                    </form>
+                                {% else %}
+                                    <span class="corebb-move-placeholder"></span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td class="corebb-board-name-cell">
+                            <div class="corebb-category-name">
+                                <span class="corebb-category-caret">&raquo;</span>
+                                <span>{{ category.name|default('Unnamed Category') }}</span>
+                            </div>
+                            <div class="corebb-board-muted">{{ category.board_count|default(category.boards|default([])|length)|number_format }} boards in category</div>
+                        </td>
+                        <td class="corebb-board-status-cell">
+                            <div class="corebb-board-tags">
+                                {% if category.private|default(0) %}
+                                    <span class="corebb-board-tag">Private</span>
+                                {% endif %}
+                                {% if category.secure_archive|default(0) %}
+                                    <span class="corebb-board-tag is-secure">Secure Archive</span>
+                                {% endif %}
+                                {% if category.default_open|default(0) %}
+                                    <span class="corebb-board-tag">Default Open</span>
+                                {% endif %}
+                                {% if not category.private|default(0) and not category.secure_archive|default(0) and not category.default_open|default(0) %}
+                                    <span class="corebb-board-tag is-muted">Standard</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td class="corebb-board-activity-cell">
+                            <span>{{ category.topic_total|default(0)|number_format }} topics</span><br>
+                            <span>{{ category.post_total|default(0)|number_format }} posts</span>
+                        </td>
+                        <td class="corebb-board-actions-cell">
+                            <div class="corebb-board-actions">
+                                <a class="corebb-board-action-link" href="/admin/?act=manageboards_cat&amp;id={{ category.id|default(0) }}">Modify</a>
+                                {% if category.can_delete|default(false) %}
+                                    <a class="corebb-board-action-link is-danger" href="/admin/?act=delete_category&amp;id={{ category.id|default(0) }}">Delete</a>
+                                {% else %}
+                                    <span class="corebb-board-action-disabled">Delete</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+
+                    {% for board in category.boards|default([]) %}
+                        {% set boardId = board.id|default(0) %}
+                        <tr class="corebb-board-row">
+                            <td class="corebb-board-order-cell">
+                                <div class="corebb-move-stack">
+                                    {% if board.can_move_up|default(false) %}
+                                        <form method="post" action="/admin/?act=movebrd&amp;pos=up&amp;id={{ boardId }}">
+                                            {% include 'partials/csrf_field.twig' %}
+                                            <button type="submit" class="wb-link-submit corebb-move-button" title="Move board up" aria-label="Move {{ board.name|default('board') }} up">
+                                                <span class="corebb-move-arrow" aria-hidden="true"></span>
+                                            </button>
+                                        </form>
+                                    {% else %}
+                                        <span class="corebb-move-placeholder"></span>
+                                    {% endif %}
+                                    {% if board.can_move_down|default(false) %}
+                                        <form method="post" action="/admin/?act=movebrd&amp;pos=down&amp;id={{ boardId }}">
+                                            {% include 'partials/csrf_field.twig' %}
+                                            <button type="submit" class="wb-link-submit corebb-move-button" title="Move board down" aria-label="Move {{ board.name|default('board') }} down">
+                                                <span class="corebb-move-arrow is-down" aria-hidden="true"></span>
+                                            </button>
+                                        </form>
+                                    {% else %}
+                                        <span class="corebb-move-placeholder"></span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="corebb-board-name-cell">
+                                <div class="corebb-board-name-wrap">
+                                    <a class="corebb-admin-text-link corebb-board-name" href="{{ board.url|default('/board/' ~ boardId ~ '/') }}">{{ board.name|default('Unnamed Board') }}</a>
+                                    <span class="corebb-board-id">#{{ boardId }}</span>
+                                </div>
+                                {% if board.description|default('')|trim != '' %}
+                                    <div class="corebb-board-description">{{ board.description }}</div>
+                                {% endif %}
+                            </td>
+                            <td class="corebb-board-status-cell">
+                                <div class="corebb-board-tags">
+                                    {% if board.private|default(0) %}
+                                        <span class="corebb-board-tag">Private Board</span>
+                                    {% elseif board.effective_private|default(0) %}
+                                        <span class="corebb-board-tag">Private Category</span>
+                                    {% endif %}
+                                    {% if board.effective_secure_archive|default(0) %}
+                                        <span class="corebb-board-tag is-secure">Read-Only Archive</span>
+                                    {% endif %}
+                                    {% if not board.effective_private|default(0) and not board.effective_secure_archive|default(0) %}
+                                        <span class="corebb-board-tag is-muted">Public</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="corebb-board-activity-cell">
+                                <span>{{ board.topiccount|default(0)|number_format }} topics</span><br>
+                                <span>{{ board.postcount|default(0)|number_format }} posts</span>
+                            </td>
+                            <td class="corebb-board-actions-cell">
+                                <div class="corebb-board-actions">
+                                    <a class="corebb-board-action-link" href="/admin/?act=modifyboard&amp;id={{ boardId }}&amp;method=edit">Edit Details</a>
+                                    {% if board.can_manage_access|default(false) %}
+                                        <a class="corebb-board-action-link" href="/admin/?act=modifyboard&amp;id={{ boardId }}&amp;method=access">Access</a>
+                                    {% else %}
+                                        <span class="corebb-board-action-disabled">Access</span>
+                                    {% endif %}
+                                    {% if board.can_delete|default(false) %}
+                                        <a class="corebb-board-action-link is-danger" href="/admin/?act=modifyboard&amp;method=delete&amp;id={{ boardId }}">Delete</a>
+                                    {% else %}
+                                        <span class="corebb-board-action-disabled">Delete</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr class="corebb-board-empty-row">
+                            <td class="corebb-board-order-cell"></td>
+                            <td colspan="4">No boards have been added to this category.</td>
+                        </tr>
+                    {% endfor %}
+
+                    <tr class="corebb-board-add-row">
+                        <td class="corebb-board-order-cell"></td>
+                        <td colspan="4">
+                            {% if category.can_add_board|default(false) %}
+                                <a class="corebb-board-add-link" href="/admin/?act=addboard&amp;catid={{ category.id|default(0) }}">Add New Board to {{ category.name|default('Category') }}</a>
+                            {% else %}
+                                <span class="corebb-board-muted">Add New Board disabled for Secure Archive</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+</div>

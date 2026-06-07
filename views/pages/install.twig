@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <title>CoreBB Installer</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        :root {
+            color-scheme: dark;
+            --install-bg: #171b1f;
+            --install-panel: #20262b;
+            --install-panel-2: #252c32;
+            --install-line: #3a444c;
+            --install-text: #edf3f8;
+            --install-muted: #aebbc6;
+            --install-link: #82baff;
+            --install-accent: #f4d35e;
+            --install-danger: #ff7c7c;
+            --install-ok: #66d39e;
+        }
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            margin: 0;
+            background: var(--install-bg);
+            color: var(--install-text);
+            font: 14px/1.45 Arial, Helvetica, sans-serif;
+        }
+        a {
+            color: var(--install-link);
+        }
+        .install-shell {
+            max-width: 1120px;
+            margin: 0 auto;
+            padding: 18px;
+        }
+        .install-header {
+            border: 1px solid var(--install-line);
+            background: var(--install-panel);
+            padding: 14px 16px;
+            margin-bottom: 12px;
+        }
+        .install-title {
+            margin: 0;
+            color: var(--install-accent);
+            font-size: 22px;
+        }
+        .install-subtitle {
+            margin: 3px 0 0 0;
+            color: var(--install-muted);
+            font-size: 13px;
+        }
+        .install-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 320px;
+            gap: 12px;
+            align-items: start;
+        }
+        .install-panel {
+            border: 1px solid var(--install-line);
+            background: var(--install-panel);
+            padding: 14px;
+        }
+        .install-panel h2 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+            color: var(--install-text);
+        }
+        .install-section {
+            border-top: 1px solid var(--install-line);
+            padding-top: 12px;
+            margin-top: 12px;
+        }
+        .install-section:first-child {
+            border-top: 0;
+            padding-top: 0;
+            margin-top: 0;
+        }
+        .install-fields {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px 12px;
+        }
+        .install-field-full {
+            grid-column: 1 / -1;
+        }
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+        input {
+            width: 100%;
+            border: 1px solid #6c7882;
+            background: #111519;
+            color: var(--install-text);
+            padding: 7px 8px;
+            font: inherit;
+        }
+        input:focus {
+            outline: 2px solid #486f9d;
+            outline-offset: 1px;
+        }
+        .install-note {
+            color: var(--install-muted);
+            font-size: 12px;
+            margin-top: 4px;
+        }
+        .install-actions {
+            margin-top: 14px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .install-button {
+            border: 1px solid #3d5368;
+            background: #263747;
+            color: var(--install-link);
+            font-weight: bold;
+            padding: 8px 12px;
+            cursor: pointer;
+        }
+        .install-button:hover {
+            background: #31485d;
+        }
+        .install-alert {
+            border-left: 4px solid var(--install-line);
+            background: var(--install-panel-2);
+            padding: 9px 10px;
+            margin-bottom: 8px;
+        }
+        .install-alert-error {
+            border-left-color: var(--install-danger);
+        }
+        .install-alert-ok {
+            border-left-color: var(--install-ok);
+        }
+        .install-checks {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+        .install-checks li {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            border-bottom: 1px solid var(--install-line);
+            padding: 7px 0;
+        }
+        .install-checks li:last-child {
+            border-bottom: 0;
+        }
+        .install-status-ok {
+            color: var(--install-ok);
+            font-weight: bold;
+        }
+        .install-status-bad {
+            color: var(--install-danger);
+            font-weight: bold;
+        }
+        .install-code {
+            max-height: 260px;
+            overflow: auto;
+            white-space: pre;
+            background: #101418;
+            border: 1px solid var(--install-line);
+            padding: 10px;
+            color: #d7e6f3;
+        }
+        @media (max-width: 820px) {
+            .install-grid,
+            .install-fields {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+<main class="install-shell">
+    <header class="install-header">
+        <h1 class="install-title">CoreBB Installer</h1>
+        <p class="install-subtitle">Create the database structure, seed the first forum, and write the private config.</p>
+    </header>
+
+    {% for message in model.messages|default([]) %}
+        <div class="install-alert install-alert-ok">{{ message }}</div>
+    {% endfor %}
+    {% for error in model.errors|default([]) %}
+        <div class="install-alert install-alert-error">{{ error }}</div>
+    {% endfor %}
+
+    <div class="install-grid">
+        <section class="install-panel">
+            {% if model.locked|default(false) %}
+                <h2>Installer Locked</h2>
+                <p>A private or local CoreBB config file already exists. Remove the installer route after launch, or remove the private config only if you intentionally need a fresh install.</p>
+                <p><a href="{{ model.forum_url|default('/') }}">Go to the forum</a></p>
+            {% elseif model.result|default(null) and model.result.config.written|default(false) %}
+                <h2>Installation Complete</h2>
+                <p>CoreBB created {{ model.result.schema_statements|default(0) }} schema statements, seeded the first category and board, and created administrator user #{{ model.result.seed.admin_id|default(0) }}.</p>
+                <p><a href="{{ model.forum_url|default('/') }}">Open the forum</a> | <a href="{{ model.admin_url|default('/admin/') }}">Open admin</a></p>
+            {% else %}
+                <form method="post" action="{{ model.install_url|default('/install/') }}" autocomplete="off">
+                    <input type="hidden" name="install_token" value="{{ model.token }}">
+
+                    <div class="install-section">
+                        <h2>Database</h2>
+                        <div class="install-fields">
+                            <div>
+                                <label for="db_host">Host</label>
+                                <input id="db_host" name="db_host" value="{{ model.form.db_host|default('localhost') }}" required>
+                            </div>
+                            <div>
+                                <label for="db_name">Database</label>
+                                <input id="db_name" name="db_name" value="{{ model.form.db_name|default('corebb') }}" required>
+                            </div>
+                            <div>
+                                <label for="db_user">User</label>
+                                <input id="db_user" name="db_user" value="{{ model.form.db_user|default('') }}" required>
+                            </div>
+                            <div>
+                                <label for="db_pass">Password</label>
+                                <input id="db_pass" name="db_pass" type="password">
+                            </div>
+                        </div>
+                        <div class="install-note">Use an empty database. The installer will create it if the database user has permission.</div>
+                    </div>
+
+                    <div class="install-section">
+                        <h2>Forum Identity</h2>
+                        <div class="install-fields">
+                            <div>
+                                <label for="site_name">Site Name</label>
+                                <input id="site_name" name="site_name" value="{{ model.form.site_name|default('CoreBB') }}" required>
+                            </div>
+                            <div>
+                                <label for="board_name">Forum Name</label>
+                                <input id="board_name" name="board_name" value="{{ model.form.board_name|default('CoreBB Forums') }}" required>
+                            </div>
+                            <div>
+                                <label for="site_url">Site URL</label>
+                                <input id="site_url" name="site_url" value="{{ model.form.site_url|default('') }}" required>
+                            </div>
+                            <div>
+                                <label for="board_url">Forum URL</label>
+                                <input id="board_url" name="board_url" value="{{ model.form.board_url|default('') }}" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="install-section">
+                        <h2>First Administrator</h2>
+                        <div class="install-fields">
+                            <div>
+                                <label for="admin_username">Username</label>
+                                <input id="admin_username" name="admin_username" value="{{ model.form.admin_username|default('') }}" required>
+                            </div>
+                            <div>
+                                <label for="admin_email">Email</label>
+                                <input id="admin_email" name="admin_email" type="email" value="{{ model.form.admin_email|default('') }}" required>
+                            </div>
+                            <div>
+                                <label for="admin_password">Password</label>
+                                <input id="admin_password" name="admin_password" type="password" required>
+                            </div>
+                            <div>
+                                <label for="admin_password_confirm">Confirm Password</label>
+                                <input id="admin_password_confirm" name="admin_password_confirm" type="password" required>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="install-actions">
+                        <button class="install-button" type="submit">Install CoreBB</button>
+                    </div>
+                </form>
+            {% endif %}
+
+            {% if model.result|default(null) and not model.result.config.written|default(false) and model.result.config.contents|default('') != '' %}
+                <div class="install-section">
+                    <h2>Manual Config</h2>
+                    <p>Database setup completed, but PHP could not write the config file. Create the private config with this content:</p>
+                    <pre class="install-code">{{ model.result.config.contents }}</pre>
+                </div>
+            {% endif %}
+        </section>
+
+        <aside class="install-panel">
+            <h2>Requirements</h2>
+            <ul class="install-checks">
+                {% for row in model.requirements|default([]) %}
+                    <li>
+                        <span>{{ row.label }}</span>
+                        {% if row.ok %}
+                            <span class="install-status-ok">OK</span>
+                        {% else %}
+                            <span class="install-status-bad">Missing</span>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+
+            <div class="install-section">
+                <h2>What It Creates</h2>
+                <p class="install-note">Core tables, current schema indexes, default settings, VN EOL theme defaults, one public category, one public board, and the first level-5 administrator.</p>
+                <p class="install-note">Instance key: {{ model.instance_key|default('default') }}<br>Config path: {{ model.preferred_config_path|default('') }}</p>
+            </div>
+        </aside>
+    </div>
+</main>
+</body>
+</html>

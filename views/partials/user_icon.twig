@@ -1,0 +1,9 @@
+{% if icon.visible|default(false) %}
+    <span class="wb-user-icon-frame">
+        {% if icon.src|default('') is not empty %}
+            <img src="{{ icon.src }}" alt="{{ icon.alt }}"{% if icon.height|default(0) > 0 %} height="{{ icon.height }}"{% endif %}{% if icon.width|default(0) > 0 %} width="{{ icon.width }}"{% endif %}>
+        {% elseif icon.prompt_url|default('') is not empty %}
+            <br>&nbsp;&nbsp;&nbsp;[<a href="{{ icon.prompt_url }}">{{ icon.prompt_label|default('your icon here') }}</a>]
+        {% endif %}
+    </span>
+{% endif %}

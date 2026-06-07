@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+    {% include 'partials/public_head.twig' with {layout: layout} only %}
+</head>
+<body class="{{ layout.head.body_class|default('wb-vn-eol') }}">
+{% if layout.head.staging|default(false) %}
+    <div class="wb-stage-banner">COREBB STAGING SITE &mdash; NOT LIVE</div>
+{% endif %}
+
+{% include 'partials/public_vn_header.twig' with {layout: layout} only %}
+
+<table class="wb-table wb-w-full wb-table-center wb-cellpad-3 wb-cellspace-1">
+    <tr>
+        <td class="MainMenuRow">
+            {% if layout.menu.notification_count|default(0) > 0 %}
+                <span style="float:right; white-space:nowrap; padding-left:8px;">
+                    <a class="MainMenuLink" style="text-decoration:none;" href="/notifications/">
+                        {{ layout.menu.notification_count }} New Notification{{ layout.menu.notification_count == 1 ? '' : 's' }}
+                        <img class="wb-img-borderless wb-img-middle" src="{{ layout.chrome.assets.notification }}" width="18" height="18" alt="Notifications">
+                    </a>
+                </span>
+            {% endif %}
+            <a class="MainMenuLink" href="{{ layout.chrome.site_url }}">[{{ layout.chrome.site_name }}]</a>
+            <a class="MainMenuLink" href="{{ layout.chrome.board_url }}">{{ layout.chrome.board_name }}</a>
+            {% include 'partials/public_breadcrumbs.twig' with {breadcrumbs: layout.breadcrumbs} only %}
+        </td>
+    </tr>
+    <tr>
+        <td class="MainMenuRow">{% include 'partials/public_menu.twig' with {layout: layout} only %}</td>
+    </tr>
+    {% for alert in layout.alerts|default([]) %}
+        <tr>
+            <td class="MainMenuRow">
+                <span class="{{ alert.class|default('MainMenuRowAlt') }}" style="font-weight: bold;">{{ alert.label }}</span>&nbsp;<span class="MainMenuFont">{{ alert.message }}</span>{% if alert.poster|default('') != '' %} <span class="SmallText">- {{ alert.poster }}</span>{% endif %}
+            </td>
+        </tr>
+    {% endfor %}
+</table>
+
+{{ content|raw }}
+
+{% include 'partials/public_footer.twig' with {layout: layout} only %}
+</body>
+</html>

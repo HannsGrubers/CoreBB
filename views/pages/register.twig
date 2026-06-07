@@ -1,0 +1,118 @@
+{% if model.success|default(false) %}
+<table class="wb-cellspace-1 wb-cellpad-3 BoardRowB wb-public-form-workspace wb-table" style="width: 100%;">
+    <tr>
+        <td class="BoardColumn"><b>Registration Almost Complete</b></td>
+    </tr>
+    <tr class="BoardRowB">
+        <td style="padding: 6px;">
+            <b>Your account was created.</b><br><br>
+            Please check your email and click the verification link before logging in.<br><br>
+            {% if model.mailWarning|default('') %}
+                <span class="ErrorFont">{{ model.mailWarning }}</span><br><br>
+            {% endif %}
+            After verifying your email, you may <a class="BoardRowBLink" href="{{ url('auth.php?action=login') }}">log in</a>.
+        </td>
+    </tr>
+</table>
+{% else %}
+<table class="wb-cellspace-1 wb-cellpad-3 BoardRowB wb-public-form-workspace wb-table" style="width: 100%;">
+    <tr>
+        <td colspan="2" class="BoardColumn"><b>Create a CoreBB Account</b></td>
+    </tr>
+
+    {% if model.errors|default([]) is not empty %}
+        <tr class="BoardRowA">
+            <td colspan="2" style="padding: 6px;">
+                <span class="ErrorFont"><b>Registration could not be completed:</b></span><br>
+                {% for error in model.errors %}
+                    <span class="ErrorFont">&bull; {{ error }}</span><br>
+                {% endfor %}
+            </td>
+        </tr>
+    {% endif %}
+
+    <tr class="BoardRowB">
+        <td class="wb-valign-top" style="width: 70%; padding-right: 6px;">
+            <form name="registration" method="post" action="{{ url('auth.php?action=register') }}">
+                {% include 'partials/csrf_field.twig' %}
+                <table class="wb-cellspace-1 wb-cellpad-3 wb-table" style="width: 100%;">
+                    <tr>
+                        <td colspan="2" class="BoardColumn"><b>New User Registration</b></td>
+                    </tr>
+                    <tr class="BoardRowB">
+                        <td class="RegisterMain" style="width: 155px;">Desired screen name:</td>
+                        <td><input class="formtext" name="username" type="text" id="username" size="34" maxlength="20" autocomplete="username" value="{{ model.old.username|default('') }}"></td>
+                    </tr>
+                    <tr class="BoardRowA">
+                        <td class="RegisterMain">Your email address:</td>
+                        <td>
+                            <input class="formtext" name="email" type="text" id="email" size="34" autocomplete="email" value="{{ model.old.email|default('') }}"><br>
+                            <span class="RegisterSub">This will not be public.</span>
+                        </td>
+                    </tr>
+                    <tr class="BoardRowB">
+                        <td class="RegisterMain">Password:</td>
+                        <td><input class="formtext" name="pass1" type="password" id="pass1" size="34" maxlength="72" autocomplete="new-password"></td>
+                    </tr>
+                    <tr class="BoardRowA">
+                        <td class="RegisterMain">Confirm Password:</td>
+                        <td><input class="formtext" name="pass2" type="password" id="pass2" size="34" maxlength="72" autocomplete="new-password"></td>
+                    </tr>
+                    <tr class="BoardRowB">
+                        <td class="RegisterMain wb-valign-top">Forum Terms of Service:</td>
+                        <td>
+                            <div tabindex="0" class="RegistrationTOSBlock" style="padding: 6px; border: 1px solid #777; background: #c9c9d1; max-width: 650px; max-height: 220px; overflow-y: auto; overflow-x: hidden; line-height: 1.35;">
+                                {% include 'partials/formatted_content.twig' with {content: stored_page_body_model(model.tos|default({}))} only %}
+                            </div>
+                            <span class="RegisterSub">Scroll the Terms of Service box if you want to read the full text, then confirm below.</span>
+                        </td>
+                    </tr>
+                    <tr class="BoardRowA">
+                        <td class="RegisterMain">Age confirmation:</td>
+                        <td><label><input type="checkbox" name="confirm_age_13" value="1"> <b>I am at least 13 years old.</b></label></td>
+                    </tr>
+                    <tr class="BoardRowB">
+                        <td class="RegisterMain">Do you agree?</td>
+                        <td><label><input type="checkbox" name="agree_tos" value="1"> <b>Yes, I agree to the Terms of Service.</b></label></td>
+                    </tr>
+                    <tr style="display: none;">
+                        <td>Website</td><td><input type="text" name="website" value="" autocomplete="off"></td>
+                    </tr>
+                    <tr class="BoardRowB">
+                        <td>&nbsp;</td>
+                        <td>
+                            <input class="formsubmit" type="submit" name="ok" value=" Submit ">
+                            &nbsp;&nbsp;
+                            <input class="formsubmit" type="reset" name="Submit2" value=" Reset ">
+                        </td>
+                    </tr>
+                </table>
+            </form>
+        </td>
+
+        <td class="wb-valign-top" style="width: 30%;">
+            <table class="wb-cellspace-1 wb-cellpad-3 wb-table" style="width: 100%;">
+                <tr>
+                    <td class="BoardColumn"><b>Already Registered?</b></td>
+                </tr>
+                <tr class="BoardRowB">
+                    <td>
+                        <b><a class="BoardRowBLinkB" href="{{ url('auth.php?action=login') }}">Log in here</a></b><br><br>
+                        You must verify your email before your account can post, send private messages, or manage a profile.
+                    </td>
+                </tr>
+                <tr>
+                    <td class="BoardColumn"><b>Need Help?</b></td>
+                </tr>
+                <tr class="BoardRowB">
+                    <td>
+                        Forgot an existing account? Use
+                        <a class="BoardRowBLink" href="{{ url('auth.php?action=recover') }}">password recovery</a> or request a new
+                        <a class="BoardRowBLink" href="{{ url('auth.php?action=resend') }}">verification email</a>.
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
+{% endif %}

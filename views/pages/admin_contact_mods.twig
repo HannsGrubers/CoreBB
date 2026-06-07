@@ -1,0 +1,170 @@
+{% include 'partials/admin_messages.twig' with {messages: model.messages|default([]), errors: model.errors|default([])} only %}
+{% set detail = model.detail|default(null) %}
+{% set rows = model.requests|default([]) %}
+{% set old = model.old|default(false) %}
+
+<div class="corebb-admin-modern-page">
+    <div class="corebb-admin-modern-header">
+        <div>
+            <div class="corebb-admin-modern-eyebrow">Moderation</div>
+            <h2>{{ old ? 'Old Contact Mods Requests' : 'Contact Mods Inbox' }}</h2>
+            <div class="corebb-admin-modern-meta">
+                <span>{{ rows|length|number_format }} shown</span>
+                {% if model.new_count is defined %}<span>{{ model.new_count|default(0)|number_format }} new</span>{% endif %}
+                {% if detail %}<span>Viewing request #{{ detail.id|default(0) }}</span>{% endif %}
+            </div>
+        </div>
+        <div class="corebb-admin-modern-actions">
+            <a class="corebb-board-action-link" href="/admin/?act=contact_mods">New Contact Requests</a>
+            <a class="corebb-board-action-link" href="/admin/?act=contact_mods&amp;old=yes">Old Contact Requests</a>
+            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
+        </div>
+    </div>
+
+    <div class="corebb-admin-modern-note is-muted">
+        User-submitted Contact Mods requests land here. Replying sends the user a private message and removes the request from the new inbox.
+    </div>
+
+    {% if detail %}
+        <table class="corebb-admin-modern-table corebb-admin-detail-table wb-table">
+            <tbody>
+                <tr>
+                    <th>Status</th>
+                    <td><span class="corebb-admin-status-pill">{{ detail._status_label|default('') }}</span></td>
+                </tr>
+                <tr>
+                    <th>Submitted By</th>
+                    <td><a class="corebb-admin-text-link" href="{{ detail._requester_url|default('#') }}">{{ detail.requester_username|default('') != '' ? detail.requester_username : '#' ~ detail.userid|default(0) }}</a></td>
+                </tr>
+                <tr>
+                    <th>Date Added</th>
+                    <td>{{ detail.created_at|default('') }}</td>
+                </tr>
+                <tr>
+                    <th>IP</th>
+                    <td><a class="corebb-admin-text-link" href="{{ detail._ip_url|default('#') }}">{{ detail.created_ip|default('') }}</a></td>
+                </tr>
+                <tr>
+                    <th>Subject</th>
+                    <td>{{ detail.subject|default('') }}</td>
+                </tr>
+                <tr>
+                    <th>Message</th>
+                    <td><div class="corebb-admin-prewrap">{{ detail.message|default('') }}</div></td>
+                </tr>
+                {% if detail.status|default('new') != 'new' %}
+                    <tr>
+                        <th>Handled By</th>
+                        <td>{{ detail.handler_username|default('') != '' ? detail.handler_username : '#' ~ detail.handled_by|default(0) }} on {{ detail.handled_at|default('') }}</td>
+                    </tr>
+                    {% if detail.response_pm_id|default(0) > 0 %}
+                        <tr>
+                            <th>Response PM</th>
+                            <td>#{{ detail.response_pm_id }}</td>
+                        </tr>
+                    {% endif %}
+                    {% if detail.handler_note|default('')|trim != '' %}
+                        <tr>
+                            <th>Staff Note</th>
+                            <td><div class="corebb-admin-prewrap">{{ detail.handler_note|default('') }}</div></td>
+                        </tr>
+                    {% endif %}
+                {% endif %}
+            </tbody>
+        </table>
+
+        <div class="corebb-admin-modern-panel">
+            <div class="corebb-admin-section-title">Actions</div>
+            {% if detail.status|default('new') != 'new' %}
+                <form class="corebb-admin-modern-form" method="post" action="/admin/?act=contact_mods&amp;request={{ detail.id|default(0) }}">
+                    {% include 'partials/csrf_field.twig' %}
+                    <input type="hidden" name="contact_mods_token" value="{{ model.token|default('') }}">
+                    <input type="hidden" name="action" value="reopen_request">
+                    <input type="hidden" name="request_id" value="{{ detail.id|default(0) }}">
+                    <button class="corebb-board-action-link" type="submit">Reopen Request</button>
+                </form>
+            {% else %}
+                <div class="corebb-admin-modern-split">
+                    <form class="corebb-admin-modern-form" method="post" action="/admin/?act=contact_mods&amp;request={{ detail.id|default(0) }}">
+                        {% include 'partials/csrf_field.twig' %}
+                        <input type="hidden" name="contact_mods_token" value="{{ model.token|default('') }}">
+                        <input type="hidden" name="action" value="send_reply">
+                        <input type="hidden" name="request_id" value="{{ detail.id|default(0) }}">
+                        <div class="corebb-admin-modern-grid">
+                            <label for="corebbContactModsResponse">Response Private Message</label>
+                            <textarea id="corebbContactModsResponse" name="response" rows="7"></textarea>
+                            <div class="corebb-admin-modern-submit corebb-admin-modern-full">
+                                <button class="corebb-board-action-link" type="submit">Send Reply and Close</button>
+                            </div>
+                        </div>
+                    </form>
+                    <form class="corebb-admin-modern-form" method="post" action="/admin/?act=contact_mods&amp;request={{ detail.id|default(0) }}" onsubmit="return confirm('Close this Contact Mods request without sending a reply?');">
+                        {% include 'partials/csrf_field.twig' %}
+                        <input type="hidden" name="contact_mods_token" value="{{ model.token|default('') }}">
+                        <input type="hidden" name="action" value="close_request">
+                        <input type="hidden" name="request_id" value="{{ detail.id|default(0) }}">
+                        <div class="corebb-admin-modern-grid">
+                            <label for="corebbContactModsCloseNote">Staff Note</label>
+                            <textarea id="corebbContactModsCloseNote" name="handler_note" rows="3">Closed without reply.</textarea>
+                            <div class="corebb-admin-modern-submit corebb-admin-modern-full">
+                                <button class="corebb-board-action-link" type="submit">Close Without Reply</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            {% endif %}
+        </div>
+    {% endif %}
+
+    <table class="corebb-admin-modern-table wb-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Requester</th>
+                <th>Subject</th>
+                <th>Date Added</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if rows is empty %}
+                <tr>
+                    <td colspan="6" class="corebb-admin-modern-empty">No {{ old ? 'old' : 'new' }} Contact Mods requests found.</td>
+                </tr>
+            {% else %}
+                {% for row in rows %}
+                    <tr>
+                        <td><a class="corebb-admin-text-link" href="{{ row._detail_url|default('#') }}">#{{ row.id|default(0) }}</a></td>
+                        <td><a class="corebb-admin-text-link" href="{{ row._requester_url|default('#') }}">{{ row.requester_username|default('') != '' ? row.requester_username : '#' ~ row.userid|default(0) }}</a></td>
+                        <td>{{ row.subject|default('') }}</td>
+                        <td class="wb-nowrap">{{ row.created_at|default('') }}</td>
+                        <td><span class="corebb-admin-status-pill">{{ row._status_label|default('') }}</span></td>
+                        <td>
+                            <div class="corebb-admin-modern-submit">
+                                <a class="corebb-board-action-link" href="{{ row._detail_url|default('#') }}">View</a>
+                                {% if row.status|default('new') != 'new' %}
+                                    <form class="corebb-admin-modern-form" method="post" action="/admin/?act=contact_mods&amp;old=yes">
+                                        {% include 'partials/csrf_field.twig' %}
+                                        <input type="hidden" name="contact_mods_token" value="{{ model.token|default('') }}">
+                                        <input type="hidden" name="action" value="reopen_request">
+                                        <input type="hidden" name="request_id" value="{{ row.id|default(0) }}">
+                                        <button class="corebb-board-action-link" type="submit">Reopen</button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td></td>
+                        <td colspan="5"><strong>Message:</strong> <span class="corebb-admin-prewrap">{{ row.message|default('')|slice(0, 400) }}</span>{% if row.message|default('')|length > 400 %}...{% endif %}</td>
+                    </tr>
+                {% endfor %}
+            {% endif %}
+        </tbody>
+    </table>
+
+    {% if model.pagination.visible|default(false) %}
+        <div class="corebb-admin-modern-panel wb-text-center">{% include 'partials/board_pagination.twig' with {pagination: model.pagination} only %}</div>
+    {% endif %}
+</div>

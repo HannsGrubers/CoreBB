@@ -1,0 +1,118 @@
+{% set form = model.form|default({}) %}
+{% set messages = model.messages|default([]) %}
+{% set errors = model.errors|default([]) %}
+{% set applyMessages = model.apply_messages|default([]) %}
+{% set token = model.token|default('') %}
+
+<div class="corebb-admin-modern-page">
+    {% include 'partials/admin_messages.twig' with {messages: messages|merge(applyMessages), errors: errors} only %}
+
+    <div class="corebb-admin-modern-header">
+        <div>
+            <div class="corebb-admin-modern-eyebrow">System</div>
+            <h2>DB Schema Deploy</h2>
+            <div class="corebb-admin-modern-meta">
+                <span>Compare schema dumps or database credentials before applying.</span>
+            </div>
+        </div>
+        <div class="corebb-admin-modern-actions">
+            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
+        </div>
+    </div>
+
+    <form class="corebb-admin-modern-form" method="post" action="/admin/?act=db_schema_deploy" enctype="multipart/form-data">
+        {% include 'partials/csrf_field.twig' %}
+        <input type="hidden" name="admin_db_schema_deploy_token" value="{{ token }}">
+
+        <div class="corebb-admin-modern-panel">
+            <div class="corebb-admin-section-title">Staging Target Schema</div>
+            <div class="corebb-admin-modern-grid">
+                <label>Source</label>
+                <span>
+                    <label><input type="radio" name="staging_source" value="schema"{% if form.staging_source|default('schema') == 'schema' %} checked{% endif %}> Use schema dump</label>
+                    <label><input type="radio" name="staging_source" value="database"{% if form.staging_source|default('') == 'database' %} checked{% endif %}> Fetch from DB</label>
+                </span>
+
+                <label for="corebbStagingSchemaFile">Schema File</label>
+                <input id="corebbStagingSchemaFile" type="file" name="staging_schema_file" accept=".sql,.txt">
+
+                <label for="corebbStagingSchema">Schema Dump</label>
+                <textarea id="corebbStagingSchema" class="corebb-admin-schema-textarea" name="staging_schema" rows="8">{{ form.staging_schema|default('') }}</textarea>
+
+                <div class="corebb-admin-section-title corebb-admin-modern-full">Staging DB Credentials</div>
+                <label for="corebbStagingHost">Host</label>
+                <input id="corebbStagingHost" type="text" name="staging_host" value="{{ form.staging_host|default('') }}" size="22">
+
+                <label for="corebbStagingPort">Port</label>
+                <input id="corebbStagingPort" type="text" name="staging_port" value="{{ form.staging_port|default('') }}" size="5">
+
+                <label for="corebbStagingDatabase">Database</label>
+                <input id="corebbStagingDatabase" type="text" name="staging_database" value="{{ form.staging_database|default('') }}" size="18">
+
+                <label for="corebbStagingUser">User</label>
+                <input id="corebbStagingUser" type="text" name="staging_username" value="{{ form.staging_username|default('') }}" size="16">
+
+                <label for="corebbStagingPassword">Password</label>
+                <input id="corebbStagingPassword" type="password" name="staging_password" value="" size="16" autocomplete="off">
+            </div>
+        </div>
+
+        <div class="corebb-admin-modern-panel">
+            <div class="corebb-admin-section-title">Production Current Schema</div>
+            <div class="corebb-admin-modern-grid">
+                <label>Source</label>
+                <span>
+                    <label><input type="radio" name="production_source" value="schema"{% if form.production_source|default('schema') == 'schema' %} checked{% endif %}> Use schema dump</label>
+                    <label><input type="radio" name="production_source" value="database"{% if form.production_source|default('') == 'database' %} checked{% endif %}> Fetch from DB</label>
+                    <span class="corebb-admin-modern-help">Apply mode always fetches production from DB.</span>
+                </span>
+
+                <label for="corebbProductionSchemaFile">Schema File</label>
+                <input id="corebbProductionSchemaFile" type="file" name="production_schema_file" accept=".sql,.txt">
+
+                <label for="corebbProductionSchema">Schema Dump</label>
+                <textarea id="corebbProductionSchema" class="corebb-admin-schema-textarea" name="production_schema" rows="8">{{ form.production_schema|default('') }}</textarea>
+
+                <div class="corebb-admin-section-title corebb-admin-modern-full">Production DB Credentials</div>
+                <label for="corebbProductionHost">Host</label>
+                <input id="corebbProductionHost" type="text" name="production_host" value="{{ form.production_host|default('') }}" size="22">
+
+                <label for="corebbProductionPort">Port</label>
+                <input id="corebbProductionPort" type="text" name="production_port" value="{{ form.production_port|default('') }}" size="5">
+
+                <label for="corebbProductionDatabase">Database</label>
+                <input id="corebbProductionDatabase" type="text" name="production_database" value="{{ form.production_database|default('') }}" size="18">
+
+                <label for="corebbProductionUser">User</label>
+                <input id="corebbProductionUser" type="text" name="production_username" value="{{ form.production_username|default('') }}" size="16">
+
+                <label for="corebbProductionPassword">Password</label>
+                <input id="corebbProductionPassword" type="password" name="production_password" value="" size="16" autocomplete="off">
+            </div>
+        </div>
+
+        <div class="corebb-admin-modern-panel">
+            <div class="corebb-admin-section-title">Run</div>
+            <div class="corebb-admin-modern-grid">
+                <label for="corebbApplyConfirm">Production Apply Confirmation</label>
+                <span>
+                    <input id="corebbApplyConfirm" type="text" name="apply_confirm" value="" size="18" autocomplete="off">
+                    <span class="corebb-admin-modern-help">Type <strong>APPLY SCHEMA</strong> only when applying to production.</span>
+                </span>
+
+                <div class="corebb-admin-modern-submit corebb-admin-modern-full">
+                    <button class="corebb-board-action-link" type="submit" name="action" value="dry_run">Dry Run</button>
+                    <button class="corebb-board-action-link is-danger" type="submit" name="action" value="apply" onclick="return confirm('Apply non-destructive schema changes to the production database credentials entered on this page?');">Apply to Production</button>
+                    <button class="corebb-board-action-link" type="button" onclick="window.location.href='/admin/';">Admin Home</button>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    {% if model.plan|default(null) is not null %}
+        <div class="corebb-admin-modern-panel">
+            <div class="corebb-admin-section-title">Deploy Plan</div>
+            <pre class="corebb-admin-output">{{ model.plan_text|default('') }}</pre>
+        </div>
+    {% endif %}
+</div>

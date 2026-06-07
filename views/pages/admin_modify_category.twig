@@ -1,0 +1,85 @@
+{% include 'partials/admin_messages.twig' with {messages: model.messages|default([])} only %}
+{% set category = model.category|default(null) %}
+{% set secureLocked = category and category.secure_archive|default(0) and not model.can_manage_secure_archive|default(false) %}
+
+<div class="corebb-admin-modern-page">
+    {% if not category %}
+        <div class="corebb-admin-modern-panel">
+            Unknown category.
+            <a class="corebb-board-action-link" href="/admin/?act=manageboards">Return to Manage Boards</a>
+        </div>
+    {% else %}
+        <div class="corebb-admin-modern-header">
+            <div>
+                <div class="corebb-admin-modern-eyebrow">Manage Boards</div>
+                <h2>Modify Category</h2>
+                <div class="corebb-admin-modern-meta">
+                    <span>{{ category.name|default('Unnamed Category') }}</span>
+                    <span>{{ category.board_count|default(0)|number_format }} boards</span>
+                    {% if category.private|default(0) %}<span>Private</span>{% endif %}
+                    {% if category.secure_archive|default(0) %}<span>Secure Archive</span>{% endif %}
+                    {% if category.default_open|default(0) %}<span>Default Open</span>{% endif %}
+                </div>
+            </div>
+            <div class="corebb-admin-modern-actions">
+                <a class="corebb-board-action-link" href="/admin/?act=manageboards">Manage Boards</a>
+            </div>
+        </div>
+
+        {% if secureLocked %}
+            <div class="corebb-admin-modern-note is-muted">This category is a Secure Archive. Managers can view it here, but only administrators can change it.</div>
+        {% endif %}
+
+        <div class="corebb-admin-modern-panel">
+            <form class="corebb-admin-modern-form" name="form1" method="post" action="/admin/?act=manageboards_cat&amp;id={{ category.id|default(0) }}">
+                {% include 'partials/csrf_field.twig' %}
+                <div class="corebb-admin-modern-grid">
+                    <label for="corebbCategoryName">Change Category Title</label>
+                    <input id="corebbCategoryName" name="newcatname" type="text" size="50" value="{{ category.name|default('') }}"{% if secureLocked %} disabled{% endif %}>
+
+                    <label for="corebbCategoryPrivate">Private Category</label>
+                    <span>
+                        <select id="corebbCategoryPrivate" name="private"{% if secureLocked %} disabled{% endif %}>
+                            <option value="0"{% if not category.private|default(0) %} selected{% endif %}>No</option>
+                            <option value="1"{% if category.private|default(0) %} selected{% endif %}>Yes</option>
+                        </select>
+                        <span class="corebb-admin-modern-help">Boards inside private categories are only shown to allowed users.</span>
+                    </span>
+
+                    {% if model.can_manage_secure_archive|default(false) or category.secure_archive|default(0) %}
+                        <label for="corebbCategorySecureArchive">Secure Archive</label>
+                        <span>
+                            <select id="corebbCategorySecureArchive" name="secure_archive"{% if secureLocked %} disabled{% endif %}>
+                                <option value="0"{% if not category.secure_archive|default(0) %} selected{% endif %}>No</option>
+                                <option value="1"{% if category.secure_archive|default(0) %} selected{% endif %}>Yes</option>
+                            </select>
+                            <span class="corebb-admin-modern-help">Public/read-only. Only administrators can change data inside this category.</span>
+                        </span>
+                    {% endif %}
+
+                    <label for="corebbCategoryDefaultOpen">Default Open on Index</label>
+                    <span>
+                        <select id="corebbCategoryDefaultOpen" name="default_open"{% if secureLocked %} disabled{% endif %}>
+                            <option value="0"{% if not category.default_open|default(0) %} selected{% endif %}>No</option>
+                            <option value="1"{% if category.default_open|default(0) %} selected{% endif %}>Yes</option>
+                        </select>
+                        <span class="corebb-admin-modern-help">Loads expanded for everyone on the board index.</span>
+                    </span>
+
+                    <span class="corebb-admin-modern-label">Boards in Category</span>
+                    <span>{{ category.board_count|default(0)|number_format }}</span>
+
+                    <div class="corebb-admin-modern-submit corebb-admin-modern-full">
+                        {% if secureLocked %}
+                            <button class="corebb-board-action-link" type="button" disabled>Save Disabled</button>
+                        {% else %}
+                            <button class="corebb-board-action-link" type="submit" name="Submit" value="Save">Save</button>
+                        {% endif %}
+                        <input type="hidden" name="boardid" value="{{ category.id|default(0) }}">
+                        <a class="corebb-board-action-link" href="/admin/?act=manageboards">Return to Manage Boards</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    {% endif %}
+</div>

@@ -1,0 +1,103 @@
+{% include 'partials/admin_messages.twig' with {messages: model.messages|default([]), errors: model.errors|default([])} only %}
+{% set search = model.search|default({username: '', userid: ''}) %}
+{% set user = model.selected_user|default(null) %}
+{% set notes = model.notes|default([]) %}
+{% set noteTypes = model.note_types|default({}) %}
+{% set selectedType = model.selected_type|default('Misc') %}
+
+<div class="corebb-admin-modern-page">
+    <div class="corebb-admin-modern-header">
+        <div>
+            <div class="corebb-admin-modern-eyebrow">People</div>
+            <h2>Admin Notes</h2>
+            <div class="corebb-admin-modern-meta">
+                {% if user %}
+                    <span>{{ user.username|default('Unknown User') }}</span>
+                    <span>#{{ user.id|default(0) }}</span>
+                    <span>{{ notes|length|number_format }} notes</span>
+                {% else %}
+                    <span>Find a user by username or ID.</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="corebb-admin-modern-actions">
+            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
+        </div>
+    </div>
+
+    <div class="corebb-admin-modern-panel">
+        <form class="corebb-admin-modern-form" method="get" action="/admin/">
+            <input type="hidden" name="act" value="admin_notes">
+            <div class="corebb-admin-modern-grid">
+                <label for="corebbAdminNotesUsername">User Name</label>
+                <input id="corebbAdminNotesUsername" name="username" type="text" value="{{ search.username|default('') }}">
+
+                <label for="corebbAdminNotesUserId">User ID</label>
+                <span>
+                    <input id="corebbAdminNotesUserId" name="userid" type="text" value="{{ search.userid|default('') }}">
+                    <button class="corebb-board-action-link" type="submit">Find</button>
+                </span>
+            </div>
+        </form>
+    </div>
+
+    {% if user %}
+        <div class="corebb-admin-modern-panel">
+            <form class="corebb-admin-modern-form" method="post" action="/admin/?act=admin_notes&amp;userid={{ user.id|default(0) }}">
+                {% include 'partials/csrf_field.twig' %}
+                <input type="hidden" name="action" value="add_note">
+                <input type="hidden" name="userid" value="{{ user.id|default(0) }}">
+                <input type="hidden" name="admin_user_notes_token" value="{{ model.token|default('') }}">
+                <div class="corebb-admin-modern-grid">
+                    <label for="corebbAdminNoteBody">Note</label>
+                    <span>
+                        <textarea id="corebbAdminNoteBody" name="note" rows="5" cols="65" wrap="soft"></textarea>
+                        <span class="corebb-admin-modern-help">Required input. Board codes are allowed. HTML is not allowed.</span>
+                    </span>
+
+                    <label for="corebbAdminNoteType">Note Type</label>
+                    <select id="corebbAdminNoteType" name="note_type">
+                        {% for value, label in noteTypes %}
+                            <option value="{{ value }}"{% if selectedType == value %} selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+
+                    <div class="corebb-admin-modern-submit corebb-admin-modern-full">
+                        <button class="corebb-board-action-link" type="submit">Submit</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <section class="corebb-admin-modern-panel">
+            <div class="corebb-admin-section-title">
+                Notes For: <a class="corebb-admin-text-link" target="_top" href="{{ user.profile_url|default('#') }}">{{ user.username|default('Unknown') }}</a>
+            </div>
+            <div class="corebb-admin-modern-note is-danger">
+                Admin Notes are proprietary private information. Do not distribute them outside authorized staff workflows.
+            </div>
+
+            {% if notes is empty %}
+                <span class="corebb-admin-modern-help">No admin notes for this user.</span>
+            {% else %}
+                {% for note in notes %}
+                    <article class="corebb-admin-activity-item">
+                        <div>
+                            <strong>Date:</strong> <span>{{ note.date_vn|default('') != '' ? note.date_vn : note.addtime|default('') }}</span>,
+                            <strong>Type:</strong> <span>{{ note.reason|default('') != '' ? note.reason : 'Misc' }}</span>
+                        </div>
+                        <div>
+                            <strong>Author:</strong>
+                            {% if note.author_id|default(0) > 0 %}
+                                <a class="corebb-admin-text-link" target="_top" href="{{ note.author_profile_url|default('#') }}">{{ note.author_username|default('User ' ~ note.author_id) }}</a>
+                            {% else %}
+                                {{ note.author_username|default('Unknown') }}
+                            {% endif %}
+                        </div>
+                        <div class="corebb-admin-user-content">{% include 'partials/formatted_content.twig' with {content: admin_note_body_model(note.note|default(''))} only %}</div>
+                    </article>
+                {% endfor %}
+            {% endif %}
+        </section>
+    {% endif %}
+</div>

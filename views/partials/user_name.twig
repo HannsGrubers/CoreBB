@@ -1,0 +1,7 @@
+{% if user.blank|default(false) %}
+    &nbsp;
+{% elseif user.linked|default(false) and user.profile_url|default('') is not empty %}
+    <a class="AuthorLink" href="{{ user.profile_url }}"{% if user.style_css|default('') is not empty %} style="{{ user.style_css }}"{% endif %}>{{ user.username }}</a>
+{% else %}
+    {{ user.username }}
+{% endif %}

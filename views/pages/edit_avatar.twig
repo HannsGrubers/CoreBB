@@ -1,0 +1,108 @@
+{% set menuModel = model|merge({showAvatarCategories: true}) %}
+<table class="wb-cellspace-1 wb-cellpad-3 BoardRowB wb-usercp-workspace wb-table" style="width: 100%;">
+    <tr class="wb-text-left wb-valign-top">
+        <td class="wb-valign-top wb-usercp-nav-cell" style="width: 250px; width: 250px; min-width: 250px; max-width: 250px; padding-right: 6px;">
+            {% include 'partials/usercp_menu.twig' with {model: menuModel} only %}
+        </td>
+        <td class="wb-usercp-content wb-valign-top">
+            <table class="wb-cellpad-0 wb-cellspace-1 wb-table" style="width: 100%;">
+                <tr><td class="wb-text-left BoardColumn" style="width: 100%; height: 15px;">Edit Avatar</td></tr>
+                {% if model.message|default('') %}
+                    <tr><td class="BoardRowA"><div class="wb-text-center"><b>{{ model.message }}</b></div></td></tr>
+                {% endif %}
+                <tr>
+                    <td class="BoardRowB">
+                        <strong>Current Icon:</strong><br>
+                        <div class="wb-usercp-current-icon">
+                            {% if model.currentIconId|default(0) > 0 %}
+                                {% include 'partials/user_icon.twig' with {icon: user_icon_model(model.uid|default(0))} only %}
+                            {% else %}
+                                <em>No icon selected.</em>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                <tr><td class="BoardColumn" style="height: 15px;">Upload Avatar</td></tr>
+                <tr>
+                    <td class="BoardRowA">
+                        <form name="avatar_upload" method="post" action="/user-cp/avatar/" enctype="multipart/form-data">
+                            {% include 'partials/csrf_field.twig' %}
+                            <input type="hidden" name="avatar_action" value="upload">
+                            <table class="wb-cellpad-4 wb-cellspace-1 wb-table" style="width: 100%;">
+                                <tr>
+                                    <td class="wb-valign-top" style="width: 180px;"><b>Image File:</b></td>
+                                    <td>
+                                        <input type="file" name="avatar_file" accept="image/png,image/gif,image/jpeg">
+                                        <br>
+                                        <span class="SmallMessageText">
+                                            Allowed: PNG, GIF, JPG. Maximum {{ model.avatarMaxWidth|default(120) }}x{{ model.avatarMaxHeight|default(120) }} pixels, 512 KB.
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>&nbsp;</td>
+                                    <td><input type="submit" value="Upload and Use Avatar" class="formsubmit"></td>
+                                </tr>
+                            </table>
+                        </form>
+                    </td>
+                </tr>
+                <tr><td id="available-icons" class="BoardColumn" style="height: 15px;">Choose Existing Icon</td></tr>
+                <tr>
+                    <td class="BoardRowB">
+                        <form name="avatar_select" method="post" action="/user-cp/avatar/">
+                            {% include 'partials/csrf_field.twig' %}
+                            <input type="hidden" name="avatar_action" value="select">
+                            {% if not model.hasIconsTable|default(false) %}
+                                <p><strong>The icons table does not exist yet.</strong></p>
+                                <p>This page is ready, but there are no icon records to choose from.</p>
+                            {% elseif model.iconsTotal|default(0) == 0 %}
+                                <p><strong>No icons have been added yet.</strong></p>
+                                <p>Upload an avatar above to create your first icon record.</p>
+                            {% else %}
+                                <strong>Choose an Icon:</strong><br>
+                                {% if model.pagination.visible|default(false) %}
+                                    <p>{% include 'partials/board_pagination.twig' with {pagination: model.pagination} only %}</p>
+                                {% endif %}
+                                <table class="wb-cellpad-4 wb-cellspace-1 MainBorder wb-table" style="width: 100%;">
+                                    {% for row in model.icons|default([])|batch(8, null) %}
+                                        <tr>
+                                            {% for icon in row %}
+                                                {% if icon %}
+                                                    {% set iconId = icon.id|default(0) %}
+                                                    {% set filename = icon.filename|default('') %}
+                                                    <td class="BoardRowA wb-text-center wb-valign-top" style="width: 12%;">
+                                                        <label style="display:block; cursor:pointer;">
+                                                            {% if icon.src|default('') != '' %}
+                                                                <img src="{{ icon.src }}" alt="{{ filename != '' ? filename : 'Icon ' ~ iconId }}" style="max-width:120px; max-height:120px;"><br>
+                                                            {% endif %}
+                                                            <input type="radio" name="iconid" value="{{ iconId }}"{% if iconId == model.currentIconId|default(0) %} checked{% endif %}>
+                                                            #{{ iconId }}{% if icon.isUploaded|default(false) %}<br><span class="SmallMessageText">uploaded</span>{% endif %}
+                                                        </label>
+                                                    </td>
+                                                {% else %}
+                                                    <td class="BoardRowA">&nbsp;</td>
+                                                {% endif %}
+                                            {% endfor %}
+                                        </tr>
+                                    {% endfor %}
+                                </table>
+                                {% if model.pagination.visible|default(false) %}
+                                    <p>{% include 'partials/board_pagination.twig' with {pagination: model.pagination} only %}</p>
+                                {% endif %}
+                            {% endif %}
+
+                            <p>
+                                <label><input type="radio" name="iconid" value="0"{% if model.currentIconId|default(0) == 0 %} checked{% endif %}> Remove my icon</label>
+                            </p>
+                            <p><input type="submit" name="Submit" value="Save Avatar" class="formsubmit"></p>
+                        </form>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="MainMenuRow wb-text-right" style="height: 15px;"><input type="button" onclick="window.location.href='/';" value="Forum Index &raquo;" class="formsubmit" /> &nbsp;</td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>

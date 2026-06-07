@@ -1,0 +1,103 @@
+{% include 'partials/admin_messages.twig' with {messages: model.messages|default([]), errors: model.errors|default([])} only %}
+{% set search = model.search|default({username: '', userid: ''}) %}
+{% set user = model.selected_user|default(null) %}
+{% set formTitle = model.form_title|default('') %}
+
+<div class="corebb-admin-modern-page">
+    <div class="corebb-admin-modern-header">
+        <div>
+            <div class="corebb-admin-modern-eyebrow">People</div>
+            <h2>Assign Title</h2>
+            <div class="corebb-admin-modern-meta">
+                {% if user %}
+                    <span>{{ user.username|default('Unknown User') }}</span>
+                    <span>#{{ user.id|default(0) }}</span>
+                {% else %}
+                    <span>Find a user by username or ID.</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="corebb-admin-modern-actions">
+            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
+        </div>
+    </div>
+
+    <div class="corebb-admin-modern-panel">
+        <form class="corebb-admin-modern-form" method="post" action="/admin/?act=assign_title">
+            {% include 'partials/csrf_field.twig' %}
+            <div class="corebb-admin-modern-grid">
+                <label for="corebbAssignTitleUsername">User Name</label>
+                <input id="corebbAssignTitleUsername" name="username" type="text" value="{{ search.username|default('') }}">
+
+                <label for="corebbAssignTitleUserId">User ID</label>
+                <span>
+                    <input id="corebbAssignTitleUserId" name="userid" type="text" value="{{ search.userid|default('') }}">
+                    <button class="corebb-board-action-link" type="submit">Find</button>
+                </span>
+            </div>
+        </form>
+    </div>
+
+    {% if user %}
+        <table class="corebb-admin-modern-table corebb-admin-profile-summary-table wb-table">
+            <tbody>
+                <tr>
+                    <th>User Name</th>
+                    <td>{{ user.username|default('') }}</td>
+                </tr>
+                <tr>
+                    <th>User ID</th>
+                    <td>{{ user.id|default(0) }}</td>
+                </tr>
+                <tr>
+                    <th>Current Title</th>
+                    <td>{% include 'partials/user_title.twig' with {title: user_title_model(formTitle)} only %}{% if formTitle|trim == '' %}&nbsp;{% endif %}</td>
+                </tr>
+                <tr>
+                    <th>User Info</th>
+                    <td><a class="corebb-board-action-link" href="{{ user.profile_url|default('#') }}">View User Page</a></td>
+                </tr>
+            </tbody>
+        </table>
+
+        {% if user.can_edit_title|default(false) %}
+            <div class="corebb-admin-modern-panel">
+                <form class="corebb-admin-modern-form" method="post" action="/admin/?act=assign_title&amp;userid={{ user.id|default(0) }}">
+                    {% include 'partials/csrf_field.twig' %}
+                    <input type="hidden" name="action" value="save_title">
+                    <input type="hidden" name="userid" value="{{ user.id|default(0) }}">
+                    <input type="hidden" name="admin_assign_title_token" value="{{ model.token|default('') }}">
+                    <div class="corebb-admin-modern-grid">
+                        <label for="corebbAssignedTitle">Title</label>
+                        <span>
+                            <textarea id="corebbAssignedTitle" name="title" rows="3" cols="65" wrap="soft" maxlength="255">{{ formTitle }}</textarea><br />
+                            <span class="corebb-admin-modern-help">Board codes are allowed. HTML is not allowed. Maximum length is 255 characters.</span>
+                        </span>
+
+                        <div class="corebb-admin-modern-submit corebb-admin-modern-full">
+                            <button class="corebb-board-action-link" type="submit">Submit</button>
+                        </div>
+                    </div>
+                </form>
+
+                {% if formTitle|trim != '' %}
+                    <form class="corebb-admin-modern-form corebb-admin-inline-form" method="post" action="/admin/?act=assign_title&amp;userid={{ user.id|default(0) }}">
+                        {% include 'partials/csrf_field.twig' %}
+                        <input type="hidden" name="action" value="clear_title">
+                        <input type="hidden" name="userid" value="{{ user.id|default(0) }}">
+                        <input type="hidden" name="admin_assign_title_token" value="{{ model.token|default('') }}">
+                        <button class="corebb-board-action-link is-danger" type="submit" onclick="return confirm('Are you sure you want to clear this user title?');">Clear Title</button>
+                    </form>
+                {% endif %}
+            </div>
+        {% endif %}
+
+        <div class="corebb-admin-modern-panel">
+            <div class="corebb-admin-modern-label">Title Preview</div>
+            <div class="corebb-admin-modern-help">This preview uses the same small title renderer used under names in forum and blog posts.</div>
+            <div class="corebb-admin-title-preview">
+                <strong>Title:</strong> {% include 'partials/user_title.twig' with {title: user_title_model(formTitle)} only %}{% if formTitle|trim == '' %}&nbsp;{% endif %}
+            </div>
+        </div>
+    {% endif %}
+</div>

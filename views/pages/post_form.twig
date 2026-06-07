@@ -1,0 +1,231 @@
+{% if model.error|default('') %}
+<table class="wb-cellpad-15 wb-cellspace-0 wb-table" style="width: 100%;">
+    <tr><td class="BoardRowB">
+        {{ model.error }}
+        {% if model.errorLink|default(null) %}
+            <p><a class="BoardRowBLink" href="{{ model.errorLink.href }}">{{ model.errorLink.text }}</a></p>
+        {% endif %}
+    </td></tr>
+</table>
+{% else %}
+
+<script src="{{ asset('scripts/posttoolbar_support.js') }}" id="posttoolbar_support"></script>
+<script src="{{ asset('scripts/posttoolbar.js') }}" id="posttoolbar_main"></script>
+<script>
+var submitted = false;
+function SubmitTheForm(form){
+    if(submitted == true){ return false; }
+    submitted = true;
+
+    var btn = form && form.elements ? form.elements['submitButton'] : null;
+    if(btn){
+        btn.value = 'Please wait...';
+        // Do not disable the submit button synchronously. Some browsers will
+        // cancel the native submit if the clicked submit control is disabled
+        // during its own click event. Disable it just after submission starts.
+        window.setTimeout(function(){ btn.disabled = true; }, 50);
+    }
+    return true;
+}
+
+function wbPostImageSetStatus(message, isError){
+    var status = document.getElementById('post_image_upload_status');
+    if(!status){ return; }
+    status.innerHTML = message || '';
+    status.style.fontWeight = isError ? 'bold' : 'normal';
+}
+
+function wbPostImageInsertText(text){
+    if(!text){ return false; }
+    if(typeof pst_fnInsertCode === 'function'){
+        return pst_fnInsertCode(text);
+    }
+
+    var box = document.getElementById('message_body');
+    if(!box){ return false; }
+    box.focus();
+
+    var value = box.value || '';
+    var start = typeof box.selectionStart !== 'undefined' ? box.selectionStart : value.length;
+    var end = typeof box.selectionEnd !== 'undefined' ? box.selectionEnd : start;
+    box.value = value.substring(0, start) + text + value.substring(end);
+    var nextPos = start + text.length;
+    if(box.setSelectionRange){
+        box.setSelectionRange(nextPos, nextPos);
+    }
+    box.focus();
+    return true;
+}
+
+function wbPostImageResetInsertedFlag(){
+    var flag = document.getElementById('post_image_upload_already_inserted');
+    if(flag){ flag.value = '0'; }
+    wbPostImageSetStatus('', false);
+}
+
+function wbPostImageUploadAndInsert(){
+    var form = document.getElementById('frmMain');
+    var file = document.getElementById('post_image_upload');
+    var button = document.getElementById('post_image_upload_button');
+    var endpoint = document.getElementById('post_image_upload_endpoint');
+    var flag = document.getElementById('post_image_upload_already_inserted');
+
+    if(!form || !file || !file.files || file.files.length < 1){
+        wbPostImageSetStatus('Choose an image first.', true);
+        return false;
+    }
+    if(!window.FormData || !window.XMLHttpRequest){
+        wbPostImageSetStatus('Your browser cannot insert before posting. The image will be attached when you post.', true);
+        return false;
+    }
+
+    var data = new FormData();
+    data.append('post_image_upload', file.files[0]);
+
+    var token = form.querySelector('input[name="corebb_csrf_token"], input[name="wb_csrf_token"]');
+    if(token){
+        data.append('corebb_csrf_token', token.value);
+    }
+
+    if(button){
+        button.disabled = true;
+        button.value = 'Uploading...';
+    }
+    wbPostImageSetStatus('Uploading image...', false);
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', endpoint ? endpoint.value : '/post/image-upload/', true);
+    xhr.onreadystatechange = function(){
+        if(xhr.readyState !== 4){ return; }
+
+        if(button){
+            button.disabled = false;
+            button.value = 'Upload + Insert Tag';
+        }
+
+        var payload = null;
+        try {
+            payload = JSON.parse(xhr.responseText || '{}');
+        } catch(e) {
+            payload = null;
+        }
+
+        if(xhr.status >= 200 && xhr.status < 300 && payload && payload.ok && payload.bbcode){
+            wbPostImageInsertText(payload.bbcode);
+            if(flag){ flag.value = '1'; }
+            try { file.value = ''; } catch(clearErr) {}
+            wbPostImageSetStatus('Inserted ' + payload.bbcode, false);
+            return;
+        }
+
+        var message = payload && payload.message ? payload.message : 'Image upload failed.';
+        wbPostImageSetStatus(message, true);
+    };
+    xhr.send(data);
+    return false;
+}
+</script>
+
+<form name="frmMain" id="frmMain" method="post" action="/post/submit/" enctype="multipart/form-data" onsubmit="return SubmitTheForm(this);" style="margin:0; padding:0;">
+{% include 'partials/csrf_field.twig' %}
+<table class="wb-post-form-table wb-cellspace-1 wb-cellpad-0 wb-table" style="width: 100%; margin: 0;">
+    {% if model.mode|default('') == 'reply' %}
+    <tr class="BoardRowB">
+        <td class="BoardRowA" style="height: 30px; width: 17%;"><div class="InputSection wb-text-right">In Response To:&nbsp;</div></td>
+        <td class="BoardRowB" style="width: 83%;"><a class="BoardRowBLink" href="{{ model.replyThreadUrl|default('#') }}">{{ model.replyTitle|default('') }}</a></td>
+    </tr>
+    <tr class="BoardRowB">
+        <td class="BoardRowA" style="height: 30px;"><div class="InputSection wb-text-right">Posted By:&nbsp;</div></td>
+        <td class="BoardRowB"><a class="AuthorLink" href="/profile/{{ model.posterId|default(0) }}/">{% include 'partials/user_name.twig' with {user: user_name_model(model.posterId|default(0), model.replyPosterName|default('Unknown'), false)} only %}</a></td>
+    </tr>
+    {% endif %}
+
+    <tr class="BoardRowB">
+        <td class="BoardRowA"><div class="InputSection wb-text-right">Subject:&nbsp;</div></td>
+        <td class="BoardRowB" style="height: 30px;"><input name="message_subject" size="75" maxlength="100" tabindex="1" value="{{ model.subject|default('') }}" id="message_subject" type="text"></td>
+    </tr>
+
+    {% if model.mode|default('') == 'edit' %}
+    <tr class="BoardRowB">
+        <td class="BoardRowA"><div class="wb-text-right InputSection">Edit Time Limit:&nbsp;</div></td>
+        <td class="BoardRowB" style="height: 30px;"><strong>{{ model.timeMessage|default('') }}</strong></td>
+    </tr>
+    {% endif %}
+
+    <tr class="BoardRowB">
+        <td class="BoardRowA"><div class="InputSection wb-text-right">Format:&nbsp;</div></td>
+        {% include 'partials/post_toolbar.twig' %}
+    </tr>
+
+    {% if model.showSticky|default(false) %}
+    <tr class="BoardRowB">
+        <td class="BoardRowA" style="height: 30px;"><div class="wb-text-right"><b>{{ model.stickyControlLabel|default('Admin') }}:</b>&nbsp;</div></td>
+        <td class="BoardRowB"><a class="SmallText"><b>{{ model.stickyText|default('Sticky:') }}</b></a> <input class="wb-valign-top" type="checkbox" name="issticky" value="checkbox"{% if model.stickyChecked|default(false) %} checked{% endif %}></td>
+    </tr>
+    {% endif %}
+
+    {% if model.showPollControls|default(false) %}
+    <tr class="BoardRowB">
+        <td class="BoardRowA" style="height: 30px;"><div class="wb-text-right"><b>Poll:</b>&nbsp;</div></td>
+        <td class="BoardRowB"><a class="SmallText"><b>Create Poll:</b></a> <input class="wb-valign-top" type="checkbox" name="create_poll" value="1"{% if model.pollChecked|default(false) %} checked{% endif %}> <span class="SmallText">Optional. Leave blank for a normal topic.</span></td>
+    </tr>
+    <tr class="BoardRowB">
+        <td class="BoardRowA"><div class="InputSection wb-text-right">Poll Question:&nbsp;</div></td>
+        <td class="BoardRowB" style="height: 30px;"><input name="poll_question" size="75" maxlength="255" value="{{ model.pollQuestion|default('') }}" type="text"></td>
+    </tr>
+    <tr class="BoardRowB">
+        <td class="wb-valign-top BoardRowA"><div class="InputSection wb-text-right">Poll Choices:&nbsp;</div></td>
+        <td class="BoardRowB">
+            <table class="wb-cellpad-1 wb-cellspace-0 wb-table" style="width: 100%;">
+                {% set pollOptions = model.pollOptions|default([]) %}
+                {% for i in 0..9 %}
+                    <tr>
+                        <td class="wb-nowrap SmallText" style="width: 70px;">Choice {{ i + 1 }}:</td>
+                        <td><input name="poll_options[]" size="60" maxlength="255" value="{{ pollOptions[i]|default('') }}" type="text"></td>
+                    </tr>
+                {% endfor %}
+            </table>
+            <span class="InputNotes">A poll needs a question and at least two choices. Users may vote once.</span>
+        </td>
+    </tr>
+    {% endif %}
+
+    {% if model.canUploadImage|default(false) %}
+    <tr class="BoardRowB">
+        <td class="BoardRowA"><div class="InputSection wb-text-right">Admin Image:&nbsp;</div></td>
+        <td class="BoardRowB" style="height: 30px;">
+            {% if model.postImageMaxBytes|default(0) > 0 %}
+                <input type="hidden" name="MAX_FILE_SIZE" value="{{ model.postImageMaxBytes|default(0) }}">
+            {% endif %}
+            <input type="hidden" name="post_image_upload_already_inserted" id="post_image_upload_already_inserted" value="0">
+            <input type="hidden" id="post_image_upload_endpoint" value="{{ model.postImageUploadEndpoint|default('/post/image-upload/') }}">
+            <input type="file" name="post_image_upload" id="post_image_upload" accept="image/png,image/jpeg,image/gif" onchange="wbPostImageResetInsertedFlag();">
+            <input type="button" id="post_image_upload_button" value="Upload + Insert Tag" onclick="return wbPostImageUploadAndInsert();">
+            <span id="post_image_upload_status" class="InputNotes" style="margin-left: 4px;"></span>
+            <div class="InputNotes" style="margin-top: 2px;">
+                Optional. PNG, GIF, or JPG, max {{ ((model.postImageMaxBytes|default(0)) / 1048576)|number_format(1) }} MB.
+                Click Upload + Insert Tag to place [a_image=] at your cursor before posting. If you skip that button, the old attach-on-post fallback still appends the image when you post.
+                Large JPG/PNG images are scaled to fit within {{ model.postImageMaxWidth|default(900) }}x{{ model.postImageMaxHeight|default(900) }} without cropping or squaring.
+            </div>
+        </td>
+    </tr>
+    {% endif %}
+
+    <tr class="BoardRowB">
+        <td class="wb-valign-top BoardRowA"><div class="InputSection wb-text-right">Message:&nbsp;</div></td>
+        <td class="BoardRowB" style="padding: 3px;">
+            <textarea name="message_body" cols="60" rows="17" wrap="soft" style="width: 100%; display: block;" onselect="pst_fnSaveCaret(this);" onkeyup="pst_fnSaveCaret(this);" onclick="pst_fnSaveCaret(this);" tabindex="2" id="message_body">{{ model.body|default('') }}</textarea>
+            <div class="InputNotes" style="margin-top: 3px;">
+                {{ model.notes|default('Please read the Terms Of Service before posting. By pressing the POST button below, you are agreeing to the TOS.') }}
+            </div>
+            {% for name, value in model.hidden|default([]) %}
+                {% if value != '' %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endif %}
+            {% endfor %}
+            <div style="margin-top: 4px;">
+                <input style="font-weight: bold; text-decoration: underline;" type="submit" name="submitButton" value="{{ model.submitLabel|default('Post') }}">
+            </div>
+        </td>
+    </tr>
+</table>
+</form>
+{% endif %}

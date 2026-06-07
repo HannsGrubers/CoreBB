@@ -1,0 +1,21 @@
+{% if model.error|default('') is not empty or model.result|default('') is not empty %}
+<table class="wb-cellpad-15 wb-cellspace-0 wb-table" style="width: 100%;"><tr><td class="BoardRowB">
+    {{ model.error|default(model.result|default('')) }}
+    {% if model.returnUrl|default('') is not empty %}<p><a class="BoardRowBLink" href="{{ model.returnUrl }}">{{ model.returnText|default('Continue') }}</a></p>{% endif %}
+</td></tr></table>
+{% else %}
+<table class="wb-cellpad-3 wb-cellspace-1 wb-table" style="width: 100%;">
+    <tr><td class="BoardColumn"><strong>Delete Blog Entry</strong></td></tr>
+    <tr><td class="BoardRowB" style="padding: 8px;">
+        <strong>Delete blog entry?</strong><p>
+        You are about to delete: <strong>{{ model.title|default('') }}</strong><p>
+        <form method="post" action="/blogs/delete/">
+            {% include 'partials/csrf_field.twig' %}
+            <input type="hidden" name="id" value="{{ model.id|default(0) }}">
+            <input type="hidden" name="confirm" value="1">
+            <input type="submit" value="Yes, delete this blog entry">
+            &nbsp; <a class="BoardRowBLink" href="/blogs/entry/{{ model.id|default(0) }}/">Cancel</a>
+        </form>
+    </td></tr>
+</table>
+{% endif %}

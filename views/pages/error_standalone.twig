@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<title>CoreBB - Error</title>
+<meta charset="utf-8">
+<meta http-equiv="refresh" content="3; url=index.php">
+<link rel="stylesheet" href="style.css" media="screen">
+<style>
+.wb-error-standalone { text-align: center; }
+.wb-error-table {
+    border: 1px solid black;
+    border-spacing: 1px;
+    margin: 0 auto;
+    width: 600px;
+}
+.wb-error-table td { padding: 15px; }
+.wb-error-label { text-align: left; vertical-align: top; white-space: nowrap; }
+.wb-error-date { width: 90px; }
+.wb-error-message { width: 445px; }
+</style>
+</head>
+<body class="wb-error-standalone">
+    <table id="Table1" class="wb-error-table wb-table">
+        <tr>
+            <td class="MainMenuRow wb-error-label"><a href="/" class="MainMenuLink">{{ model.title|default('Board System Error') }}</a></td>
+        </tr>
+        <tr>
+            <td class="BoardRowA">A system error has occurred. We apologize for the inconvenience.</td>
+        </tr>
+    </table>
+    <br>
+    <table id="Table2" class="wb-error-table wb-table">
+        <tr>
+            <td class="BoardRowA wb-error-label wb-error-date">&nbsp;{{ model.date|default('now'|date('j-w-y g:ia')) }}</td>
+            <td class="MainMenuRow wb-error-label wb-error-message">&nbsp;{% include 'partials/system_message_body.twig' with {model: model} only %}</td>
+        </tr>
+    </table>
+</body>
+</html>

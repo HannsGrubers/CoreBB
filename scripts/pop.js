@@ -1,0 +1,154 @@
+<script type="text/javascript">
+<!--
+function swapImg(img, type){
+  src = img.src;
+  switch(type)
+  {
+    case 'hi':
+      if (src.indexOf('_hi.') != -1)
+        img.src = src.replace('_hi.', '_on.');
+      else if (src.indexOf('_on.') != -1)
+        img.src = src.replace('_on.', '_hi.');
+    break
+    default:
+      if (src.indexOf('_off.') != -1)
+        img.src = src.replace('_off.', '_on.');
+      else if (src.indexOf('_on.') != -1)
+        img.src = src.replace('_on.', '_off.');
+    break
+  }
+}
+
+function preloadImg(img, type){
+  src = img.src;
+  document.onImg = new Image();
+  switch(type)
+  {
+  case 'hi':
+    document.onImg.src = src.replace('_hi.', '_on.');
+  break
+  default:
+    document.onImg.src = src.replace('_off.', '_on.');
+  break
+  }
+}
+function pop( url, name, windowOpts, width, height )
+{
+    var myOpts = windowOpts + ",width=" + width + ",height=" + height;
+      popUp = window.open(url, name, myOpts);
+}
+//START CODE FOR BUBBLE POP UP
+var offsetfromcursorX=12 //Customize x offset of tooltip
+var offsetfromcursorY=10 //Customize y offset of tooltip
+
+var offsetdivfrompointerX=10 //Customize x offset of tooltip DIV relative to pointer image
+var offsetdivfrompointerY=14 //Customize y offset of tooltip DIV relative to pointer image. Tip: Set it to (height_of_pointer_image-1).
+
+document.write('<div id="dhtmltooltip"><div id="dttext"></div></div>') //write out tooltip DIV
+document.write('<img id="dhtmlpointer" src="http://graphics.classmates.com/graphics/spacer.gif">') //write out pointer image
+
+if (navigator.appName == "Microsoft Internet Explorer"){
+  document.getElementById('dhtmltooltip').style.filter = "progid:DXImageTransform.Microsoft.AlphaImageLoader(src='http://graphics.classmates.com/graphics/reg/promotions/info_bubble.png', sizingMethod='scale')";
+}else{
+  document.getElementById('dhtmltooltip').innerHTML = '<img alt="" border="0" src="http://graphics.classmates.com/graphics/reg/promotions/info_bubble.png"><div id="dttext"></div>';
+}
+
+var ie=document.all
+var ns6=document.getElementById && !document.all
+var enabletip=false
+if (ie||ns6)
+  var tipobj=document.all? document.all["dhtmltooltip"] : document.getElementById? document.getElementById("dhtmltooltip") : ""
+  var tiptxtobj=document.all? document.all["dttext"] : document.getElementById? document.getElementById("dhtmltooltip") : ""
+  var pointerobj=document.all? document.all["dhtmlpointer"] : document.getElementById? document.getElementById("dhtmlpointer") : ""
+
+function ietruebody(){
+  return (document.compatMode && document.compatMode!="BackCompat")? document.documentElement : document.body
+}
+
+function infoBox(stateName,count1,count2){
+
+  var thetext = '<b>' + stateName + '</b><br>' + count1 + '+ Schools<br>' + count2 + '+ Members'; 
+  var thewidth = '160';  
+  var thecolor = '';
+  if (ns6||ie){
+    if (typeof thewidth!="undefined") tipobj.style.width=thewidth+"px"
+    if (typeof thecolor!="undefined" && thecolor!="") tipobj.style.backgroundColor=thecolor
+    tiptxtobj.innerHTML=thetext
+    enabletip=true
+    return false
+  }
+
+}
+
+function infoBoxSideLinks(communityType,count1,count2,title){
+  var thetext = '<b>' + title + '</b><br>' + count1 + '+ ' + communityType + '<br>' + count2 + '+ Members'; 
+  var thewidth = '160';  
+  var thecolor = '';
+  if (ns6||ie){
+    if (typeof thewidth!="undefined") tipobj.style.width=thewidth+"px"
+    if (typeof thecolor!="undefined" && thecolor!="") tipobj.style.backgroundColor=thecolor
+    tiptxtobj.innerHTML=thetext
+    enabletip=true
+    return false
+  }
+}
+
+function positiontip(e){
+  if (enabletip){
+    var nondefaultpos=false
+    var curX=(ns6)?e.pageX : event.clientX+ietruebody().scrollLeft;
+    var curY=(ns6)?e.pageY : event.clientY+ietruebody().scrollTop;
+    //Find out how close the mouse is to the corner of the window
+    var winwidth=ie&&!window.opera? ietruebody().clientWidth : window.innerWidth-20
+    var winheight=ie&&!window.opera? ietruebody().clientHeight : window.innerHeight-20
+
+      var rightedge=ie&&!window.opera? winwidth-event.clientX-offsetfromcursorX : winwidth-e.clientX-offsetfromcursorX
+      var bottomedge=ie&&!window.opera? winheight-event.clientY-offsetfromcursorY : winheight-e.clientY-offsetfromcursorY
+
+      var leftedge=(offsetfromcursorX<0)? offsetfromcursorX*(-1) : -1000
+
+      //if the horizontal distance isn't enough to accomodate the width of the context menu
+      if (rightedge<tipobj.offsetWidth){
+        //move the horizontal position of the menu to the left by it's width
+        tipobj.style.left=curX-tipobj.offsetWidth+"px"
+          nondefaultpos=true
+      }
+      else if (curX<leftedge)
+        tipobj.style.left="5px"
+      else{
+        //position the horizontal position of the menu where the mouse is positioned
+        tipobj.style.left=curX+offsetfromcursorX-offsetdivfrompointerX+"px"
+          pointerobj.style.left=curX+offsetfromcursorX+"px"
+      }
+
+    //same concept with the vertical position
+    if (bottomedge<tipobj.offsetHeight){
+      tipobj.style.top=curY-tipobj.offsetHeight-offsetfromcursorY+"px"
+        nondefaultpos=true
+    }
+    else{
+      tipobj.style.top=curY+offsetfromcursorY+offsetdivfrompointerY-100+"px"
+        pointerobj.style.top=curY+offsetfromcursorY+"px"
+    }
+    tipobj.style.visibility="visible"
+      if (!nondefaultpos)
+        pointerobj.style.visibility="visible"
+      else
+        pointerobj.style.visibility="hidden"
+  }
+}
+
+function hideinfoBox(){
+  if (ns6||ie){
+    enabletip=false
+      tipobj.style.visibility="hidden"
+      pointerobj.style.visibility="hidden"
+      tipobj.style.left="-1000px"
+      tipobj.style.backgroundColor=''
+      tipobj.style.width=''
+  }
+}
+
+document.onmousemove=positiontip
+// -->
+</script>

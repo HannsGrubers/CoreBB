@@ -1,0 +1,50 @@
+{% include 'partials/admin_messages.twig' with {messages: model.messages|default([]), errors: model.errors|default([])} only %}
+{% set levels = model.levels|default({}) %}
+{% set form = model.form|default({}) %}
+
+<div class="corebb-admin-modern-page">
+    {% if model.message|default('') != '' %}
+        <div class="corebb-admin-modern-note">{{ model.message|replace({'+': ' '}) }}</div>
+    {% endif %}
+
+    <div class="corebb-admin-modern-header">
+        <div>
+            <div class="corebb-admin-modern-eyebrow">People</div>
+            <h2>Add Account</h2>
+            <div class="corebb-admin-modern-meta">
+                <span>Create a forum user account.</span>
+            </div>
+        </div>
+        <div class="corebb-admin-modern-actions">
+            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
+        </div>
+    </div>
+
+    <div class="corebb-admin-modern-panel">
+        <form class="corebb-admin-modern-form" method="post" action="/admin/?act=add_user" autocomplete="off">
+            {% include 'partials/csrf_field.twig' %}
+            <div class="corebb-admin-modern-grid">
+                <label for="corebbAddUserName">User Name</label>
+                <input id="corebbAddUserName" name="username" type="text" value="{{ form.username|default('') }}">
+
+                <label for="corebbAddUserPassword">Password</label>
+                <input id="corebbAddUserPassword" name="password1" type="password">
+
+                <label for="corebbAddUserPasswordConfirm">Confirm Password</label>
+                <input id="corebbAddUserPasswordConfirm" name="password2" type="password">
+
+                <label for="corebbAddUserLevel">User Level</label>
+                <select id="corebbAddUserLevel" name="userlevel">
+                    {% for value, label in levels %}
+                        <option value="{{ value }}"{% if value == form.userlevel|default(1) %} selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+
+                <div class="corebb-admin-modern-submit corebb-admin-modern-full">
+                    <button class="corebb-board-action-link" type="submit">Add User</button>
+                    <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>

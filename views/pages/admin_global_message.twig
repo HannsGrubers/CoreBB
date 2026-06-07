@@ -1,0 +1,61 @@
+{% set messages = model.messages|default([]) %}
+{% set current = model.message_value|default('') %}
+{% set globalMessages = model.global_messages|default([]) %}
+
+<div class="corebb-admin-modern-page">
+    <div class="corebb-admin-modern-header">
+        <div>
+            <div class="corebb-admin-modern-eyebrow">System</div>
+            <h2>Add Global Message</h2>
+            <div class="corebb-admin-modern-meta">
+                <span>{{ globalMessages|length|number_format }} current messages</span>
+            </div>
+        </div>
+        <div class="corebb-admin-modern-actions">
+            <a class="corebb-board-action-link" href="/admin/?act=edit_global_message">Edit Existing Messages</a>
+            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
+        </div>
+    </div>
+
+    {% include 'partials/admin_messages.twig' with {messages: messages} only %}
+
+    <div class="corebb-admin-modern-panel">
+        <form class="corebb-admin-modern-form" name="globalmessage" method="post" action="/admin/?act=global_message&amp;method=post">
+            {% include 'partials/csrf_field.twig' %}
+            <div class="corebb-admin-modern-grid">
+                <label for="message">Message Contents</label>
+                <span>
+                    <input name="message" type="text" id="message" size="75" maxlength="255" value="{{ current }}">
+                    <span class="corebb-admin-modern-help">Global messages appear in the board header for all users.</span>
+                </span>
+
+                <div class="corebb-admin-modern-submit corebb-admin-modern-full">
+                    <button class="corebb-board-action-link" type="submit" name="Submit" value="Add Message">Add Message</button>
+                    <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
+                    <a class="corebb-board-action-link" href="/admin/?act=edit_global_message">Edit Existing Messages</a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    {% if globalMessages %}
+        <table class="corebb-admin-modern-table corebb-admin-global-message-table wb-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Message</th>
+                    <th>Poster</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in globalMessages %}
+                    <tr>
+                        <td>#{{ row.id|default(0) }}</td>
+                        <td>{{ row.message|default('') }}</td>
+                        <td><span class="corebb-admin-modern-help">{{ row.poster|default('') }}</span></td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+</div>

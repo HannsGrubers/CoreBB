@@ -1,0 +1,61 @@
+{% set options = pollModel.options|default([]) %}
+{% set totalVotes = pollModel.totalVotes|default(0) %}
+{% set daysLeft = pollModel.daysLeft|default(30) %}
+{% set canVote = pollModel.canVote|default(false) %}
+{% if canVote %}
+<form method="post" action="{{ pollModel.voteAction|default('/poll/vote/') }}" style="margin:0; padding:0;">
+    {% include 'partials/csrf_field.twig' %}
+    <input type="hidden" name="topicid" value="{{ topicId }}">
+{% endif %}
+<span id="poll"></span>
+<table class="BoardPollTable wb-table" style="border-spacing: 0; width: 320px;">
+    <tr>
+        <td class="BoardColumn" style="width: 10px;"></td>
+        <td colspan="2" class="BoardColumn">
+            <span style="font-weight: bold;">Current Poll Results:</span><br>
+        </td>
+    </tr>
+
+    {% for option in options %}
+        {% set optionId = option.option_id|default(option.id|default(0)) %}
+        {% set votes = option.votes|default(0) %}
+        <tr>
+            <td class="BoardColumn" style="width: 10px;">
+                {% if canVote %}
+                    <input type="radio" id="pollAnswer{{ optionId }}" value="{{ optionId }}" name="optionid">
+                {% endif %}
+            </td>
+            <td class="BoardRowA" style="width: 310px; white-space: nowrap;">
+                <img src="{{ option.pixel_src|default(asset('images/pixel_poll_1.gif')) }}" height="22" style="width:{{ option.bar_width|default(1) }}px!important;height:22px!important; vertical-align:middle;" width="{{ option.bar_width|default(1) }}" alt="">
+            </td>
+            <td class="BoardRowB" style="white-space: nowrap;">
+                <span style="font-weight: bold;">{{ option.percent_int|default(0) }}%</span>
+            </td>
+        </tr>
+        <tr>
+            <td class="BoardColumn">&nbsp;</td>
+            <td colspan="2" class="BoardRowB">
+                <span style="font-weight: bold;">{{ option.option_text|default('') }}</span>
+                <span style="font-size: 8pt;">({{ votes }} vote{{ votes == 1 ? '' : 's' }})</span>
+            </td>
+        </tr>
+    {% endfor %}
+
+    <tr>
+        <td class="BoardColumn" style="width: 10px;"></td>
+        <td colspan="2" class="BoardRowA" style="padding: 5px;">
+            <span style="font-weight: bold;">Total Votes:</span>
+            {{ totalVotes }}
+            (Days Left: {{ daysLeft }})<br>
+
+            {% if canVote %}
+                <input name="pollVoteButton" type="submit" id="pollVoteButton" value="  Please Vote  ">
+            {% elseif pollModel.statusMessage|default('') is not empty %}
+                <span style="font-size: 8pt;">{{ pollModel.statusMessage }}</span>
+            {% endif %}
+        </td>
+    </tr>
+</table>
+{% if canVote %}
+</form>
+{% endif %}

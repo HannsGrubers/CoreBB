@@ -1,0 +1,158 @@
+{% include 'partials/admin_messages.twig' with {messages: model.messages|default([]), errors: model.errors|default([])} only %}
+
+<div class="corebb-admin-modern-page">
+    <div class="corebb-admin-modern-header">
+        <div>
+            <div class="corebb-admin-modern-eyebrow">Moderation</div>
+            <h2>Moderate Message</h2>
+            <div class="corebb-admin-modern-meta">
+                {% if not model.missing|default(false) %}
+                    {% set post = model.post|default({}) %}
+                    <span>Reply #{{ post.id|default(0) }}</span>
+                    <span>{{ post.author_username|default('Unknown') }}</span>
+                {% else %}
+                    <span>Message lookup failed.</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="corebb-admin-modern-actions">
+            <a class="corebb-board-action-link" href="/admin/?act=mod_requests">Back to Mod Requests</a>
+            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
+        </div>
+    </div>
+
+    {% if model.missing|default(false) %}
+        <div class="corebb-admin-modern-note is-danger">{{ model.message|default('Unknown message ID.') }}</div>
+    {% else %}
+        {% set post = model.post|default({}) %}
+        {% set request = model.request|default(null) %}
+
+        <table class="corebb-admin-modern-table corebb-admin-detail-table wb-table">
+            <tbody>
+                <tr>
+                    <th>Reply</th>
+                    <td><a class="corebb-admin-text-link" href="{{ post.thread_url|default('#') }}">#{{ post.id|default(0) }}</a></td>
+                </tr>
+                <tr>
+                    <th>Author</th>
+                    <td><a class="corebb-admin-text-link" href="{{ post.author_url|default('#') }}">{{ post.author_username|default('Unknown') }}</a></td>
+                </tr>
+                <tr>
+                    <th>Subject</th>
+                    <td>{{ post.title|default('') }}</td>
+                </tr>
+                <tr>
+                    <th>Date Posted</th>
+                    <td>{{ post.posttime_label|default('') }}</td>
+                </tr>
+                <tr>
+                    <th>User IP Address</th>
+                    <td>
+                        {{ post.user_ip|default('') != '' ? post.user_ip : 'Unknown' }}
+                        {% if post.user_ip|default('') != '' %}
+                            <div class="corebb-admin-modern-submit">
+                                <a class="corebb-board-action-link" href="{{ post.user_ip_check_url }}">IP Check</a>
+                                <a class="corebb-board-action-link" href="{{ post.user_host_lookup_url }}">Host Lookup</a>
+                            </div>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <th>Message IP Address</th>
+                    <td>
+                        {{ post.post_ip|default('') != '' ? post.post_ip : 'Unknown' }}
+                        {% if post.post_ip|default('') != '' %}
+                            <div class="corebb-admin-modern-submit">
+                                <a class="corebb-board-action-link" href="{{ post.post_ip_check_url }}">IP Check</a>
+                                <a class="corebb-board-action-link" href="{{ post.post_host_lookup_url }}">Host Lookup</a>
+                            </div>
+                        {% endif %}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="corebb-admin-modern-note is-muted">
+            Sometimes the user IP address is different than the message IP address because the message IP address is older. Depending on the user's ISP, they may be given a dynamic IP address. The user IP address will always be the most current.
+        </div>
+
+        {% if request %}
+            <table class="corebb-admin-modern-table corebb-admin-detail-table wb-table">
+                <tbody>
+                    <tr>
+                        <th>Reported By</th>
+                        <td><a class="corebb-admin-text-link" href="{{ request._reporter_url|default('#') }}">{{ request._reporter_label|default('Unknown') }}</a></td>
+                    </tr>
+                    <tr>
+                        <th>Reason</th>
+                        <td>{{ request._reason_label|default('') }}</td>
+                    </tr>
+                    <tr>
+                        <th>Severity</th>
+                        <td><span class="corebb-admin-status-pill">{{ request.severity|default(1) }}</span></td>
+                    </tr>
+                    <tr>
+                        <th>Date Added</th>
+                        <td>{{ request.created_at|default('') }}</td>
+                    </tr>
+                    <tr>
+                        <th>Comments</th>
+                        <td><div class="corebb-admin-prewrap">{{ request.comments|default('') }}</div></td>
+                    </tr>
+                </tbody>
+            </table>
+        {% endif %}
+
+        <div class="corebb-admin-modern-panel">
+            <div class="corebb-admin-section-title">Message</div>
+            {% include 'partials/formatted_content.twig' with {content: post_body_model(post.body|default(''), post.author_accesslevel|default(0))} only %}
+        </div>
+
+        <div class="corebb-admin-modern-panel">
+            <div class="corebb-admin-section-title">Moderator Options</div>
+            <div class="corebb-admin-modern-submit">
+                <a class="corebb-board-action-link" href="{{ post.admin_notes_url|default('#') }}">View/Update Admin Notes</a>
+                <a class="corebb-board-action-link is-danger" href="{{ post.ban_url|default('#') }}">Ban User</a>
+                <a class="corebb-board-action-link" href="{{ post.edit_url|default('#') }}">Edit/Lock/Unlock Message</a>
+            </div>
+            <div class="corebb-admin-action-stack">
+                <form class="corebb-admin-modern-form" method="post" action="{{ model.action_url|default('/admin/?act=moderate_message') }}" onsubmit="return confirm('Remove this message?');">
+                    {% include 'partials/csrf_field.twig' %}
+                    <input type="hidden" name="mod_request_token" value="{{ model.token|default('') }}">
+                    <input type="hidden" name="action" value="remove_message">
+                    <input type="hidden" name="postid" value="{{ post.id|default(0) }}">
+                    <input type="hidden" name="request_id" value="{{ model.request_id|default(0) }}">
+                    <button class="corebb-board-action-link is-danger" type="submit">Move Message to Deleted Posts</button>
+                </form>
+
+                <form class="corebb-admin-modern-form" method="post" action="{{ model.action_url|default('/admin/?act=moderate_message') }}" onsubmit="return confirm('Remove this entire topic?');">
+                    {% include 'partials/csrf_field.twig' %}
+                    <input type="hidden" name="mod_request_token" value="{{ model.token|default('') }}">
+                    <input type="hidden" name="action" value="remove_topic">
+                    <input type="hidden" name="postid" value="{{ post.id|default(0) }}">
+                    <input type="hidden" name="request_id" value="{{ model.request_id|default(0) }}">
+                    <button class="corebb-board-action-link is-danger" type="submit">Move Topic to Deleted Posts</button>
+                </form>
+            </div>
+        </div>
+
+        {% if model.can_close_request|default(false) %}
+            <div class="corebb-admin-modern-panel">
+                <form class="corebb-admin-modern-form" method="post" action="{{ model.action_url|default('/admin/?act=moderate_message') }}">
+                    {% include 'partials/csrf_field.twig' %}
+                    <input type="hidden" name="mod_request_token" value="{{ model.token|default('') }}">
+                    <input type="hidden" name="action" value="close_request">
+                    <input type="hidden" name="postid" value="{{ post.id|default(0) }}">
+                    <input type="hidden" name="request_id" value="{{ model.request_id|default(0) }}">
+                    <div class="corebb-admin-modern-grid">
+                        <label for="corebbModeratorResponse">Moderator Response</label>
+                        <textarea id="corebbModeratorResponse" name="handler_note" rows="4" cols="60"></textarea>
+                        <div class="corebb-admin-modern-submit corebb-admin-modern-full">
+                            <button class="corebb-board-action-link" type="submit">Close Request Without Action</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        {% endif %}
+    {% endif %}
+</div>

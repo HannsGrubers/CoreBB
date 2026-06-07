@@ -1,0 +1,74 @@
+{% if model.missing|default(false) %}
+<table class="wb-cellpad-3 wb-cellspace-1 wb-table" style="width: 100%;">
+    <tr><td class="BoardRowB">{{ model.message|default('Board not found.') }}</td></tr>
+</table>
+{% else %}
+    {% set archiveReadOnly = model.archiveReadOnly|default(false) %}
+    {% set isLoggedIn = model.isLoggedIn|default(false) %}
+    {% set moderation = model.moderation|default({visible: false}) %}
+    <table class="wb-cellspace-1 wb-cellpad-3 wb-table" style="width: 100%;">
+        <tr>
+            <td class="MainMenuRow">
+                {% if isLoggedIn %}
+                    {% if archiveReadOnly %}
+                        <a class="MainMenuFont"><b>Secure Archive - Read Only</b></a>
+                    {% else %}
+                        <a class="MainMenuFont" href="{{ model.newTopicUrl|default('#') }}"><b>Post New Topic</b></a>
+                        <a class="MainMenuFont">|</a>
+                        <a class="MainMenuFont" href="{{ model.newPollUrl|default('#') }}"><b>Post Poll</b></a>
+                    {% endif %}
+                    {% if not model.isFavorite|default(false) %}
+                        <a class="MainMenuFont">|</a>
+                        <form method="post" action="{{ model.favoriteUrl|default('#') }}" class="wb-inline-post-link">
+                            {% include 'partials/csrf_field.twig' %}
+                            <button type="submit" class="MainMenuFont wb-link-submit"><b>Add Board To Favorites</b></button>
+                        </form>
+                    {% endif %}
+                {% else %}
+                    {% if archiveReadOnly %}
+                        <a class="MainMenuFont"><b>Secure Archive - Read Only</b></a>
+                    {% else %}
+                        <a class="MainMenuFont"><b>Post New Topic</b></a>
+                        <a class="MainMenuFont">| You must <a class="MainMenuLink" href="{{ model.loginUrl|default('/login/') }}">log in</a> to post.</a>
+                    {% endif %}
+                {% endif %}
+            </td>
+        </tr>
+        {% if moderation.visible|default(false) %}
+            <tr>
+                <td class="MainMenuRow">
+                    <span class="MainMenuFont"><b>Moderator Tools:</b></span>
+                    <a class="MainMenuFont" href="{{ moderation.mod_requests_url|default('/admin/?act=mod_requests') }}"><b>Board Mod Requests</b></a>
+                    <a class="MainMenuFont">|</a>
+                    <a class="MainMenuFont" href="{{ moderation.deleted_posts_url|default('/admin/?act=deleted_posts') }}"><b>Board Deleted Posts</b></a>
+                </td>
+            </tr>
+        {% endif %}
+    </table>
+
+    {% include 'partials/board_pagination.twig' with {pagination: model.pagination|default({})} only %}
+
+    <table class="wb-cellpad-3 wb-cellspace-1 wb-table" style="width: 100%;">
+        {% if model.topicCount|default(0) == 0 %}
+            <tr class="wb-text-left wb-valign-top">
+                <td colspan="4" class="BoardRowB"><div class="wb-text-left">
+                    No topics have been posted to this board yet.{{ archiveReadOnly ? ' This Secure Archive board is read-only.' : ' Would you like to be the first?' }}
+                    {% if not isLoggedIn %}
+                        <strong>You must <a href="{{ model.loginUrl|default('/login/') }}">log in</a> first!</strong>
+                    {% endif %}
+                </div></td>
+            </tr>
+        {% else %}
+            <tr class="wb-text-left wb-valign-top">
+                <td class="BoardColumn" style="width: 65%;">Subject</td>
+                <td class="BoardColumn" style="width: 15%;">Author</td>
+                <td colspan="2" class="BoardColumn wb-nowrap" style="width: 20%;">Replies &amp; Last Activity <span style="font-size:0.63em;">(PST)</span></td>
+            </tr>
+            {% for topic in model.topics|default([]) %}
+                {% include 'partials/board_topic_row.twig' with {topic: topic} only %}
+            {% endfor %}
+        {% endif %}
+    </table>
+
+    {% include 'partials/board_pagination.twig' with {pagination: model.pagination|default({})} only %}
+{% endif %}

@@ -1,0 +1,95 @@
+{% if model.found|default(false) is empty %}
+<table class="wb-cellpad-3 wb-cellspace-1 BoardRowB wb-table" style="width: 100%;"><tr><td class="BoardRowB wb-text-center"><b>{{ model.message|default('Unknown User.') }}</b></td></tr></table>
+{% else %}
+    {% set user = model.user|default({}) %}
+    {% set userId = user.id|default(0) %}
+    <table class="wb-cellspace-1 wb-cellpad-3 BoardRowB wb-table" style="width: 100%;">
+        <tr class="wb-text-left wb-valign-top">
+            <td class="wb-valign-top" style="width: 250px; width: 250px; min-width: 250px; max-width: 250px; padding-right: 6px;">
+                <table class="wb-table-center wb-cellpad-3 wb-cellspace-1 wb-control-box wb-table" style="width: 100%;">
+                    <tr><td class="BoardColumn"><strong>Profile</strong></td></tr>
+                    <tr>
+                        <td class="BoardRowB wb-control-links" style="line-height: 1.45; padding: 5px;">
+                            <strong>{% include 'partials/user_name.twig' with {user: user_name_model(userId, model.username_plain|default('Unknown'))} only %}</strong><br>
+                            <span class="SmallText">({{ model.username_plain|default('Unknown') }}'s profile)</span><br>
+                            {% if model.post_count_raw|default(0) > 0 %}
+                                <div style="padding-top: 4px; padding-bottom: 2px;">{% include 'partials/user_star.twig' with {star: user_star_model(model.post_count_raw|default(0), userId)} only %}</div>
+                            {% endif %}
+                            <span class="SmallText"><b>Level:</b> {{ model.level|default('') }}</span><br>
+                            <span class="SmallText"><b>UID:</b> {{ userId }}</span>
+                        </td>
+                    </tr>
+                    {% if model.profile_picture|default('') is not empty %}
+                        <tr><td class="BoardColumn"><strong>Picture</strong></td></tr>
+                        <tr>
+                            <td class="BoardRowB wb-text-center" style="padding: 6px;">
+                                <img src="{{ model.profile_picture }}" alt="Profile picture" style="max-width:220px; max-height:220px;">
+                            </td>
+                        </tr>
+                    {% endif %}
+                    <tr><td class="BoardColumn"><strong>Actions</strong></td></tr>
+                    <tr>
+                        <td class="BoardRowB wb-control-links" style="line-height: 1.45; padding: 5px;">
+                            <b>&middot;</b>&nbsp;<a class="MultiPages" href="/private-messages/send/{{ userId }}/">Send Private Message</a><br>
+                            <b>&middot;</b>&nbsp;<a class="MultiPages" href="/blogs/user/{{ userId }}/">View Blog</a><br>
+                            {% if model.can_edit_self|default(false) %}
+                                <b>&middot;</b>&nbsp;<a class="MultiPages" href="/blogs/new/">Add Blog Entry</a><br>
+                                <b>&middot;</b>&nbsp;<a class="MultiPages" href="/user-cp/profile/">Edit Your Profile</a><br>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+            </td>
+
+            <td class="wb-valign-top">
+                <table class="wb-table-center wb-cellpad-3 wb-cellspace-1 wb-table" style="width: 100%;">
+                    <tr><td colspan="2" class="BoardColumn"><strong>Profile Information</strong></td></tr>
+                    <tr><td colspan="2" class="BoardColumn"><strong>Info</strong></td></tr>
+                    {% for field in model.fields|default([]) %}
+                        <tr>
+                            <td class="wb-nowrap wb-text-right BoardColumn" style="width: 1%;"><b>{{ field.label|default('') }}:</b></td>
+                            <td class="BoardRowB">{% include 'partials/formatted_content.twig' with {content: profile_field_model(field)} only %}</td>
+                        </tr>
+                    {% endfor %}
+                    <tr>
+                        <td class="wb-nowrap wb-text-right BoardColumn" style="width: 1%;"><b>CoreBB Profile Added:</b></td>
+                        <td class="BoardRowB">{{ model.reg_date|default('') }}</td>
+                    </tr>
+                    <tr>
+                        <td class="wb-nowrap wb-text-right BoardColumn" style="width: 1%;"><b>CoreBB Profile Last Updated:</b></td>
+                        <td class="BoardRowB">{{ model.last_update|default('') }}</td>
+                    </tr>
+
+                    <tr><td colspan="2" class="BoardColumn"><strong>CoreBB Activity</strong></td></tr>
+                    <tr>
+                        <td class="wb-nowrap wb-text-right BoardColumn" style="width: 1%;"><b>Total # Posts:</b></td>
+                        <td class="BoardRowB">{{ model.post_count|default('0') }}</td>
+                    </tr>
+                    {% if model.can_view_content_links|default(false) %}
+                        <tr>
+                            <td class="wb-nowrap wb-text-right BoardColumn" style="width: 1%;"><b>User Content:</b></td>
+                            <td class="BoardRowB">
+                                <a class="BoardRowBLink" href="{{ model.all_topics_url|default('#') }}"><b>All Topics</b></a>
+                                &nbsp;|&nbsp;
+                                <a class="BoardRowBLink" href="{{ model.all_posts_url|default('#') }}"><b>All Posts</b></a>
+                            </td>
+                        </tr>
+                    {% endif %}
+                    <tr>
+                        <td class="wb-nowrap wb-text-right BoardColumn" style="width: 1%;"><b>Last Boards Login Date:</b></td>
+                        <td class="BoardRowB">{{ model.last_login|default('') }}</td>
+                    </tr>
+                    <tr>
+                        <td class="wb-nowrap wb-text-right BoardColumn" style="width: 1%;"><b>Last Boards Post Date:</b></td>
+                        <td class="BoardRowB">{{ model.last_post|default('') }}</td>
+                    </tr>
+
+                    <tr><td colspan="2" class="BoardColumn"><strong>Bio</strong></td></tr>
+                    <tr>
+                        <td colspan="2" class="BoardRowB" style="padding: 6px; min-height: 40px;">{% include 'partials/formatted_content.twig' with {content: profile_bio_model(model.bio|default(''))} only %}</td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+{% endif %}

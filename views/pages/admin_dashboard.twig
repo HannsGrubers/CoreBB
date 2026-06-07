@@ -1,0 +1,81 @@
+{% set viewer = model.viewer|default({}) %}
+{% set accessLevel = model.viewer_accesslevel|default(0) %}
+
+<div class="corebb-admin-modern-page">
+    {% if model.message|default('') != '' %}
+        <div class="corebb-admin-modern-note">{{ model.message|replace({'+': ' '}) }}</div>
+    {% endif %}
+
+    <div class="corebb-admin-modern-header">
+        <div>
+            <div class="corebb-admin-modern-eyebrow">Overview</div>
+            <h2>{{ model.title|default('Control Center') }}</h2>
+            <div class="corebb-admin-modern-meta">
+                <span>Welcome, {% include 'partials/user_name.twig' with {user: user_name_model(viewer.id|default(0))} only %}</span>
+                {% if model.body|default('') != '' %}<span>{{ model.body|default('') }}</span>{% endif %}
+            </div>
+        </div>
+        <div class="corebb-admin-modern-actions">
+            <a class="corebb-board-action-link" href="/admin/?act=action_log">Action Log</a>
+            <a class="corebb-board-action-link" href="/admin/?act=version_history">Version History</a>
+        </div>
+    </div>
+
+    <div class="corebb-admin-modern-panel">
+        <div class="corebb-admin-section-title">Forum Snapshot</div>
+        <table class="corebb-admin-modern-table corebb-admin-snapshot-table wb-table">
+            <thead>
+                <tr>
+                    {% for label, value in model.stats|default({}) %}
+                        <th>{{ label }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    {% for label, value in model.stats|default({}) %}
+                        <td>{{ value|number_format(0, '.', ',') }}</td>
+                    {% endfor %}
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    {% if accessLevel >= 4 %}
+        <div class="corebb-admin-modern-panel">
+            <div class="corebb-admin-section-title">Current Administrators</div>
+            {% if model.admins|default([]) is empty %}
+                <span class="corebb-admin-modern-help">No administrator accounts were found.</span>
+            {% else %}
+                <div class="corebb-admin-modern-submit">
+                    {% for admin in model.admins %}
+                        {% include 'partials/user_name.twig' with {user: user_name_model(admin.id|default(0))} only %}
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+    {% endif %}
+
+    {% for section in model.log_sections|default([]) %}
+        <div class="corebb-admin-modern-panel">
+            <div class="corebb-admin-section-title">{{ section.title|default('Action Log') }}</div>
+            {% if section.rows|default([]) is empty %}
+                <span class="corebb-admin-modern-help">No actions have been recorded at this time.</span>
+            {% else %}
+                <div class="corebb-admin-dashboard-actions">
+                    {% for log in section.rows %}
+                        <div class="corebb-admin-dashboard-action-row">
+                            <a class="corebb-admin-text-link" href="{{ log.admin_url|default('/admin/?act=action_log') }}">{{ log.admin_username|default('Unknown') }}</a>
+                            <span class="corebb-admin-modern-help">level {{ log.userlevel|default('') }}</span>
+                            <span>{{ log.action|default('') }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+    {% endfor %}
+
+    {% if accessLevel < 4 %}
+        <div class="corebb-admin-modern-note is-muted">Use the command panel on the left for the tools available to your access level.</div>
+    {% endif %}
+</div>

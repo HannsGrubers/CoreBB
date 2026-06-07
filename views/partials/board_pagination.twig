@@ -1,0 +1,31 @@
+{% if pagination.visible|default(false) %}
+<table class="wb-cellpad-2 wb-cellspace-1 wb-table" style="width: 100%;">
+    <tr><td class="MainMenuRow"><div style="text-align: center;">
+        <a class="{{ pagination.class|default('MainMenuFont') }}"><b>{{ pagination.label|default('Pages:') }}</b></a>
+        {% for item in pagination.items|default([]) %}
+            {% if loop.first %} {% else %}<a class="{{ pagination.class|default('MainMenuFont') }}">{{ pagination.separator|default(' | ') }}</a>{% endif %}
+            {% if item.type == 'ellipsis' %}
+                <a class="{{ pagination.class|default('MainMenuFont') }}">...</a>
+            {% elseif item.current %}
+                <a class="{{ pagination.class|default('MainMenuFont') }}"><b>{{ item.page }}</b></a>
+            {% else %}
+                <a class="{{ pagination.class|default('MainMenuFont') }}" href="{{ item.url }}">{{ item.page }}</a>
+            {% endif %}
+        {% endfor %}
+        &nbsp;<a class="{{ pagination.class|default('MainMenuFont') }}">-</a>&nbsp;
+        {% if pagination.prev.enabled|default(false) %}
+            <a href="{{ pagination.prev.url }}" class="{{ pagination.class|default('MainMenuFont') }}">Previous</a>
+        {% else %}
+            <a class="{{ pagination.class|default('MainMenuFont') }}"><strike>Previous</strike></a>
+        {% endif %}
+        <a class="{{ pagination.class|default('MainMenuFont') }}">|</a>
+        {% if pagination.next.enabled|default(false) %}
+            <a href="{{ pagination.next.url }}" class="{{ pagination.class|default('MainMenuFont') }}">Next</a>
+        {% else %}
+            <a class="{{ pagination.class|default('MainMenuFont') }}"><strike>Next</strike></a>
+        {% endif %}
+        <a class="{{ pagination.class|default('MainMenuFont') }}">|</a>
+        <a class="{{ pagination.class|default('MainMenuFont') }}" href="{{ pagination.reload_url }}">Reload</a>
+    </div></td></tr>
+</table>
+{% endif %}

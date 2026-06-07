@@ -1,0 +1,8 @@
+<table class="wb-cellspace-1 wb-cellpad-0 wb-table" style="width: 100%;">
+    <tr>
+        <td class="BoardColumn"><a class="BoardColumnLink">&nbsp;&nbsp;{{ model.title|default('System Message') }}</a></td>
+    </tr>
+    <tr class="wb-valign-top wb-text-left">
+        <td class="BoardRowB">{% include 'partials/system_message_body.twig' with {model: model} only %}</td>
+    </tr>
+</table>

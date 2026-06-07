@@ -1,0 +1,114 @@
+{% include 'partials/admin_messages.twig' with {messages: model.messages|default([]), errors: model.errors|default([])} only %}
+{% set search = model.search|default({ip_address: '', host_address: ''}) %}
+{% set lookups = model.lookups|default([]) %}
+{% set rows = model.rows|default([]) %}
+
+<div class="corebb-admin-modern-page">
+    <div class="corebb-admin-modern-header">
+        <div>
+            <div class="corebb-admin-modern-eyebrow">People</div>
+            <h2>Host Address Lookup</h2>
+            <div class="corebb-admin-modern-meta">
+                <span>{{ lookups|length|number_format }} host records</span>
+                <span>{{ rows|length|number_format }} matching users</span>
+            </div>
+        </div>
+        <div class="corebb-admin-modern-actions">
+            <a class="corebb-board-action-link" href="/admin/?act=user_ip_check">User IP Check</a>
+            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
+        </div>
+    </div>
+
+    <div class="corebb-admin-modern-panel">
+        <form class="corebb-admin-modern-form" method="get" action="/admin/">
+            <input type="hidden" name="act" value="host_lookup">
+            <div class="corebb-admin-modern-grid">
+                <label for="corebbHostIpAddress">IP Address</label>
+                <input id="corebbHostIpAddress" name="ip_address" type="text" value="{{ search.ip_address|default('') }}">
+
+                <label for="corebbHostAddress">Host Address</label>
+                <input id="corebbHostAddress" name="host_address" type="text" size="60" value="{{ search.host_address|default('') }}">
+
+                <div class="corebb-admin-modern-submit corebb-admin-modern-full">
+                    <button class="corebb-board-action-link" type="submit">Search</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    {% if lookups %}
+        <table class="corebb-admin-modern-table wb-table">
+            <thead>
+                <tr>
+                    <th>IP Address</th>
+                    <th>Host Address</th>
+                    <th>Lookup Type</th>
+                    <th>Options</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for lookup in lookups %}
+                    <tr>
+                        <td><a class="corebb-admin-text-link" href="/admin/?act=user_ip_check&amp;ip={{ lookup.ip_address|default('')|url_encode }}">{{ lookup.ip_address|default('') }}</a></td>
+                        <td>{{ lookup.host_address|default('') }}</td>
+                        <td>{{ lookup.source|default('') }}</td>
+                        <td><a class="corebb-board-action-link" href="/admin/?act=user_ip_check&amp;ip={{ lookup.ip_address|default('')|url_encode }}">User IP Check</a></td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% elseif search.ip_address|default('') != '' or search.host_address|default('') != '' %}
+        <div class="corebb-admin-modern-note is-muted">No host records were found.</div>
+    {% else %}
+        <div class="corebb-admin-modern-note is-muted">Enter an IP address to reverse lookup, or a host address to resolve to IP addresses.</div>
+    {% endif %}
+
+    {% if rows %}
+        <div class="corebb-admin-modern-panel">
+            <div class="corebb-admin-section-title">Matching Users</div>
+            <table class="corebb-admin-modern-table wb-table">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Banned?</th>
+                        <th>IP Address</th>
+                        <th>Options</th>
+                        <th>Last Login Date</th>
+                        <th>Last Post Date</th>
+                        <th>Date Added</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                        <tr>
+                            <td><a class="corebb-admin-text-link" target="{{ row.user_link.target|default('_top') }}" href="{{ row.user_link.url|default('#') }}">{{ row.user_link.label|default(row.username|default('Unknown')) }}</a></td>
+                            <td>
+                                {% if row.banned_raw|default(false) %}
+                                    <span class="corebb-admin-status-pill is-danger">True</span>
+                                {% else %}
+                                    <span class="corebb-admin-status-pill">False</span>
+                                {% endif %}
+                            </td>
+                            <td><a class="corebb-admin-text-link" target="boardLink" href="/admin/?act=host_lookup&amp;ip_address={{ row.ip_address|default('')|url_encode }}">{{ row.ip_address|default('') }}</a></td>
+                            <td>
+                                <div class="corebb-admin-modern-submit">
+                                    <a class="corebb-board-action-link" target="boardLink" href="{{ row.notes_url|default('#') }}">Notes</a>
+                                    {% if row.banned_raw|default(false) %}
+                                        <a class="corebb-board-action-link is-danger" target="boardLink" href="{{ row.unban_url|default('#') }}">Unban</a>
+                                    {% else %}
+                                        <a class="corebb-board-action-link is-danger" target="boardLink" href="{{ row.ban_url|default('#') }}">Ban</a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>{{ row.last_login_date|default('') }}</td>
+                            <td>{{ row.last_post_date|default('') }}</td>
+                            <td>{{ row.date_added|default('') }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% elseif lookups %}
+        <div class="corebb-admin-modern-note is-muted">No users were found for the resolved IP address.</div>
+    {% endif %}
+</div>

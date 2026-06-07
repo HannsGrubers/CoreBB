@@ -1,0 +1,13 @@
+<br>
+<table class="wb-table wb-table-center wb-w-99p wb-cellspace-0 wb-cellpad-0" style="border: 1px solid #000000;">
+    <tr>
+        <td style="width:93%; background-color:#000000; color:#ffffff;">Description</td>
+        <td style="width:7%; background-color:#333333; color:#ffffff;">Status</td>
+    </tr>
+    {% for row in rows %}
+        <tr>
+            <td class="wb-bg-debug-label">{{ row.label }}</td>
+            <td class="wb-bg-debug-value">{{ row.value }}</td>
+        </tr>
+    {% endfor %}
+</table>

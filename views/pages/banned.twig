@@ -1,0 +1,61 @@
+{% set isBanned = model.is_banned|default(false) %}
+<table class="wb-cellpad-0 wb-cellspace-0 wb-table" style="width: 100%;">
+    <tr><td class="BoardColumn" style="height: 25px;">&nbsp;&nbsp;Account Banned</td></tr>
+    <tr><td class="BoardRowB wb-text-left" style="height: 20px;">
+        <div style="padding: 8px;">
+            You have violated our <a class="BoardRowBLink" href="/board-rules-faq/#tos">Terms Of Service</a> and are currently <strong>banned</strong> from using this board system.<p></p>
+            In most cases, bans are <strong>temporary</strong>; occasionally they are accidental.<p></p>
+            People evading bans by creating or using alternate accounts may have additional time added to their original ban.
+            {% if model.banned_at|default('') or model.ban_reason|default('') %}
+                <p></p><span class="SmallText"><strong>Ban info:</strong>
+                {% if model.banned_at|default('') %}{{ model.banned_at }}{% endif %}
+                {% if model.ban_reason|default('') %}<br>{{ model.ban_reason|nl2br }}{% endif %}
+                </span>
+            {% endif %}
+        </div>
+    </td></tr>
+</table><br>
+
+{% if model.messages|default([]) is not empty or model.errors|default([]) is not empty %}
+<table class="wb-cellpad-0 wb-cellspace-0 wb-table" style="width: 100%;">
+    <tr><td class="BoardColumn" style="height: 15px;">&nbsp;Result</td></tr>
+    <tr><td class="BoardRowB" style="height: 20px;">
+        {% for msg in model.messages|default([]) %}&nbsp;<span class="SmallText">{{ msg }}</span><br>{% endfor %}
+        {% for err in model.errors|default([]) %}&nbsp;<span class="SmallText"><b>Error:</b> {{ err }}</span><br>{% endfor %}
+    </td></tr>
+</table><br>
+{% endif %}
+
+{% if isBanned %}
+<table class="wb-cellpad-0 wb-cellspace-0 wb-table" style="width: 100%;">
+    <tr><td class="BoardColumn" style="height: 25px;">&nbsp;&nbsp;Request Unban</td></tr>
+    <tr><td class="BoardRowB wb-text-left" style="height: 20px;">
+        <form method="post" action="/banned/">
+            {% include 'partials/csrf_field.twig' %}
+            <table class="wb-cellpad-3 wb-cellspace-1 wb-table" style="width: 100%;">
+                <tr><td class="BoardColumn wb-text-right" style="width: 20%;">Account:&nbsp;</td><td class="BoardRowB">{{ model.username|default('') }} <span class="SmallText">#{{ model.user_id|default(0) }}</span></td></tr>
+                <tr><td class="BoardColumn wb-text-right">Contact Email:&nbsp;</td><td class="BoardRowB"><input type="text" name="contact_email" size="40" value="{{ model.form.contact_email|default('') }}"></td></tr>
+                <tr><td class="BoardColumn wb-text-right wb-valign-top">Request:&nbsp;</td><td class="BoardRowB"><textarea name="request_text" cols="70" rows="7">{{ model.form.request_text|default('') }}</textarea><br><span class="SmallText">Explain why the ban should be reviewed. If you already have a pending request, this updates it.</span></td></tr>
+                <tr><td colspan="2" class="BoardRowB"><input type="hidden" name="action" value="submit_unban_request"><input type="hidden" name="unban_request_token" value="{{ model.token|default('') }}"><input type="submit" value="Submit Unban Request"> <input type="button" value="Log Out" onclick="window.location.href='{{ url('auth.php?action=logout') }}';"></td></tr>
+            </table>
+        </form>
+    </td></tr>
+</table><br>
+{% else %}
+<table class="wb-cellpad-0 wb-cellspace-0 wb-table" style="width: 100%;"><tr><td class="BoardRowB" style="height: 25px;">&nbsp;You need to be logged into the banned account to submit an unban request.</td></tr></table><br>
+{% endif %}
+
+{% if model.requests|default([]) is not empty %}
+<table class="wb-cellpad-3 wb-cellspace-1 wb-table" style="width: 100%;">
+    <tr><td colspan="4" class="BoardColumn">Your Recent Unban Requests</td></tr>
+    <tr><td class="BoardColumn">Date</td><td class="BoardColumn">Status</td><td class="BoardColumn">Request</td><td class="BoardColumn">Resolution</td></tr>
+    {% for req in model.requests %}
+    <tr>
+        <td class="BoardRowB wb-valign-top">{{ req.created_at|default('') }}</td>
+        <td class="BoardRowB wb-valign-top">{{ req.status|default('')|capitalize }}</td>
+        <td class="BoardRowB wb-valign-top">{{ req.request_text|default('')|nl2br }}</td>
+        <td class="BoardRowB wb-valign-top">{{ req.admin_note|default('')|nl2br }}</td>
+    </tr>
+    {% endfor %}
+</table>
+{% endif %}

@@ -1,0 +1,14 @@
+{% set type = model.message_type|default('error') %}
+{% if type == 'banned' %}
+    <blockquote>
+        You have violated our <a class="BoardRowBLink" href="{{ url('support.php?action=faq') }}#tos">Terms Of Service</a> and are currently <strong>banned</strong> from using this board system.<p></p>
+        In most cases, bans are <strong>temporary</strong>; occasionally they are accidental.<p></p>
+        Please contact an administrator or moderator to inquire into the nature and duration of your ban.<p></p>
+        People evading bans by creating or using alternate accounts may have additional time added to their original ban.
+    </blockquote>
+{% elseif type == 'denied' %}
+    <img class="wb-img-middle" src="{{ asset('images/warn.gif') }}" width="56" height="56" alt="Warning">
+    {{ model.message|default('You do not have permission to access the requested page.') }}
+{% else %}
+    <strong>{{ model.message|default('A system error has occurred. We apologize for the inconvenience.') }}</strong>
+{% endif %}

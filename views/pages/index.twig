@@ -1,0 +1,44 @@
+{% if model.message is not empty %}
+<table class="wb-cellspace-1 wb-cellpad-3 wb-table" style="width: 100%;">
+    <tr><td class="BoardRowB">{{ model.message }}</td></tr>
+</table>
+{% endif %}
+
+<table class="wb-cellspace-1 wb-cellpad-0 wb-table" style="width: 100%;">
+    {% if model.expandedCategory is not empty %}
+        {% for openCategory in model.openCategories|default([]) %}
+            {% include 'partials/index_category_open.twig' with {
+                category: openCategory.category|default({}),
+                forums: openCategory.forums|default([]),
+                hiddenEmptyArchiveBoardCount: openCategory.hiddenEmptyArchiveBoardCount|default(0),
+                emptySecureArchiveBoardCount: openCategory.emptySecureArchiveBoardCount|default(0),
+                showEmptyArchiveBoards: model.showEmptyArchiveBoards|default(false)
+            } only %}
+        {% endfor %}
+
+        <tr>
+            <td colspan="5" class="BoardColumn" style="height: 20px;">&nbsp;<a class="BoardColumnLink BoardCategoryLink" href="/"><span class="BoardCategoryToggle" title="Expand">[+]</span>&nbsp;&nbsp;Your Favorite Boards</a></td>
+        </tr>
+    {% else %}
+        {% if model.favorites is not empty %}
+            {% include 'partials/index_category_open.twig' with {
+                category: {title: 'Your Favorite Boards', collapse_url: '/'},
+                forums: model.favorites,
+                isFavorites: true
+            } only %}
+        {% endif %}
+        {% for openCategory in model.openCategories|default([]) %}
+            {% include 'partials/index_category_open.twig' with {
+                category: openCategory.category|default({}),
+                forums: openCategory.forums|default([]),
+                hiddenEmptyArchiveBoardCount: openCategory.hiddenEmptyArchiveBoardCount|default(0),
+                emptySecureArchiveBoardCount: openCategory.emptySecureArchiveBoardCount|default(0),
+                showEmptyArchiveBoards: model.showEmptyArchiveBoards|default(false)
+            } only %}
+        {% endfor %}
+    {% endif %}
+
+    {% for category in model.collapsedCategories|default([]) %}
+        {% include 'partials/index_category_closed.twig' with {category: category} only %}
+    {% endfor %}
+</table>

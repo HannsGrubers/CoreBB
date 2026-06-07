@@ -1,0 +1,3 @@
+{% if title.visible|default(false) %}
+    {% include 'partials/formatted_content.twig' with {content: title.content|default({})} only %}
+{% endif %}

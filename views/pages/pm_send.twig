@@ -1,0 +1,115 @@
+<script src="{{ asset('scripts/posttoolbar.js') }}" id="posttoolbar_main"></script>
+<script type="text/javascript">
+var wbPmSubmitted = false;
+function wbPmSubmitGuard(form){
+    if (wbPmSubmitted) {
+        return false;
+    }
+    wbPmSubmitted = true;
+    var button = document.getElementById('cmdSubmit');
+    if (button) {
+        button.value = 'Please wait...';
+        setTimeout(function(){ button.disabled = true; }, 25);
+    }
+    return true;
+}
+function popup(mylink, windowname, w, h){
+    if (!window.focus) return true;
+    var href = (typeof(mylink) === 'string') ? mylink : mylink.href;
+    window.open(href, windowname, 'width=' + w + ',height=' + h + ',scrollbars=yes');
+    return false;
+}
+function r(hval){ document.frmMain.bgColor.value = hval; }
+function s(hval){ document.frmMain.textColor.value = hval; }
+function l(){ }
+function hideShow(sID){
+    var oElement = document.getElementById(sID);
+    if (!oElement) return false;
+    if (getDisplayValue(sID) == '') { hideElement(sID); return false; }
+    showElement(sID); return false;
+}
+function hideShowBelow(sID, oParent){
+    var oElement = document.getElementById(sID);
+    if (!oElement) return false;
+    oElement.style.left = brd_fnGetLeftPos(oParent) + 'px';
+    oElement.style.top = (brd_fnGetTopPos(oParent) + brd_fnGetObjectHeight(oParent)) + 'px';
+    return hideShow(sID);
+}
+function showElement(sID){ setDisplayValue(sID, ''); }
+function hideElement(sID){ setDisplayValue(sID, 'none'); }
+function getDisplayValue(sID){
+    var oElement = document.getElementById(sID);
+    if (!oElement) return null;
+    if (oElement.style) return oElement.style.display;
+    if (oElement.display) return oElement.display;
+    return null;
+}
+function setDisplayValue(sID, sValue){
+    var oElement = document.getElementById(sID);
+    if (!oElement) return;
+    if (oElement.style) oElement.style.display = sValue;
+    else if (oElement.display) oElement.display = sValue;
+}
+function brd_fnGetLeftPos(oElement){ var left = oElement.offsetLeft; while((oElement = oElement.offsetParent) != null){ left += oElement.offsetLeft; } return left; }
+function brd_fnGetTopPos(oElement){ var top = oElement.offsetTop; while((oElement = oElement.offsetParent) != null){ top += oElement.offsetTop; } return top; }
+function brd_fnGetObjectHeight(oElement){ return oElement.offsetHeight ? oElement.offsetHeight : oElement.style.height; }
+function brn_fnUnselectable(oElement){ }
+</script>
+
+{% include 'partials/pm_menu.twig' %}
+<div class="wb-pm-page">
+{% include 'partials/pm_folder_counts.twig' with {counts: model.counts|default({}), active: 'send'} only %}
+
+<form class="wb-pm-form" name="frmMain" id="frmMain" method="post" action="/private-messages/send/" onsubmit="return wbPmSubmitGuard(this);" style="margin:0; padding:0;">
+{% include 'partials/csrf_field.twig' %}
+<table class="wb-pm-form-table wb-cellpad-0 wb-cellspace-1 wb-table" style="width: 100%;">
+    <tr class="BoardRowB">
+        <td class="BoardRowA wb-text-right wb-valign-top" style="width: 17%;"><span class="InputSection">Send To User:&nbsp;</span></td>
+        <td class="BoardRowB" style="width: 83%;">
+            <span class="InputNotes">Required Input. Send to the user shown or select from your favorite user list.</span><br>
+            <select name="usr">
+                <option value="" selected>Select User</option>
+            </select>
+        </td>
+    </tr>
+
+    <tr class="BoardRowB">
+        <td class="BoardRowA wb-text-right wb-valign-top"><span class="InputSection">Manual User Name:&nbsp;</span></td>
+        <td class="BoardRowB">
+            <span class="InputNotes">Optional Input. Supply the <strong>user name</strong> or <strong>user ID</strong> of the user you want to send a private message to.</span><br>
+            To send the same message to multiple people, separate names by a comma. Limit: <strong>{{ model.recipient_limit|default('5') }}</strong><br>
+            <input style="width: 300px;" name="user_name" type="text" size="50" maxlength="255" value="{{ model.recipient|default('') }}">
+        </td>
+    </tr>
+
+    <tr class="BoardRowB">
+        <td class="BoardRowA wb-text-right wb-valign-top"><span class="InputSection">Message Subject:&nbsp;</span></td>
+        <td class="BoardRowB">
+            <span class="InputNotes">Required Input.</span><br>
+            <input style="width: 300px;" name="message_subject" type="text" size="50" maxlength="100" value="{{ model.title|default('') }}">
+        </td>
+    </tr>
+
+    <tr class="BoardRowB">
+        <td class="BoardRowA wb-text-right"><span class="InputSection">Format:&nbsp;</span></td>
+        {% include 'partials/post_toolbar.twig' %}
+    </tr>
+
+    <tr class="BoardRowB">
+        <td class="BoardRowA wb-text-right wb-valign-top"><span class="InputSection">Message Body:&nbsp;</span></td>
+        <td class="BoardRowB">
+            <span class="InputNotes">Required Input.</span><br>
+            <textarea name="message_body" id="message_body" wrap="soft" cols="60" rows="17" style="width: 100%;" onselect="pst_fnSaveCaret(this);" onkeyup="pst_fnSaveCaret(this);" onclick="pst_fnSaveCaret(this);"></textarea>
+            <input type="hidden" name="from_send" value="1">
+        </td>
+    </tr>
+
+    <tr class="BoardRowB">
+        <td class="BoardRowA">&nbsp;</td>
+        <td class="BoardRowB">
+            <input type="submit" value="Send Private Message" name="cmdSubmit" id="cmdSubmit">
+        </td>
+    </tr>
+</table>
+</form>
+</div>

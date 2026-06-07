@@ -1,0 +1,50 @@
+{% if model.error|default('') is not empty or model.result|default('') is not empty %}
+<table class="wb-cellpad-15 wb-cellspace-0 wb-table" style="width: 100%;"><tr><td class="BoardRowB">
+    {{ model.error|default(model.result|default('')) }}
+    {% if model.returnUrl|default('') is not empty %}<p><a class="BoardRowBLink" href="{{ model.returnUrl }}">{{ model.returnText|default('Continue') }}</a></p>{% endif %}
+</td></tr></table>
+{% else %}
+<table class="wb-cellspace-1 wb-cellpad-3 BoardRowB wb-table" style="width: 100%;">
+<tr>
+    <td class="wb-valign-top" style="width: 250px; padding-right: 6px;">
+        {% include 'partials/blog_sidebar.twig' with {title: model.sidebarTitle|default('My Controls'), controls: model.controls|default([])} only %}
+    </td>
+    <td class="wb-valign-top">
+        <table class="wb-table-center wb-cellpad-3 wb-cellspace-1 wb-table" style="width: 100%;">
+            <tr><td colspan="2" class="BoardColumn"><strong>Latest Blog Entries</strong></td></tr>
+            {% if model.latestEntries|default([]) is empty %}
+                <tr><td class="BoardRowB" style="padding: 6px;">Sorry, nobody has posted anything yet!</td></tr>
+            {% else %}
+                {% for entry in model.latestEntries|default([]) %}
+                    {% include 'partials/blog_entry_row.twig' with {entry: entry} only %}
+                {% endfor %}
+            {% endif %}
+        </table>
+
+        <br>
+
+        <table class="wb-table-center wb-cellpad-3 wb-cellspace-1 wb-table" style="width: 100%;">
+            <tr><td colspan="4" class="BoardColumn"><strong>Leader Boards</strong></td></tr>
+            <tr>
+                <td class="BoardRowA" style="width: 35%;"><span class="MediumText"><strong>Name</strong></span></td>
+                <td class="BoardRowA wb-text-center" style="width: 15%;"><span class="MediumText"><strong>Blog Posts</strong></span></td>
+                <td class="BoardRowA" style="width: 25%;"><span class="MediumText"><strong>Registered</strong></span></td>
+                <td class="BoardRowA wb-text-center" style="width: 25%;"><span class="MediumText"><strong>Board Posts</strong></span></td>
+            </tr>
+            {% if model.leaders|default([]) is empty %}
+                <tr><td colspan="4" class="BoardRowB" style="padding: 6px;">Sorry, nobody has posted anything!</td></tr>
+            {% else %}
+                {% for leader in model.leaders|default([]) %}
+                <tr>
+                    <td class="BoardRowB"><a class="MediumTextLink" href="/blogs/user/{{ leader.id|default(0) }}/"><strong>{{ leader.username|default('Unknown') }}</strong></a></td>
+                    <td class="BoardRowB wb-text-center"><span class="MediumText">{{ leader.blogPosts|default('0') }}</span></td>
+                    <td class="BoardRowB"><span class="MediumText">{{ leader.regdate|default('') }}</span></td>
+                    <td class="BoardRowB wb-text-center"><span class="MediumText">{{ leader.boardPosts|default('0') }}</span></td>
+                </tr>
+                {% endfor %}
+            {% endif %}
+        </table>
+    </td>
+</tr>
+</table>
+{% endif %}

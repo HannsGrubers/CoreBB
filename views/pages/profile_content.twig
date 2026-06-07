@@ -1,0 +1,85 @@
+{% if model.found|default(false) is empty %}
+<table class="wb-cellpad-3 wb-cellspace-1 BoardRowB wb-profile-content-workspace wb-table" style="width: 100%;">
+    <tr><td class="BoardColumn"><strong>User Content</strong></td></tr>
+    <tr><td class="BoardRowB"><div style="text-align: center;"><b>{{ model.message|default('Unable to load user content.') }}</b></div></td></tr>
+    {% if model.login_required|default(false) %}
+        <tr><td class="BoardRowA"><div style="text-align: center;"><a class="BoardRowBLink" href="{{ url('auth.php?action=login') }}"><b>Log In</b></a> or <a class="BoardRowBLink" href="{{ url('auth.php?action=register') }}"><b>Register</b></a></div></td></tr>
+    {% endif %}
+</table>
+{% else %}
+    {% set isPosts = model.type|default('topics') == 'posts' %}
+    {% set title = isPosts ? 'All Posts' : 'All Topics' %}
+    <table class="wb-cellspace-1 wb-cellpad-3 BoardRowB wb-profile-content-workspace wb-table" style="width: 100%;">
+        <tr>
+            <td colspan="2" class="BoardColumn"><strong>{{ title }} by {{ model.username_plain|default('Unknown') }}</strong></td>
+        </tr>
+        <tr>
+            <td class="BoardRowB wb-profile-content-toolbar">
+                <a class="BoardRowBLink" href="{{ model.profile_url|default('/profile/') }}"><b>Back to Profile</b></a>
+            </td>
+            <td class="BoardRowB wb-profile-content-toolbar wb-text-right wb-nowrap">
+                {% if not isPosts %}<b>All Topics</b>{% else %}<a class="BoardRowBLink" href="{{ model.topics_url|default('#') }}"><b>All Topics</b></a>{% endif %}
+                &nbsp;|&nbsp;
+                {% if isPosts %}<b>All Posts</b>{% else %}<a class="BoardRowBLink" href="{{ model.posts_url|default('#') }}"><b>All Posts</b></a>{% endif %}
+            </td>
+        </tr>
+    </table>
+
+    {% include 'partials/board_pagination.twig' with {pagination: model.pagination|default({})} only %}
+
+    {% if isPosts %}
+        <table class="wb-cellspace-1 wb-cellpad-3 wb-profile-content-table wb-table" style="width: 100%;">
+            <tr class="wb-text-left wb-valign-top">
+                <td class="BoardColumn" style="width: 54%;">Post / Topic</td>
+                <td class="BoardColumn" style="width: 24%;">Board</td>
+                <td class="BoardColumn wb-nowrap" style="width: 14%;">Posted <span style="font-size:0.63em;">(PST)</span></td>
+                <td class="BoardColumn wb-nowrap" style="width: 8%;">Post ID</td>
+            </tr>
+            {% if model.items|default([]) is empty %}
+                <tr><td colspan="4" class="BoardRowB"><div style="text-align: center;">No posts found.</div></td></tr>
+            {% endif %}
+            {% for item in model.items|default([]) %}
+                <tr class="wb-text-left wb-valign-top">
+                    <td class="BoardRowB">
+                        &diams;
+                        <a class="BoardRowBLinkB" href="{{ item.url }}">{{ item.post_title is not empty ? item.post_title : item.topic_title }}</a>
+                        <span class="SmallText wb-profile-post-topic">in {{ item.topic_title|default('') }}</span>
+                        {% if item.excerpt|default('') is not empty %}<span class="SmallText wb-profile-post-excerpt">{{ item.excerpt }}</span>{% endif %}
+                    </td>
+                    <td class="BoardRowA"><a class="BoardRowALink" href="{{ item.board_url }}">{{ item.board_name }}</a></td>
+                    <td class="BoardRowB wb-nowrap">&nbsp;{{ item.date }}</td>
+                    <td class="BoardRowA wb-nowrap">&nbsp;#{{ item.post_id }}</td>
+                </tr>
+            {% endfor %}
+        </table>
+    {% else %}
+        <table class="wb-cellspace-1 wb-cellpad-3 wb-profile-content-table wb-table" style="width: 100%;">
+            <tr class="wb-text-left wb-valign-top">
+                <td class="BoardColumn" style="width: 58%;">Subject</td>
+                <td class="BoardColumn" style="width: 22%;">Board</td>
+                <td colspan="2" class="BoardColumn wb-nowrap" style="width: 20%;">Replies &amp; Last Activity <span style="font-size:0.63em;">(PST)</span></td>
+            </tr>
+            {% if model.items|default([]) is empty %}
+                <tr><td colspan="4" class="BoardRowB"><div style="text-align: center;">No topics found.</div></td></tr>
+            {% endif %}
+            {% for item in model.items|default([]) %}
+                {% set topicPages = item.topic_pages|default({visible: false, items: []}) %}
+                <tr class="wb-text-left wb-valign-top">
+                    <td class="BoardRowB">
+                        {% if item.sticky|default(false) %}<img src="{{ asset('images/sticky.gif') }}" alt="Sticky" class="wb-img-middle">&nbsp;{% else %}&diams;{% endif %}
+                        <a class="BoardRowBLinkB" href="{{ item.url }}">{{ item.title }}</a>
+                        {% if item.locked|default(false) %} <span class="SmallText">[Locked]</span>{% endif %}
+                        {% if topicPages.visible|default(false) %}
+                            <span class="SmallText">[</span>{% for pageItem in topicPages.items|default([]) %}{% if not loop.first %}<span class="SmallText">, </span>{% endif %}{% if pageItem.type == 'ellipsis' %}<span class="SmallText">...</span>{% else %}<a class="SmallText" href="{{ pageItem.url }}">{{ pageItem.page }}</a>{% endif %}{% endfor %}<span class="SmallText">]</span>
+                        {% endif %}
+                    </td>
+                    <td class="BoardRowA"><a class="BoardRowALink" href="{{ item.board_url }}">{{ item.board_name }}</a></td>
+                    <td class="BoardRowB" style="width: 3%;"><div style="text-align: center;"><a class="VersionText">{{ item.replies|default(0) > 0 ? item.replies : '-' }}</a></div></td>
+                    <td class="BoardRowA wb-nowrap">&nbsp;{{ item.date }}{% if item.last_poster_id|default(0) > 0 %} <span class="SmallText">by {% include 'partials/user_name.twig' with {user: user_name_model(item.last_poster_id, item.last_poster_name|default(''))} only %} <a class="BoardRowALink" href="{{ item.last_post_url }}">&raquo;</a></span>{% endif %}</td>
+                </tr>
+            {% endfor %}
+        </table>
+    {% endif %}
+
+    {% include 'partials/board_pagination.twig' with {pagination: model.pagination|default({})} only %}
+{% endif %}

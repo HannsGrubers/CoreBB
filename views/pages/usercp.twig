@@ -1,0 +1,32 @@
+<table class="wb-cellspace-1 wb-cellpad-3 BoardRowB wb-usercp-workspace wb-table" style="width: 100%;">
+    <tr class="wb-text-left wb-valign-top">
+        <td class="wb-valign-top wb-usercp-nav-cell" style="width: 250px; width: 250px; min-width: 250px; max-width: 250px; padding-right: 6px;">
+            {% include 'partials/usercp_menu.twig' with {model: model} only %}
+        </td>
+        <td class="wb-usercp-content wb-valign-top">
+            <table class="wb-cellpad-0 wb-cellspace-1 wb-table" style="width: 100%;">
+                <tr>
+                    <td class="BoardColumn" style="height: 15px;">Your 5 Most Recent Topics</td>
+                    <td class="wb-text-center BoardColumn" style="width: 75px;">Replies</td>
+                    <td class="wb-text-center BoardColumn" style="width: 150px;">Last Post Time</td>
+                </tr>
+
+                {% if model.recentTopics|default([]) is empty %}
+                    <tr>
+                        <td colspan="3" class="BoardRowB" style="height: 35px;"><div class="wb-text-center">You have made no new topics!</div></td>
+                    </tr>
+                {% else %}
+                    {% for topic in model.recentTopics %}
+                        {% include 'partials/usercp_recent_topic_row.twig' with {topic: topic} only %}
+                    {% endfor %}
+                {% endif %}
+
+                <tr>
+                    <td colspan="3" class="MainMenuRow wb-text-right" style="height: 15px;">
+                        <input type="button" onclick="window.location.href='/';" value="Forum Index &raquo;" class="formsubmit" /> &nbsp;
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>

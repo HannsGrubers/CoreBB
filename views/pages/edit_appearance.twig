@@ -1,0 +1,28 @@
+<table class="wb-cellspace-1 wb-cellpad-3 BoardRowB wb-usercp-workspace wb-table" style="width: 100%;">
+    <tr class="wb-text-left wb-valign-top">
+        <td class="wb-valign-top wb-usercp-nav-cell" style="width: 250px; width: 250px; min-width: 250px; max-width: 250px; padding-right: 6px;">
+            {% include 'partials/usercp_menu.twig' with {model: model} only %}
+        </td>
+        <td class="wb-usercp-content wb-valign-top">
+            <table class="wb-cellpad-0 wb-cellspace-1 wb-table" style="width: 100%;">
+                <tr><td class="wb-text-left BoardColumn" style="width: 100%; height: 15px;">Username Appearance</td></tr>
+                {% if model.message|default('') %}
+                    <tr><td class="{{ model.error|default(false) ? 'BoardRowB' : 'BoardRowA' }}"><div class="wb-text-center"><b>{{ model.message }}</b></div></td></tr>
+                {% endif %}
+                <tr>
+                    <td class="BoardRowB" style="padding: 8px;">
+                        VIP users and users with appearance access can customize how their username appears around the boards.
+                    </td>
+                </tr>
+                <tr>
+                    <td class="BoardRowB">
+                        {% include 'partials/user_appearance_form.twig' with {appearance: model.appearance|default({})} only %}
+                    </td>
+                </tr>
+                <tr>
+                    <td class="MainMenuRow wb-text-right" style="height: 15px;"><input type="button" onclick="window.location.href='/';" value="Forum Index &raquo;" class="formsubmit"> &nbsp;</td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>

@@ -1,0 +1,18 @@
+<table class="wb-table-center wb-cellpad-3 wb-cellspace-1 wb-table" style="width: 100%;">
+    <tr><td class="BoardColumn"><strong>{{ title|default('My Controls') }}</strong></td></tr>
+    <tr><td class="BoardRowB wb-control-links" style="line-height: 1.45; padding: 5px;">
+        {% for control in controls|default([]) %}
+            <b>&middot;</b>&nbsp;
+            {% if control.post|default(false) %}
+                <form method="post" action="{{ control.url|default('#') }}" class="wb-inline-post-link">
+                    {% include 'partials/csrf_field.twig' %}
+                    <input type="hidden" name="method" value="{{ control.method|default('') }}">
+                    <button type="submit" class="MultiPages wb-link-submit">{{ control.label|default('') }}</button>
+                </form>
+            {% else %}
+                <a class="MultiPages" href="{{ control.url|default('#') }}">{{ control.label|default('') }}</a>
+            {% endif %}
+            {% if control.suffix|default('') is not empty %} <span class="SmallText">{{ control.suffix }}</span>{% endif %}<br>
+        {% endfor %}
+    </td></tr>
+</table>

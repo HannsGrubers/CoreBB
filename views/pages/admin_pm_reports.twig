@@ -1,0 +1,167 @@
+{% include 'partials/admin_messages.twig' with {messages: model.messages|default([]), errors: model.errors|default([])} only %}
+{% set detail = model.detail|default(null) %}
+{% set rows = model.requests|default([]) %}
+{% set old = model.old|default(false) %}
+
+<div class="corebb-admin-modern-page">
+    <div class="corebb-admin-modern-header">
+        <div>
+            <div class="corebb-admin-modern-eyebrow">Moderation</div>
+            <h2>{{ old ? 'Old Private Message Reports' : 'Private Message Reports' }}</h2>
+            <div class="corebb-admin-modern-meta">
+                <span>{{ rows|length|number_format }} shown</span>
+                {% if detail %}<span>Viewing report #{{ detail.id|default(0) }}</span>{% endif %}
+            </div>
+        </div>
+        <div class="corebb-admin-modern-actions">
+            <a class="corebb-board-action-link" href="/admin/?act=pm_reports">New PM Reports</a>
+            <a class="corebb-board-action-link" href="/admin/?act=pm_reports&amp;old=yes">Old PM Reports</a>
+            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
+        </div>
+    </div>
+
+    <div class="corebb-admin-modern-note is-muted">
+        Users can report private messages here. Moderators can review only reported private messages, cancel the report, or delete the reported PM from user mailboxes.
+    </div>
+
+    {% if detail %}
+        <table class="corebb-admin-modern-table corebb-admin-detail-table wb-table">
+            <tbody>
+                <tr>
+                    <th>Reported PM</th>
+                    <td>#{{ detail.pmid|default(0) }}</td>
+                </tr>
+                <tr>
+                    <th>Status</th>
+                    <td><span class="corebb-admin-status-pill">{{ detail._status_label|default('') }}</span></td>
+                </tr>
+                <tr>
+                    <th>Reported By</th>
+                    <td><a class="corebb-admin-text-link" href="{{ detail._reporter_url|default('#') }}">{{ detail.reporter_username|default('') != '' ? detail.reporter_username : '#' ~ detail.reporterid|default(0) }}</a></td>
+                </tr>
+                <tr>
+                    <th>From</th>
+                    <td><a class="corebb-admin-text-link" href="{{ detail._sender_url|default('#') }}">{{ detail.sender_username|default('') != '' ? detail.sender_username : '#' ~ detail.senderid|default(0) }}</a></td>
+                </tr>
+                <tr>
+                    <th>To</th>
+                    <td><a class="corebb-admin-text-link" href="{{ detail._receiver_url|default('#') }}">{{ detail.receiver_username|default('') != '' ? detail.receiver_username : '#' ~ detail.recieveid|default(0) }}</a></td>
+                </tr>
+                <tr>
+                    <th>Date Sent</th>
+                    <td>{{ detail.datesent|default('') }}</td>
+                </tr>
+                <tr>
+                    <th>Subject</th>
+                    <td>{{ detail.title|default('') }}</td>
+                </tr>
+                <tr>
+                    <th>Message</th>
+                    <td><div class="corebb-admin-prewrap">{{ detail.message|default('') }}</div></td>
+                </tr>
+                <tr>
+                    <th>Report Reason</th>
+                    <td>{{ detail.reason_type|default('')|replace({'_': ' '}) }}, severity {{ detail.severity|default(1) }}</td>
+                </tr>
+                <tr>
+                    <th>Reporter Comments</th>
+                    <td><div class="corebb-admin-prewrap">{{ detail.comments|default('') }}</div></td>
+                </tr>
+                {% if detail.is_deleted|default(0) == 1 %}
+                    <tr>
+                        <th>PM State</th>
+                        <td><strong>Deleted from user mailboxes.</strong> Deleted {{ detail.deleted_at|default('') }} by {{ detail.deleted_by_username|default('') != '' ? detail.deleted_by_username : '#' ~ detail.deleted_by|default(0) }}</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+
+        <div class="corebb-admin-modern-panel">
+            <div class="corebb-admin-section-title">Actions</div>
+            {% if not detail._can_act|default(false) %}
+                <span class="corebb-admin-modern-help">{{ detail._block_reason|default('You cannot moderate this private message.') }}</span>
+            {% elseif detail.status|default('new') != 'new' %}
+                <span class="corebb-admin-modern-help">This report is already closed.</span>
+            {% else %}
+                <div class="corebb-admin-modern-split">
+                    <form class="corebb-admin-modern-form" method="post" action="/admin/?act=pm_reports&amp;report={{ detail.id|default(0) }}" onsubmit="return confirm('Delete this private message from user mailboxes?');">
+                        {% include 'partials/csrf_field.twig' %}
+                        <input type="hidden" name="action" value="delete_pm">
+                        <input type="hidden" name="report_id" value="{{ detail.id|default(0) }}">
+                        <div class="corebb-admin-modern-grid">
+                            <label for="corebbPmReportDeleteNote">Staff Note</label>
+                            <textarea id="corebbPmReportDeleteNote" name="handler_note" rows="3"></textarea>
+                            <div class="corebb-admin-modern-submit corebb-admin-modern-full">
+                                <button class="corebb-board-action-link is-danger" type="submit">Delete Private Message</button>
+                            </div>
+                        </div>
+                    </form>
+                    <form class="corebb-admin-modern-form" method="post" action="/admin/?act=pm_reports&amp;report={{ detail.id|default(0) }}">
+                        {% include 'partials/csrf_field.twig' %}
+                        <input type="hidden" name="action" value="cancel_report">
+                        <input type="hidden" name="report_id" value="{{ detail.id|default(0) }}">
+                        <div class="corebb-admin-modern-grid">
+                            <label for="corebbPmReportCancelNote">Staff Note</label>
+                            <textarea id="corebbPmReportCancelNote" name="handler_note" rows="3"></textarea>
+                            <div class="corebb-admin-modern-submit corebb-admin-modern-full">
+                                <button class="corebb-board-action-link" type="submit">Cancel Report</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            {% endif %}
+        </div>
+    {% endif %}
+
+    <table class="corebb-admin-modern-table wb-table">
+        <thead>
+            <tr>
+                <th>Severity</th>
+                <th>PM</th>
+                <th>Reporter</th>
+                <th>From</th>
+                <th>To</th>
+                <th>Reason</th>
+                <th>Date Added</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if rows is empty %}
+                <tr>
+                    <td colspan="8" class="corebb-admin-modern-empty">No {{ old ? 'old' : 'new' }} private-message reports found.</td>
+                </tr>
+            {% else %}
+                {% for row in rows %}
+                    <tr>
+                        <td><span class="corebb-admin-status-pill">{{ row.severity|default(1) }}</span></td>
+                        <td>
+                            <a class="corebb-admin-text-link" href="{{ row._moderate_url|default('#') }}">#{{ row.pmid|default(0) }}</a><br>
+                            <span class="corebb-admin-message-preview">{{ row.title|default('') }}</span>
+                            {% if row.is_deleted|default(0) == 1 %}<br><span class="corebb-admin-modern-help">Deleted</span>{% endif %}
+                        </td>
+                        <td><a class="corebb-admin-text-link" href="{{ row._reporter_url|default('#') }}">{{ row.reporter_username|default('') != '' ? row.reporter_username : '#' ~ row.reporterid|default(0) }}</a></td>
+                        <td><a class="corebb-admin-text-link" href="{{ row._sender_url|default('#') }}">{{ row.sender_username|default('') != '' ? row.sender_username : '#' ~ row.senderid|default(0) }}</a></td>
+                        <td><a class="corebb-admin-text-link" href="{{ row._receiver_url|default('#') }}">{{ row.receiver_username|default('') != '' ? row.receiver_username : '#' ~ row.recieveid|default(0) }}</a></td>
+                        <td>{{ row.reason_type|default('')|replace({'_': ' '}) }}</td>
+                        <td class="wb-nowrap">{{ row.created_at|default('') }}</td>
+                        <td>
+                            <div class="corebb-admin-modern-submit">
+                                <a class="corebb-board-action-link" href="{{ row._moderate_url|default('#') }}">Moderate</a>
+                                {% if row.status|default('new') != 'new' %}<span class="corebb-admin-modern-help">{{ row._status_label|default('') }}</span>{% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td></td>
+                        <td colspan="7"><strong>Comments:</strong> <span class="corebb-admin-prewrap">{{ row.comments|default('') }}</span></td>
+                    </tr>
+                {% endfor %}
+            {% endif %}
+        </tbody>
+    </table>
+
+    {% if model.pagination.visible|default(false) %}
+        <div class="corebb-admin-modern-panel wb-text-center">{% include 'partials/board_pagination.twig' with {pagination: model.pagination} only %}</div>
+    {% endif %}
+</div>

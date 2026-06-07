@@ -1,0 +1,21 @@
+{% set verified = model.verified|default(false) %}
+{% set message = model.message|default(verified ? 'Email verified. You may now log in.' : 'Unable to verify email address.') %}
+<table class="wb-cellspace-1 wb-cellpad-0 wb-table" style="width: 100%;">
+    <tr class="BoardRowB">
+        <td style="padding: 10px;">
+            <b>Email Verification</b><br><br>
+            {{ message }}<br>
+            {% if model.detail|default('') != '' %}
+                <br><span class="SmallText">{{ model.detail }}</span><br>
+            {% endif %}
+            <br>
+            {% if verified %}
+                <a class="BoardRowBLink" href="{{ url('auth.php?action=login') }}">Continue to Login</a>
+            {% else %}
+                <a class="BoardRowBLink" href="{{ url('auth.php?action=resend') }}">Send a New Verification Email</a>
+                &nbsp;|&nbsp;
+                <a class="BoardRowBLink" href="{{ url('auth.php?action=register') }}">Return to Registration</a>
+            {% endif %}
+        </td>
+    </tr>
+</table>

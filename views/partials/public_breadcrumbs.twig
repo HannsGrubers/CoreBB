@@ -1,0 +1,7 @@
+{% for crumb in breadcrumbs|default([]) %}
+    {% if crumb.url|default('') != '' %}
+        <span class="MainMenuFont">&raquo;</span> <a class="MainMenuLink" href="{{ crumb.url }}">{{ crumb.label }}</a>
+    {% else %}
+        <span class="MainMenuFont">&raquo; {{ crumb.label }}</span>
+    {% endif %}
+{% endfor %}

@@ -1,0 +1,60 @@
+{% set type = vm.type|default('message') %}
+<table class="wb-cellspace-1 wb-cellpad-8 wb-table" style="width: 100%;">
+    <tr>
+        <td class="BoardColumn"><a class="BoardColumnLink">&nbsp;&nbsp;{{ vm.title|default('Moderation') }}</a></td>
+    </tr>
+    <tr>
+        <td class="BoardRowB">
+            {% if type == 'message' %}
+                {{ vm.message|default('') }}
+                {% if vm.continue_url|default('') %}
+                    <p><a class="BoardRowBLink" href="{{ vm.continue_url }}">Continue</a></p>
+                {% endif %}
+
+            {% elseif type == 'confirm_remove_post' %}
+                This will move the post to the Deleted Posts bin. It can be restored later by moderators/admins.<br><br>
+                <strong>Subject:</strong> {{ vm.post_title|default('') }}
+                <p>{{ vm.preview|default('')|nl2br }}</p>
+                <form method="post" action="/moderator/">
+                    {% include 'partials/csrf_field.twig' %}
+                    <input type="hidden" name="act" value="remove_post">
+                    <input type="hidden" name="post" value="{{ vm.post_id|default(0) }}">
+                    <input type="hidden" name="confirm" value="1">
+                    <input type="submit" value="Move to Deleted Posts">
+                    <a class="BoardRowBLink" href="{{ vm.cancel_url|default('/') }}">Cancel</a>
+                </form>
+
+            {% elseif type == 'confirm_lock_topic' %}
+                Are you sure you want to {{ vm.verb|default('Lock') }} this topic?
+                <p><strong>{{ vm.topic_title|default('') }}</strong></p>
+                <form method="post" action="/moderator/">
+                    {% include 'partials/csrf_field.twig' %}
+                    <input type="hidden" name="act" value="lock_topic">
+                    <input type="hidden" name="topic" value="{{ vm.topic_id|default(0) }}">
+                    <input type="hidden" name="confirm" value="1">
+                    <input type="submit" value="{{ vm.verb|default('Lock') }} Topic">
+                    <a class="BoardRowBLink" href="{{ vm.cancel_url|default('/') }}">Cancel</a>
+                </form>
+
+            {% elseif type == 'confirm_ban_user' %}
+                Ban user <strong>{{ vm.username|default('') }}</strong>?
+                <p>This sets their account status to banned. Their content is not deleted.</p>
+                <form method="post" action="/moderator/">
+                    {% include 'partials/csrf_field.twig' %}
+                    <input type="hidden" name="act" value="ban_user">
+                    <input type="hidden" name="user" value="{{ vm.user_id|default(0) }}">
+                    <input type="hidden" name="confirm" value="1">
+                    <input type="submit" value="Ban User">
+                    <a class="BoardRowBLink" href="{{ vm.cancel_url|default('/') }}">Cancel</a>
+                </form>
+
+            {% elseif type == 'ip_check' %}
+                <strong>Post ID:</strong> {{ vm.post_id|default(0) }}<br>
+                <strong>User:</strong> {{ vm.username|default('Unknown') }}<br>
+                <strong>Post IP:</strong> {{ vm.post_ip|default('') != '' ? vm.post_ip : 'Not recorded for this post' }}<br>
+                <strong>Last login IP:</strong> {{ vm.last_ip|default('') != '' ? vm.last_ip : 'Not recorded' }}<br>
+                <p><a class="BoardRowBLink" href="{{ vm.topic_url|default('/') }}">Back to topic</a></p>
+            {% endif %}
+        </td>
+    </tr>
+</table>

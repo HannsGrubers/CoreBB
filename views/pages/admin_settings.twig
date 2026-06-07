@@ -1,0 +1,88 @@
+{% set settings = model.settings|default({}) %}
+{% set messages = model.messages|default([]) %}
+{% set boolSettings = model.bool_settings|default([]) %}
+{% set numberSettings = model.number_settings|default([]) %}
+
+<div class="corebb-admin-modern-page">
+    <div class="corebb-admin-modern-header">
+        <div>
+            <div class="corebb-admin-modern-eyebrow">System</div>
+            <h2>Edit System Settings</h2>
+            <div class="corebb-admin-modern-meta">
+                <span>{{ settings|length|number_format }} settings</span>
+                <span>Stored in systemsettings</span>
+            </div>
+        </div>
+        <div class="corebb-admin-modern-actions">
+            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
+        </div>
+    </div>
+
+    {% if model.message|default('') != '' %}
+        {% include 'partials/admin_messages.twig' with {messages: [model.message]} only %}
+    {% endif %}
+    {% include 'partials/admin_messages.twig' with {messages: messages} only %}
+
+    <form class="corebb-admin-modern-form" name="systemsettings" method="post" action="/admin/?act=edit_settings&amp;method=post">
+        {% include 'partials/csrf_field.twig' %}
+
+        <div class="corebb-admin-modern-note">
+            Rate limit windows are stored in seconds. PM and posting limits still exempt moderators and higher; login and report limits do not.
+        </div>
+
+        <table class="corebb-admin-modern-table corebb-admin-settings-table wb-table">
+            <thead>
+                <tr>
+                    <th>Setting</th>
+                    <th>Description</th>
+                    <th>Value</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for name, row in settings %}
+                    {% set value = row.value|default('') %}
+                    <tr>
+                        <td><strong>{{ name }}</strong></td>
+                        <td><span class="corebb-admin-modern-help">{{ row.label|default(name) }}</span></td>
+                        <td>
+                            {% if name in boolSettings %}
+                                <select name="settings[{{ name }}]">
+                                    <option value="1"{% if value == '1' %} selected{% endif %}>1 / Yes</option>
+                                    <option value="0"{% if value == '0' %} selected{% endif %}>0 / No</option>
+                                </select>
+                            {% elseif name in ['maintenancemessage', 'terms_of_service'] %}
+                                <textarea name="settings[{{ name }}]" rows="5" cols="70">{{ value }}</textarea>
+                            {% elseif name in numberSettings %}
+                                <input type="number" min="1" step="1" name="settings[{{ name }}]" value="{{ value }}" size="12">
+                            {% else %}
+                                <input type="text" name="settings[{{ name }}]" value="{{ value }}" size="70">
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="corebb-admin-modern-panel">
+            <div class="corebb-admin-modern-grid">
+                <label for="corebbNewSettingName">Add New Setting</label>
+                <span>
+                    <input id="corebbNewSettingName" type="text" name="new_setting_name" size="30" placeholder="setting_name">
+                    <span class="corebb-admin-modern-help">Use letters, numbers, underscores, or dashes.</span>
+                </span>
+
+                <label for="corebbNewSettingValue">Value</label>
+                <input id="corebbNewSettingValue" type="text" name="new_setting_value" size="70">
+
+                <div class="corebb-admin-modern-submit corebb-admin-modern-full">
+                    <button class="corebb-board-action-link" type="submit" name="Submit" value="Save Settings">Save Settings</button>
+                    <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <div class="corebb-admin-modern-note is-muted">
+        Database username/password and board URL values still live in <strong>config.php</strong>. This page edits settings stored in the <strong>systemsettings</strong> table.
+    </div>
+</div>

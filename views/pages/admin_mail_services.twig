@@ -1,0 +1,141 @@
+{% set values = model.values|default({}) %}
+{% set messages = model.messages|default([]) %}
+{% set errors = model.errors|default([]) %}
+
+<div class="corebb-admin-modern-page">
+    {% include 'partials/admin_messages.twig' with {messages: messages, errors: errors} only %}
+
+    <div class="corebb-admin-modern-header">
+        <div>
+            <div class="corebb-admin-modern-eyebrow">System</div>
+            <h2>Mail Services</h2>
+            <div class="corebb-admin-modern-meta">
+                <span>Transport: {{ model.loaded_transport|default('mail') }}</span>
+                <span>SMTP password: {{ model.password_configured|default(false) ? 'configured' : 'missing' }}</span>
+                <span>{{ model.config_writable|default(false) ? 'config writable' : 'config read-only' }}</span>
+            </div>
+        </div>
+        <div class="corebb-admin-modern-actions">
+            <a class="corebb-board-action-link" href="{{ url('admin.php') }}">Admin Home</a>
+        </div>
+    </div>
+
+    <div class="corebb-admin-modern-note">
+        Mail transport settings are written to the loaded private config file. SMTP passwords are never shown after saving; leave the password field blank to keep the existing file value.
+    </div>
+
+    <form class="corebb-admin-modern-form" method="post" action="{{ url('admin.php?act=mail_services') }}">
+        {% include 'partials/csrf_field.twig' %}
+        <input type="hidden" name="action" value="save_mail">
+
+        <div class="corebb-admin-modern-panel">
+            <div class="corebb-admin-section-title">Delivery</div>
+            <div class="corebb-admin-modern-grid">
+                <label for="mailTransport">Transport</label>
+                <select id="mailTransport" name="transport">
+                    <option value="mail"{% if values.transport|default('mail') == 'mail' %} selected{% endif %}>PHP mail()</option>
+                    <option value="smtp"{% if values.transport|default('mail') == 'smtp' %} selected{% endif %}>SMTP</option>
+                    <option value="disabled"{% if values.transport|default('mail') == 'disabled' %} selected{% endif %}>Disabled</option>
+                </select>
+
+                <label for="mailFromAddress">From Address</label>
+                <input id="mailFromAddress" type="email" name="from_address" value="{{ values.from_address|default('') }}" size="45">
+
+                <label for="mailFromName">From Name</label>
+                <input id="mailFromName" type="text" name="from_name" value="{{ values.from_name|default('') }}" size="45">
+
+                <label for="mailRedirectTo">Redirect All Mail</label>
+                <span>
+                    <input id="mailRedirectTo" type="email" name="redirect_to" value="{{ values.redirect_to|default('') }}" size="45">
+                    <span class="corebb-admin-modern-help">Optional staging/test address. Blank sends to real recipients.</span>
+                </span>
+            </div>
+        </div>
+
+        <div class="corebb-admin-modern-panel">
+            <div class="corebb-admin-section-title">SMTP</div>
+            <div class="corebb-admin-modern-grid">
+                <label for="smtpHost">Host</label>
+                <input id="smtpHost" type="text" name="smtp_host" value="{{ values.smtp_host|default('') }}" size="45" autocomplete="off">
+
+                <label for="smtpPort">Port</label>
+                <input id="smtpPort" type="number" min="1" max="65535" name="smtp_port" value="{{ values.smtp_port|default(587) }}" size="8">
+
+                <label for="smtpSecure">Security</label>
+                <select id="smtpSecure" name="smtp_secure">
+                    <option value="tls"{% if values.smtp_secure|default('tls') == 'tls' %} selected{% endif %}>STARTTLS</option>
+                    <option value="ssl"{% if values.smtp_secure|default('tls') == 'ssl' %} selected{% endif %}>SSL / implicit TLS</option>
+                    <option value="plain"{% if values.smtp_secure|default('tls') == 'plain' %} selected{% endif %}>Plain</option>
+                </select>
+
+                <label for="smtpUsername">Username</label>
+                <input id="smtpUsername" type="text" name="smtp_username" value="{{ values.smtp_username|default('') }}" size="45" autocomplete="off">
+
+                <label for="smtpPassword">Password</label>
+                <span>
+                    <input id="smtpPassword" type="password" name="smtp_password" value="" size="45" autocomplete="new-password">
+                    <span class="corebb-admin-modern-help">{{ model.password_configured|default(false) ? 'Leave blank to keep the saved password.' : 'Required for SMTP unless supplied by environment.' }}</span>
+                </span>
+
+                <label for="clearSmtpPassword">Clear Password</label>
+                <label><input id="clearSmtpPassword" type="checkbox" name="clear_smtp_password" value="1"> Remove the saved SMTP password</label>
+
+                <label for="smtpHelo">HELO Name</label>
+                <input id="smtpHelo" type="text" name="smtp_helo" value="{{ values.smtp_helo|default('') }}" size="45">
+
+                <label for="smtpTimeout">Timeout</label>
+                <input id="smtpTimeout" type="number" min="1" max="120" name="smtp_timeout" value="{{ values.smtp_timeout|default(15) }}" size="8">
+
+                <label>Certificate Checks</label>
+                <span>
+                    <label><input type="checkbox" name="smtp_verify_peer" value="1"{% if values.smtp_verify_peer|default(true) %} checked{% endif %}> Verify peer</label>
+                    &nbsp;
+                    <label><input type="checkbox" name="smtp_verify_peer_name" value="1"{% if values.smtp_verify_peer_name|default(true) %} checked{% endif %}> Verify peer name</label>
+                    &nbsp;
+                    <label><input type="checkbox" name="smtp_allow_self_signed" value="1"{% if values.smtp_allow_self_signed|default(false) %} checked{% endif %}> Allow self-signed</label>
+                </span>
+            </div>
+        </div>
+
+        <div class="corebb-admin-modern-panel">
+            <div class="corebb-admin-section-title">Diagnostics</div>
+            <div class="corebb-admin-modern-grid">
+                <label for="mailDebug">Debug Log</label>
+                <label><input id="mailDebug" type="checkbox" name="debug" value="1"{% if values.debug|default(false) %} checked{% endif %}> Write sanitized mail diagnostics</label>
+
+                <label for="mailDebugLog">Debug Log Path</label>
+                <input id="mailDebugLog" type="text" name="debug_log" value="{{ values.debug_log|default('') }}" size="70">
+
+                <label for="mailDebugBcc">Debug BCC</label>
+                <input id="mailDebugBcc" type="email" name="debug_bcc" value="{{ values.debug_bcc|default('') }}" size="45">
+
+                <div class="corebb-admin-modern-submit corebb-admin-modern-full">
+                    <button class="corebb-board-action-link" type="submit">Save Mail Services</button>
+                    <a class="corebb-board-action-link" href="{{ url('admin.php') }}">Admin Home</a>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <div class="corebb-admin-modern-panel">
+        <div class="corebb-admin-section-title">Send Test</div>
+        <form class="corebb-admin-modern-form" method="post" action="{{ url('admin.php?act=mail_services') }}">
+            {% include 'partials/csrf_field.twig' %}
+            <input type="hidden" name="action" value="send_test">
+            <div class="corebb-admin-modern-grid">
+                <label for="testEmail">Recipient</label>
+                <input id="testEmail" type="email" name="test_email" value="{{ model.test_email|default('') }}" size="45">
+
+                <div class="corebb-admin-modern-submit corebb-admin-modern-full">
+                    <button class="corebb-board-action-link" type="submit">Send Test Email</button>
+                    <span class="corebb-admin-modern-help">Uses the mail constants already loaded for this request. After saving changes, reload this page before testing.</span>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="corebb-admin-modern-note is-muted">
+        <strong>Private config</strong>
+        <span>{{ model.config_path|default('Unavailable') }}</span>
+    </div>
+</div>

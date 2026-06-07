@@ -1,0 +1,1997 @@
+:root {
+    --corebb-page-bg: #ffffff;
+    --corebb-page-text: #000000;
+    --corebb-menu-bg: #cccccc;
+    --corebb-menu-text: #000000;
+    --corebb-menu-link: #000000;
+    --corebb-menu-alt: maroon;
+    --corebb-column-bg: #666666;
+    --corebb-column-text: #ffffff;
+    --corebb-column-link: orange;
+    --corebb-category-link: orange;
+    --corebb-category-toggle: #c9ad63;
+    --corebb-row-a-bg: #b1b3bc;
+    --corebb-row-b-bg: #c1c2c9;
+    --corebb-row-text: #000000;
+    --corebb-link: #0000cc;
+    --corebb-link-visited: #551a8b;
+    --corebb-username-link: #0000cc;
+    --corebb-muted-text: #666666;
+    --corebb-note-text: maroon;
+    --corebb-signature-text: #333333;
+    --corebb-input-bg: #ffffff;
+    --corebb-input-text: #000000;
+    --corebb-button-bg: #d7d7d7;
+    --corebb-button-hover-bg: #eeeeee;
+    --corebb-button-border-light: #ffffff;
+    --corebb-button-border-dark: #666666;
+    --corebb-debug-label-bg: beige;
+    --corebb-debug-value-bg: lightblue;
+    --corebb-divider: #777777;
+    --corebb-code-bg: #dddddd;
+    --corebb-code-text: #000000;
+    --corebb-radius-subtle: 3px;
+}
+
+html.corebb-dark-mode body.wb-vn-eol {
+    --corebb-page-bg: #17191c;
+    --corebb-page-text: #b9c1ca;
+    --corebb-menu-bg: #1f2225;
+    --corebb-menu-text: #b9c1ca;
+    --corebb-menu-link: #aeb8c3;
+    --corebb-menu-alt: #d7b95f;
+    --corebb-column-bg: #292d31;
+    --corebb-column-text: #cbd3dc;
+    --corebb-column-link: #dcc36f;
+    --corebb-category-link: #b0a0bd;
+    --corebb-category-toggle: #c9ad63;
+    --corebb-row-a-bg: #202326;
+    --corebb-row-b-bg: #24272b;
+    --corebb-row-text: #b9c1ca;
+    --corebb-link: #7fa6d6;
+    --corebb-link-visited: #b396c9;
+    --corebb-username-link: #8faec5;
+    --corebb-muted-text: #828c96;
+    --corebb-note-text: #c98f7d;
+    --corebb-signature-text: #929ba5;
+    --corebb-input-bg: #202326;
+    --corebb-input-text: #b9c1ca;
+    --corebb-button-bg: #2b3035;
+    --corebb-button-hover-bg: #343940;
+    --corebb-button-border-light: #545b63;
+    --corebb-button-border-dark: #151719;
+    --corebb-debug-label-bg: #2b2923;
+    --corebb-debug-value-bg: #22303a;
+    --corebb-divider: rgba(255, 255, 255, .08);
+    --corebb-code-bg: #202326;
+    --corebb-code-text: #b9c1ca;
+    --corebb-radius-subtle: 4px;
+}
+
+body.wb-admin-body {
+    --corebb-page-bg: #ffffff;
+    --corebb-page-text: #000000;
+    --corebb-menu-bg: #666666;
+    --corebb-menu-text: #ffffff;
+    --corebb-menu-link: #ffffff;
+    --corebb-menu-alt: #ffff00;
+    --corebb-column-bg: #999999;
+    --corebb-column-text: #ffffff;
+    --corebb-column-link: #ffffff;
+    --corebb-category-link: #ffffff;
+    --corebb-category-toggle: #ffffff;
+    --corebb-row-a-bg: #b1b3bc;
+    --corebb-row-b-bg: #c1c2c9;
+    --corebb-row-text: #000000;
+    --corebb-link: #0000cc;
+    --corebb-link-visited: #551a8b;
+    --corebb-username-link: #000099;
+    --corebb-muted-text: #000000;
+    --corebb-note-text: maroon;
+    --corebb-signature-text: #333333;
+    --corebb-input-bg: #ffffff;
+    --corebb-input-text: #000000;
+    --corebb-button-bg: #d7d7d7;
+    --corebb-button-hover-bg: #eeeeee;
+    --corebb-button-border-light: #ffffff;
+    --corebb-button-border-dark: #666666;
+    --corebb-debug-label-bg: beige;
+    --corebb-debug-value-bg: lightblue;
+    --corebb-divider: #777777;
+    --corebb-code-bg: #dddddd;
+    --corebb-code-text: #000000;
+    --corebb-radius-subtle: 0;
+    color-scheme: light;
+}
+
+html.corebb-dark-mode body.wb-admin-body {
+    --corebb-page-bg: #17191c;
+    --corebb-page-text: #c4ccd5;
+    --corebb-menu-bg: #202326;
+    --corebb-menu-text: #c4ccd5;
+    --corebb-menu-link: #9bb7d7;
+    --corebb-menu-alt: #d7b95f;
+    --corebb-column-bg: #2b3035;
+    --corebb-column-text: #d7dde5;
+    --corebb-column-link: #dcc36f;
+    --corebb-category-link: #dcc36f;
+    --corebb-category-toggle: #dcc36f;
+    --corebb-row-a-bg: #202326;
+    --corebb-row-b-bg: #24282d;
+    --corebb-row-text: #c4ccd5;
+    --corebb-link: #8fb8e5;
+    --corebb-link-visited: #bca1cf;
+    --corebb-username-link: #96c3dd;
+    --corebb-muted-text: #8f9aa5;
+    --corebb-note-text: #d7b95f;
+    --corebb-signature-text: #a0a9b2;
+    --corebb-input-bg: #1f2327;
+    --corebb-input-text: #d4dbe3;
+    --corebb-button-bg: #2f363d;
+    --corebb-button-hover-bg: #394149;
+    --corebb-button-border-light: #56616b;
+    --corebb-button-border-dark: #111416;
+    --corebb-debug-label-bg: #2b2923;
+    --corebb-debug-value-bg: #22303a;
+    --corebb-divider: rgba(255, 255, 255, .1);
+    --corebb-code-bg: #1f2327;
+    --corebb-code-text: #d4dbe3;
+    --corebb-radius-subtle: 4px;
+    color-scheme: dark;
+}
+
+html.corebb-dark-mode body.wb-vn-eol {
+    color-scheme: dark;
+}
+
+html,
+body {
+    background-color: var(--corebb-page-bg);
+    color: var(--corebb-page-text);
+}
+
+body.wb-classic-body,
+body.wb-vn-eol,
+body.wb-admin-body {
+    color: var(--corebb-page-text);
+}
+
+.MainTable {
+    background-color: var(--corebb-page-bg);
+    color: var(--corebb-page-text);
+}
+
+.MainMenuRow {
+    background-color: var(--corebb-menu-bg);
+    border-radius: var(--corebb-radius-subtle);
+    color: var(--corebb-menu-text);
+}
+
+.MainMenuRowAlt {
+    color: var(--corebb-menu-alt);
+}
+
+.MainMenuFont,
+.SmallText,
+.BoldText,
+.InputSection,
+.RegisterMain,
+.RegisterSub,
+.RegSubTxt,
+.mailcenter {
+    color: var(--corebb-menu-text);
+}
+
+.MainMenuLink {
+    color: var(--corebb-menu-link);
+}
+
+.BoardColumn {
+    background-color: var(--corebb-column-bg);
+    border-radius: var(--corebb-radius-subtle);
+    color: var(--corebb-column-text);
+}
+
+.BoardColumnLink {
+    color: var(--corebb-column-link);
+}
+
+.BoardCategoryLink {
+    color: var(--corebb-category-link);
+}
+
+.BoardCategoryToggle {
+    color: var(--corebb-category-toggle);
+    display: inline-block;
+    font-size: .85em;
+    font-weight: bold;
+    text-decoration: none;
+}
+
+.BoardColumnStat {
+    color: var(--corebb-column-text);
+}
+
+.BoardRowA,
+.PrivMsgListRowA {
+    background-color: var(--corebb-row-a-bg);
+    border-radius: var(--corebb-radius-subtle);
+    color: var(--corebb-row-text);
+}
+
+.BoardRowB {
+    background-color: var(--corebb-row-b-bg);
+    border-radius: var(--corebb-radius-subtle);
+    color: var(--corebb-row-text);
+}
+
+.BoardRowALink,
+.BoardRowBLink,
+.BoardRowBLinkB,
+.ModLinks,
+.SubjectLink,
+a.SubjectLink,
+.MultiPages,
+.MediumTextLink {
+    color: var(--corebb-link);
+}
+
+a.SubjectLink:visited {
+    color: var(--corebb-link-visited);
+}
+
+.AuthorLink:not([style]) {
+    color: var(--corebb-username-link);
+}
+
+.VersionText {
+    color: var(--corebb-muted-text);
+}
+
+.InputNotes,
+.SignatureTitle {
+    color: var(--corebb-note-text);
+}
+
+.SignatureText {
+    color: var(--corebb-signature-text);
+}
+
+.QuotedText,
+.code,
+.pagination {
+    background-color: var(--corebb-code-bg);
+    border-radius: var(--corebb-radius-subtle);
+    color: var(--corebb-code-text);
+    border-color: var(--corebb-divider);
+}
+
+.AdminActions {
+    border: 0 !important;
+    border-radius: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 0 !important;
+}
+
+.quoteheader,
+.codeheader,
+.bbcode-code-pre,
+.bbcode-code-content {
+    color: var(--corebb-code-text);
+}
+
+.bbcode-rule,
+.QuotedText hr {
+    border-top-color: var(--corebb-divider);
+}
+
+input,
+select,
+textarea {
+    background-color: var(--corebb-input-bg);
+    border-radius: var(--corebb-radius-subtle);
+    color: var(--corebb-input-text);
+    border-color: var(--corebb-button-border-light);
+}
+
+.formtext,
+input.formtext,
+select.formtext,
+textarea.formtext,
+input[type="text"],
+input[type="password"],
+input[type="email"],
+input[type="search"],
+input[type="url"],
+input[type="number"],
+textarea,
+select {
+    background-color: var(--corebb-input-bg) !important;
+    color: var(--corebb-input-text) !important;
+    border-color: var(--corebb-button-border-light);
+}
+
+html.corebb-dark-mode body.wb-vn-eol .formtext,
+html.corebb-dark-mode body.wb-vn-eol input[type="text"],
+html.corebb-dark-mode body.wb-vn-eol input[type="password"],
+html.corebb-dark-mode body.wb-vn-eol input[type="email"],
+html.corebb-dark-mode body.wb-vn-eol input[type="search"],
+html.corebb-dark-mode body.wb-vn-eol input[type="url"],
+html.corebb-dark-mode body.wb-vn-eol input[type="number"],
+html.corebb-dark-mode body.wb-vn-eol textarea,
+html.corebb-dark-mode body.wb-vn-eol select {
+    background-image: none !important;
+}
+
+input[type="submit"],
+input[type="button"],
+button,
+.formsubmit,
+.markupButton {
+    background-color: var(--corebb-button-bg) !important;
+    border-radius: var(--corebb-radius-subtle);
+    color: var(--corebb-input-text) !important;
+    border-top-color: var(--corebb-button-border-light) !important;
+    border-left-color: var(--corebb-button-border-light) !important;
+    border-right-color: var(--corebb-button-border-dark) !important;
+    border-bottom-color: var(--corebb-button-border-dark) !important;
+}
+
+input[type="submit"]:hover,
+input[type="button"]:hover,
+button:hover,
+.formsubmit:hover,
+.markupButton:hover {
+    background-color: var(--corebb-button-hover-bg) !important;
+}
+
+.wb-inline-post-link {
+    display: inline;
+    margin: 0;
+    padding: 0;
+}
+
+button.wb-link-submit {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    color: inherit !important;
+    cursor: pointer !important;
+    font: inherit !important;
+    line-height: inherit !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    text-align: left !important;
+    text-decoration: none !important;
+    vertical-align: baseline !important;
+}
+
+button.wb-link-submit.MainMenuFont {
+    color: var(--corebb-menu-text) !important;
+}
+
+button.wb-link-submit.MultiPages {
+    color: var(--corebb-link) !important;
+}
+
+button.wb-link-submit:hover,
+button.wb-link-submit:active {
+    background: transparent !important;
+    border: 0 !important;
+    text-decoration: underline !important;
+}
+
+.corebb-admin-app {
+    box-sizing: border-box;
+    color: var(--corebb-page-text);
+    font-family: Verdana, Arial, sans-serif;
+    font-size: 10pt;
+    margin: 0 auto;
+    max-width: 1680px;
+    min-height: 100vh;
+    padding: 8px;
+    width: 100%;
+}
+
+.corebb-admin-app *,
+.corebb-admin-app *::before,
+.corebb-admin-app *::after {
+    box-sizing: border-box;
+}
+
+.corebb-admin-header {
+    align-items: center;
+    background: var(--corebb-column-bg);
+    border: 1px solid var(--corebb-divider);
+    color: var(--corebb-column-text);
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+    min-height: 42px;
+    padding: 7px 10px;
+}
+
+.corebb-admin-brand,
+.corebb-admin-user,
+.corebb-admin-topnav,
+.corebb-admin-footer {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.corebb-admin-brand-link {
+    color: var(--corebb-column-link) !important;
+    font-size: 13pt;
+    font-weight: bold;
+    text-decoration: none;
+}
+
+.corebb-admin-route,
+.corebb-admin-user-level {
+    color: var(--corebb-muted-text);
+    font-size: 8pt;
+    text-transform: uppercase;
+}
+
+.corebb-admin-user-name {
+    font-weight: bold;
+}
+
+.corebb-admin-topnav {
+    background: var(--corebb-menu-bg);
+    border: 1px solid var(--corebb-divider);
+    border-top: 0;
+    color: var(--corebb-menu-text);
+    padding: 5px 8px;
+}
+
+.corebb-admin-topnav a,
+.corebb-admin-topnav a:link,
+.corebb-admin-topnav a:visited {
+    color: var(--corebb-menu-link);
+    font-weight: bold;
+    text-decoration: none;
+}
+
+.corebb-admin-topnav a:hover,
+.corebb-admin-brand-link:hover,
+.corebb-admin-nav-link:hover {
+    text-decoration: underline;
+}
+
+.corebb-admin-alerts {
+    display: grid;
+    gap: 4px;
+    margin-top: 8px;
+}
+
+.corebb-admin-alert,
+.corebb-admin-special-access {
+    background: var(--corebb-row-b-bg);
+    border: 1px solid var(--corebb-divider);
+    color: var(--corebb-row-text);
+    padding: 6px 8px;
+}
+
+.corebb-admin-page-message {
+    color: var(--corebb-note-text);
+    padding: 8px;
+}
+
+.corebb-admin-page-message.is-error {
+    color: #990000;
+}
+
+html.corebb-dark-mode body.wb-admin-body .corebb-admin-page-message.is-error {
+    color: #e28b7d;
+}
+
+.corebb-admin-alert strong,
+.corebb-admin-special-access strong {
+    color: var(--corebb-menu-alt);
+    margin-right: 6px;
+}
+
+.corebb-admin-workspace {
+    align-items: stretch;
+    display: grid;
+    gap: 8px;
+    grid-template-columns: minmax(210px, 250px) minmax(0, 1fr);
+    margin-top: 8px;
+}
+
+.corebb-admin-sidebar,
+.corebb-admin-content {
+    min-width: 0;
+}
+
+.corebb-admin-sidebar {
+    background: var(--corebb-row-a-bg);
+    border: 1px solid var(--corebb-divider);
+    color: var(--corebb-row-text);
+    padding: 8px;
+}
+
+.corebb-admin-nav-group + .corebb-admin-nav-group {
+    border-top: 1px solid var(--corebb-divider);
+    margin-top: 8px;
+    padding-top: 8px;
+}
+
+.corebb-admin-nav-group h2 {
+    color: var(--corebb-column-text);
+    font-size: 8pt;
+    margin: 0 0 5px 0;
+    text-transform: uppercase;
+}
+
+.corebb-admin-nav-links {
+    display: grid;
+    gap: 2px;
+}
+
+.corebb-admin-nav-link,
+.corebb-admin-nav-link:link,
+.corebb-admin-nav-link:visited {
+    align-items: center;
+    color: var(--corebb-link);
+    display: flex;
+    gap: 6px;
+    justify-content: space-between;
+    line-height: 1.25;
+    min-height: 22px;
+    padding: 3px 5px;
+    text-decoration: none;
+}
+
+.corebb-admin-nav-link.is-active {
+    background: var(--corebb-menu-bg);
+    color: var(--corebb-menu-link);
+    font-weight: bold;
+}
+
+.corebb-admin-nav-link.is-special span::after {
+    color: var(--corebb-menu-alt);
+    content: " *";
+}
+
+.corebb-admin-nav-link strong {
+    background: var(--corebb-column-bg);
+    color: var(--corebb-column-text);
+    font-size: 8pt;
+    min-width: 20px;
+    padding: 1px 4px;
+    text-align: center;
+}
+
+.corebb-admin-content {
+    background: var(--corebb-row-b-bg);
+    border: 1px solid var(--corebb-divider);
+    color: var(--corebb-row-text);
+    overflow-x: auto;
+    padding: 8px;
+}
+
+.corebb-admin-content table {
+    max-width: 100%;
+}
+
+.corebb-admin-modern-page {
+    color: var(--corebb-row-text);
+    display: grid;
+    gap: 8px;
+}
+
+.corebb-admin-modern-header {
+    align-items: flex-start;
+    background: var(--corebb-menu-bg);
+    color: var(--corebb-menu-text);
+    display: flex;
+    gap: 10px;
+    justify-content: space-between;
+    padding: 10px;
+}
+
+.corebb-admin-modern-eyebrow {
+    color: var(--corebb-muted-text);
+    font-size: 7pt;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.corebb-admin-modern-header h2 {
+    color: var(--corebb-menu-link);
+    font-size: 13pt;
+    line-height: 1.2;
+    margin: 2px 0 3px 0;
+}
+
+.corebb-admin-modern-meta,
+.corebb-admin-modern-actions {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.corebb-admin-modern-meta {
+    color: var(--corebb-menu-text);
+    font-size: 8pt;
+    opacity: .82;
+}
+
+.corebb-admin-modern-actions {
+    justify-content: flex-end;
+}
+
+.corebb-admin-text-link,
+.corebb-admin-text-link:link,
+.corebb-admin-text-link:visited {
+    color: var(--corebb-link);
+    font-weight: bold;
+    text-decoration: none;
+}
+
+.corebb-admin-text-link:hover {
+    text-decoration: underline;
+}
+
+.corebb-admin-modern-panel {
+    background: var(--corebb-row-a-bg);
+    border: 1px solid var(--corebb-divider);
+    color: var(--corebb-row-text);
+    padding: 8px;
+}
+
+.corebb-admin-modern-note {
+    background: var(--corebb-row-a-bg);
+    border-left: 4px solid var(--corebb-link);
+    color: var(--corebb-row-text);
+    font-size: 8pt;
+    line-height: 1.35;
+    padding: 8px 10px;
+}
+
+.corebb-admin-modern-note.is-danger {
+    border-left-color: var(--corebb-note-text);
+}
+
+.corebb-admin-modern-note.is-muted {
+    border-left-color: var(--corebb-muted-text);
+}
+
+.corebb-admin-modern-note span {
+    color: var(--corebb-muted-text);
+    display: block;
+    margin-top: 4px;
+}
+
+.corebb-admin-modern-form {
+    margin: 0;
+}
+
+.corebb-admin-modern-grid {
+    display: grid;
+    gap: 7px;
+    grid-template-columns: minmax(150px, 240px) minmax(0, 1fr);
+}
+
+.corebb-admin-modern-grid label,
+.corebb-admin-modern-label {
+    color: var(--corebb-column-text);
+    font-weight: bold;
+}
+
+body.wb-vn-eol .corebb-user-appearance-form .corebb-admin-section-title,
+body.wb-vn-eol .corebb-user-appearance-form .corebb-admin-modern-grid label,
+body.wb-vn-eol .corebb-user-appearance-form .corebb-admin-modern-label {
+    color: var(--corebb-row-text);
+}
+
+.corebb-admin-modern-grid input[type="text"],
+.corebb-admin-modern-grid input[type="password"],
+.corebb-admin-modern-grid input[type="number"],
+.corebb-admin-modern-grid select,
+.corebb-admin-modern-grid textarea {
+    max-width: 100%;
+    width: min(100%, 560px);
+}
+
+.corebb-admin-modern-grid textarea {
+    min-height: 120px;
+}
+
+.corebb-admin-modern-help {
+    color: var(--corebb-muted-text);
+    display: inline-block;
+    font-size: 8pt;
+    margin-left: 4px;
+}
+
+.corebb-admin-modern-full {
+    grid-column: 1 / -1;
+}
+
+.corebb-admin-modern-submit {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: flex-start;
+}
+
+.corebb-admin-modern-table {
+    border-collapse: collapse;
+    table-layout: fixed;
+    width: 100%;
+}
+
+.corebb-admin-modern-table th {
+    background: var(--corebb-column-bg);
+    color: var(--corebb-column-text);
+    font-size: 8pt;
+    padding: 6px 7px;
+    text-align: left;
+}
+
+.corebb-admin-modern-table td {
+    background: var(--corebb-row-b-bg);
+    border-top: 1px solid var(--corebb-divider);
+    color: var(--corebb-row-text);
+    padding: 6px 7px;
+    vertical-align: middle;
+}
+
+.corebb-admin-modern-table input[type="text"],
+.corebb-admin-modern-table input[type="number"],
+.corebb-admin-modern-table select,
+.corebb-admin-modern-table textarea {
+    max-width: 100%;
+    width: 100%;
+}
+
+.corebb-admin-modern-empty {
+    color: var(--corebb-muted-text) !important;
+    padding: 16px 8px !important;
+    text-align: center;
+}
+
+.corebb-admin-modern-split {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.corebb-admin-modern-choice {
+    background: var(--corebb-row-a-bg);
+    border: 1px solid var(--corebb-divider);
+    display: grid;
+    gap: 6px;
+    min-height: 100%;
+    padding: 10px;
+}
+
+.corebb-admin-modern-choice h3 {
+    color: var(--corebb-column-text);
+    font-size: 10pt;
+    margin: 0;
+}
+
+.corebb-admin-backup-table th:nth-child(2),
+.corebb-admin-backup-table th:nth-child(3) {
+    width: 150px;
+}
+
+.corebb-admin-backup-file-cell {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.corebb-admin-inline-form {
+    display: flex;
+    justify-content: flex-end;
+    margin: 0;
+}
+
+.corebb-admin-action-column {
+    text-align: right;
+    width: 130px;
+}
+
+.corebb-admin-filter-bar {
+    align-items: center;
+    background: var(--corebb-row-a-bg);
+    border: 1px solid var(--corebb-divider);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 8px;
+}
+
+.corebb-admin-filter-bar form {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin: 0;
+}
+
+.corebb-admin-filter-bar input[type="text"],
+.corebb-admin-filter-bar select {
+    width: auto;
+}
+
+.corebb-admin-detail-table th {
+    text-align: right;
+    width: 190px;
+}
+
+.corebb-admin-prewrap {
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
+.corebb-admin-status-pill {
+    background: var(--corebb-menu-bg);
+    color: var(--corebb-menu-link);
+    display: inline-block;
+    font-size: 7pt;
+    font-weight: bold;
+    padding: 2px 5px;
+}
+
+.corebb-admin-status-pill.is-danger {
+    color: var(--corebb-note-text);
+}
+
+.corebb-admin-action-stack {
+    display: grid;
+    gap: 8px;
+}
+
+.corebb-admin-message-preview {
+    overflow-wrap: anywhere;
+}
+
+.corebb-admin-tool-options {
+    display: grid;
+    gap: 4px 10px;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+
+.corebb-admin-tool-option {
+    align-items: center;
+    display: flex;
+    gap: 5px;
+}
+
+.corebb-admin-preview-band {
+    background: var(--corebb-row-b-bg);
+    border: 1px solid var(--corebb-divider);
+    font-size: 12pt;
+    padding: 10px;
+}
+
+.corebb-admin-post-view {
+    display: grid;
+    grid-template-columns: minmax(170px, 220px) minmax(0, 1fr);
+}
+
+.corebb-admin-post-author,
+.corebb-admin-post-body,
+.corebb-admin-post-meta {
+    background: var(--corebb-row-b-bg);
+    color: var(--corebb-row-text);
+    padding: 8px;
+}
+
+.corebb-admin-post-author {
+    border-right: 1px solid var(--corebb-divider);
+    font-size: 8pt;
+}
+
+.corebb-admin-post-meta {
+    border-bottom: 1px solid var(--corebb-divider);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.corebb-admin-post-body {
+    min-height: 120px;
+}
+
+.corebb-admin-settings-table th:first-child {
+    width: 210px;
+}
+
+.corebb-admin-settings-table th:last-child {
+    width: 42%;
+}
+
+.corebb-admin-global-message-table th:first-child {
+    width: 70px;
+}
+
+.corebb-admin-global-message-table th:last-child {
+    width: 180px;
+}
+
+.corebb-admin-user-list-table th:nth-child(4),
+.corebb-admin-user-list-table td:nth-child(4) {
+    text-align: right;
+    width: 85px;
+}
+
+.corebb-admin-user-list-table th:last-child {
+    width: 300px;
+}
+
+.corebb-admin-profile-summary-table th {
+    width: 220px;
+}
+
+.corebb-admin-title-preview {
+    font-size: 7pt;
+    margin-top: 8px;
+}
+
+.corebb-admin-user-pages-table th {
+    text-align: right;
+    width: 250px;
+}
+
+.corebb-admin-user-pages-table td .corebb-admin-modern-submit {
+    margin-top: 5px;
+}
+
+.corebb-admin-icon-preview {
+    display: inline-block;
+    margin-bottom: 6px;
+}
+
+.corebb-admin-icon-preview img {
+    border: 0;
+    display: block;
+    max-height: 120px;
+    max-width: 120px;
+}
+
+.corebb-admin-icon-table th:nth-child(1) {
+    width: 96px;
+}
+
+.corebb-admin-icon-table th:nth-child(2) {
+    width: 70px;
+}
+
+.corebb-admin-icon-table th:nth-child(4) {
+    width: 150px;
+}
+
+.corebb-admin-icon-table th:nth-child(5) {
+    width: 130px;
+}
+
+.corebb-admin-icon-table th:nth-child(6) {
+    width: 145px;
+}
+
+.corebb-admin-icon-table th:nth-child(7) {
+    width: 190px;
+}
+
+.corebb-admin-icon-file-cell,
+.corebb-admin-icon-file-name,
+.corebb-admin-icon-file-path {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.corebb-admin-icon-file-name,
+.corebb-admin-icon-file-path {
+    display: inline-block;
+    max-width: 100%;
+}
+
+.corebb-admin-unban-requests-table th:nth-child(1) {
+    width: 16%;
+}
+
+.corebb-admin-unban-requests-table th:nth-child(2) {
+    width: 16%;
+}
+
+.corebb-admin-unban-requests-table th:nth-child(4) {
+    width: 150px;
+}
+
+.corebb-admin-unban-requests-table th:nth-child(5) {
+    width: 80px;
+}
+
+.corebb-admin-unban-requests-table th:nth-child(6) {
+    width: 175px;
+}
+
+.corebb-admin-unban-host-cell,
+.corebb-admin-unban-host-link {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.corebb-admin-unban-host-link {
+    display: inline-block;
+    max-width: 100%;
+}
+
+.corebb-admin-user-content {
+    margin-top: 5px;
+    overflow-wrap: anywhere;
+}
+
+.corebb-admin-section-title {
+    color: var(--corebb-column-text);
+    font-weight: bold;
+    margin-bottom: 6px;
+}
+
+.corebb-admin-activity-item {
+    border-top: 1px solid var(--corebb-divider);
+    display: grid;
+    gap: 4px;
+    padding: 8px 0;
+}
+
+.corebb-admin-activity-item:first-of-type {
+    border-top: 0;
+    padding-top: 0;
+}
+
+.corebb-admin-snapshot-table td {
+    color: var(--corebb-menu-alt);
+    font-weight: bold;
+}
+
+.corebb-admin-dashboard-actions {
+    display: grid;
+    gap: 1px;
+}
+
+.corebb-admin-dashboard-action-row {
+    align-items: baseline;
+    background: var(--corebb-row-b-bg);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    padding: 5px 6px;
+}
+
+.corebb-admin-action-log-table th:last-child {
+    width: 170px;
+}
+
+.corebb-admin-version-entry {
+    display: block;
+}
+
+.corebb-admin-version-summary {
+    cursor: pointer;
+    display: grid;
+    gap: 4px;
+    list-style-position: outside;
+}
+
+.corebb-admin-version-summary .corebb-admin-section-title {
+    display: inline;
+}
+
+.corebb-admin-version-summary-meta {
+    color: var(--corebb-muted-text);
+    display: flex;
+    flex-wrap: wrap;
+    font-size: 8pt;
+    gap: 6px;
+    padding-left: 18px;
+}
+
+.corebb-admin-version-body {
+    margin-top: 8px;
+}
+
+.corebb-admin-version-entry p {
+    margin: 6px 0;
+}
+
+.corebb-admin-version-section {
+    border-top: 1px solid var(--corebb-divider);
+    margin-top: 8px;
+    padding-top: 8px;
+}
+
+.corebb-board-manager {
+    color: var(--corebb-row-text);
+}
+
+.corebb-board-access-page {
+    color: var(--corebb-row-text);
+    display: grid;
+    gap: 8px;
+}
+
+.corebb-board-access-header {
+    align-items: flex-start;
+    background: var(--corebb-menu-bg);
+    color: var(--corebb-menu-text);
+    display: flex;
+    gap: 10px;
+    justify-content: space-between;
+    padding: 10px;
+}
+
+.corebb-board-access-eyebrow {
+    color: var(--corebb-muted-text);
+    font-size: 7pt;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.corebb-board-access-header h2 {
+    color: var(--corebb-menu-link);
+    font-size: 13pt;
+    line-height: 1.2;
+    margin: 2px 0 3px 0;
+}
+
+.corebb-board-access-meta,
+.corebb-board-access-actions {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.corebb-board-access-meta {
+    color: var(--corebb-menu-text);
+    font-size: 8pt;
+    opacity: .82;
+}
+
+.corebb-board-access-actions {
+    justify-content: flex-end;
+}
+
+.corebb-board-access-note {
+    background: var(--corebb-row-a-bg);
+    border-left: 4px solid var(--corebb-link);
+    color: var(--corebb-row-text);
+    font-size: 8pt;
+    line-height: 1.35;
+    padding: 8px 10px;
+}
+
+.corebb-board-access-note.is-private {
+    border-left-color: var(--corebb-menu-alt);
+}
+
+.corebb-board-access-note.is-public {
+    border-left-color: var(--corebb-muted-text);
+}
+
+.corebb-board-access-note span {
+    color: var(--corebb-note-text);
+    display: block;
+    margin-top: 4px;
+}
+
+.corebb-board-access-add {
+    background: var(--corebb-row-a-bg);
+    border: 1px solid var(--corebb-divider);
+    padding: 8px;
+}
+
+.corebb-board-access-form {
+    align-items: center;
+    display: grid;
+    gap: 6px;
+    grid-template-columns: auto minmax(180px, 360px) auto minmax(140px, 1fr);
+}
+
+.corebb-board-access-form label {
+    color: var(--corebb-column-text);
+    font-weight: bold;
+}
+
+.corebb-board-access-input {
+    width: 100%;
+}
+
+.corebb-board-access-help,
+.corebb-board-access-user-id {
+    color: var(--corebb-muted-text);
+    font-size: 8pt;
+}
+
+.corebb-board-access-table {
+    border-collapse: collapse;
+    table-layout: fixed;
+    width: 100%;
+}
+
+.corebb-board-access-table th {
+    background: var(--corebb-column-bg);
+    color: var(--corebb-column-text);
+    font-size: 8pt;
+    padding: 6px 7px;
+    text-align: left;
+}
+
+.corebb-board-access-table td {
+    background: var(--corebb-row-b-bg);
+    border-top: 1px solid var(--corebb-divider);
+    color: var(--corebb-row-text);
+    padding: 6px 7px;
+    vertical-align: middle;
+}
+
+.corebb-board-access-user {
+    color: var(--corebb-link);
+    font-weight: bold;
+}
+
+.corebb-board-access-level {
+    background: var(--corebb-row-a-bg);
+    color: var(--corebb-row-text);
+    display: inline-block;
+    font-size: 7pt;
+    font-weight: bold;
+    padding: 2px 5px;
+}
+
+.corebb-board-access-action-cell {
+    text-align: right;
+    width: 130px;
+}
+
+.corebb-board-access-remove-form {
+    display: flex;
+    justify-content: flex-end;
+    margin: 0;
+}
+
+.corebb-board-access-empty {
+    color: var(--corebb-muted-text) !important;
+    padding: 16px 8px !important;
+    text-align: center;
+}
+
+.corebb-board-manager-toolbar {
+    align-items: center;
+    background: var(--corebb-menu-bg);
+    color: var(--corebb-menu-text);
+    display: flex;
+    gap: 10px;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    padding: 8px 10px;
+}
+
+.corebb-board-manager-title {
+    color: var(--corebb-menu-link);
+    font-weight: bold;
+    line-height: 1.2;
+}
+
+.corebb-board-manager-summary {
+    color: var(--corebb-menu-text);
+    display: flex;
+    flex-wrap: wrap;
+    font-size: 8pt;
+    gap: 8px;
+    margin-top: 3px;
+    opacity: .82;
+}
+
+.corebb-board-manager-toolbar-actions,
+.corebb-board-actions {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    justify-content: flex-end;
+}
+
+.corebb-board-toolbar-link,
+.corebb-board-action-link,
+.corebb-board-add-link,
+.corebb-board-action-disabled {
+    display: inline-block;
+    font-size: 8pt;
+    line-height: 1.2;
+    padding: 3px 6px;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.corebb-board-toolbar-link,
+.corebb-board-toolbar-link:link,
+.corebb-board-toolbar-link:visited,
+.corebb-board-action-link,
+.corebb-board-action-link:link,
+.corebb-board-action-link:visited,
+.corebb-board-add-link,
+.corebb-board-add-link:link,
+.corebb-board-add-link:visited {
+    background: var(--corebb-button-bg);
+    color: var(--corebb-link);
+}
+
+.corebb-board-toolbar-link:hover,
+.corebb-board-action-link:hover,
+.corebb-board-add-link:hover {
+    background: var(--corebb-button-hover-bg);
+}
+
+button.corebb-board-action-link {
+    appearance: none;
+    -webkit-appearance: none;
+    background: var(--corebb-button-bg) !important;
+    border: 0 !important;
+    border-radius: 0;
+    color: var(--corebb-link) !important;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 8pt;
+    font-weight: normal;
+    line-height: 1.2;
+    margin: 0;
+    padding: 3px 6px;
+    text-decoration: none !important;
+    white-space: nowrap;
+}
+
+button.corebb-board-action-link:hover {
+    background: var(--corebb-button-hover-bg) !important;
+    text-decoration: none !important;
+}
+
+button.corebb-board-action-link.is-danger {
+    color: var(--corebb-note-text) !important;
+}
+
+button.corebb-board-action-link:disabled {
+    color: var(--corebb-muted-text) !important;
+    cursor: default;
+}
+
+.corebb-board-action-link.is-danger {
+    color: var(--corebb-note-text);
+}
+
+.corebb-board-action-disabled {
+    color: var(--corebb-muted-text);
+}
+
+.corebb-board-structure {
+    border-collapse: collapse;
+    table-layout: fixed;
+    width: 100%;
+}
+
+.corebb-board-structure th {
+    background: var(--corebb-column-bg);
+    color: var(--corebb-column-text);
+    font-size: 8pt;
+    padding: 6px 7px;
+    text-align: left;
+}
+
+.corebb-board-structure td {
+    border-bottom: 1px solid var(--corebb-divider);
+    padding: 6px 7px;
+    vertical-align: middle;
+}
+
+.corebb-board-category-row td {
+    background: var(--corebb-menu-bg);
+    color: var(--corebb-menu-text);
+}
+
+.corebb-board-category-row .corebb-board-activity-cell,
+.corebb-board-category-row .corebb-board-muted,
+.corebb-board-category-row .corebb-board-action-disabled {
+    color: var(--corebb-menu-text);
+    opacity: .78;
+}
+
+.corebb-board-row td {
+    background: var(--corebb-row-b-bg);
+    color: var(--corebb-row-text);
+}
+
+.corebb-board-add-row td,
+.corebb-board-empty-row td {
+    background: var(--corebb-row-a-bg);
+    color: var(--corebb-row-text);
+    font-size: 8pt;
+}
+
+.corebb-board-order-cell {
+    text-align: center;
+    width: 54px;
+}
+
+.corebb-board-status-cell {
+    width: 190px;
+}
+
+.corebb-board-activity-cell {
+    color: var(--corebb-muted-text);
+    font-size: 8pt;
+    width: 132px;
+}
+
+.corebb-board-actions-cell {
+    text-align: right;
+    width: 300px;
+}
+
+.corebb-move-stack {
+    align-items: center;
+    display: inline-grid;
+    gap: 2px;
+    grid-template-columns: 18px;
+    justify-items: center;
+}
+
+.corebb-move-stack form {
+    margin: 0;
+    padding: 0;
+}
+
+button.corebb-move-button {
+    align-items: center !important;
+    display: inline-flex !important;
+    height: 18px !important;
+    justify-content: center !important;
+    width: 18px !important;
+}
+
+.corebb-move-arrow {
+    background-color: var(--corebb-link);
+    display: block;
+    height: 16px;
+    mask: url("images/corebb-admin-arrow-up.svg") center / contain no-repeat;
+    -webkit-mask: url("images/corebb-admin-arrow-up.svg") center / contain no-repeat;
+    width: 16px;
+}
+
+.corebb-move-arrow.is-down {
+    transform: rotate(180deg);
+}
+
+button.corebb-move-button:hover .corebb-move-arrow {
+    background-color: var(--corebb-menu-link);
+}
+
+.corebb-move-placeholder {
+    display: block;
+    height: 18px;
+    width: 18px;
+}
+
+.corebb-category-name,
+.corebb-board-name-wrap {
+    align-items: baseline;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.corebb-category-name {
+    color: var(--corebb-column-link);
+    font-weight: bold;
+}
+
+.corebb-category-caret {
+    color: var(--corebb-category-toggle);
+}
+
+.corebb-board-name {
+    font-weight: bold;
+}
+
+.corebb-board-id,
+.corebb-board-muted,
+.corebb-board-description {
+    color: var(--corebb-muted-text);
+    font-size: 8pt;
+}
+
+.corebb-board-description {
+    margin-top: 2px;
+    overflow-wrap: anywhere;
+}
+
+.corebb-board-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.corebb-board-tag {
+    background: var(--corebb-row-a-bg);
+    color: var(--corebb-row-text);
+    font-size: 7pt;
+    font-weight: bold;
+    padding: 2px 5px;
+}
+
+.corebb-board-category-row .corebb-board-tag {
+    background: var(--corebb-row-b-bg);
+}
+
+.corebb-board-tag.is-secure {
+    color: var(--corebb-note-text);
+}
+
+.corebb-board-tag.is-muted {
+    color: var(--corebb-muted-text);
+    font-weight: normal;
+}
+
+@media (max-width: 960px) {
+    .corebb-admin-modern-header,
+    .corebb-board-access-header,
+    .corebb-board-manager-toolbar,
+    .corebb-board-manager-toolbar-actions {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .corebb-admin-modern-actions {
+        justify-content: flex-start;
+    }
+
+    .corebb-admin-modern-grid,
+    .corebb-admin-modern-split {
+        grid-template-columns: 1fr;
+    }
+
+    .corebb-admin-post-view {
+        grid-template-columns: 1fr;
+    }
+
+    .corebb-admin-post-author {
+        border-bottom: 1px solid var(--corebb-divider);
+        border-right: 0;
+    }
+
+    .corebb-board-access-actions {
+        justify-content: flex-start;
+    }
+
+    .corebb-board-access-form {
+        grid-template-columns: 1fr;
+    }
+
+    .corebb-board-access-table {
+        min-width: 720px;
+    }
+
+    .corebb-board-structure {
+        table-layout: auto;
+    }
+
+    .corebb-board-status-cell,
+    .corebb-board-activity-cell,
+    .corebb-board-actions-cell {
+        width: auto;
+    }
+}
+
+.corebb-admin-editor {
+    box-sizing: border-box;
+    max-width: 100%;
+    width: min(100%, 760px);
+}
+
+.corebb-admin-schema-textarea {
+    box-sizing: border-box;
+    font-family: Consolas, "Courier New", monospace;
+    width: 100%;
+}
+
+.corebb-admin-output {
+    background: var(--corebb-code-bg);
+    border: 1px solid var(--corebb-divider);
+    box-sizing: border-box;
+    color: var(--corebb-code-text);
+    margin: 0;
+    max-height: 640px;
+    min-height: 220px;
+    overflow: auto;
+    padding: 8px;
+    white-space: pre-wrap;
+    width: 100%;
+    word-break: break-word;
+}
+
+.corebb-admin-api-output {
+    max-height: 720px;
+    min-height: 360px;
+}
+
+.corebb-admin-list {
+    margin-bottom: 0;
+    margin-top: 0;
+    padding-left: 18px;
+}
+
+.corebb-admin-note {
+    padding: 8px;
+}
+
+.corebb-admin-footer {
+    background: var(--corebb-menu-bg);
+    border: 1px solid var(--corebb-divider);
+    color: var(--corebb-muted-text);
+    justify-content: space-between;
+    margin-top: 8px;
+    padding: 5px 8px;
+}
+
+.corebb-admin-footer-version {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: flex-end;
+}
+
+.corebb-admin-debug {
+    border: 1px solid var(--corebb-divider);
+    margin-top: 8px;
+}
+
+.corebb-admin-debug-head {
+    background: var(--corebb-debug-label-bg);
+    color: var(--corebb-page-text);
+    font-weight: bold;
+    padding: 4px 6px;
+}
+
+.corebb-admin-debug-body {
+    background: var(--corebb-debug-value-bg);
+    color: var(--corebb-page-text);
+    padding: 4px 6px;
+}
+
+@media (max-width: 820px) {
+    .corebb-admin-workspace {
+        grid-template-columns: 1fr;
+    }
+
+    .corebb-admin-header,
+    .corebb-admin-footer {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+}
+
+.wb-table {
+    border: 0;
+}
+
+.wb-w-full { width: 100%; }
+.wb-w-99p { width: 99%; }
+.wb-w-98p { width: 98%; }
+.wb-w-97p { width: 97%; }
+.wb-w-95p { width: 95%; }
+.wb-w-90p { width: 90%; }
+.wb-w-85p { width: 85%; }
+.wb-w-83p { width: 83%; }
+.wb-w-81p { width: 81%; }
+.wb-w-75p { width: 75%; }
+.wb-w-70p { width: 70%; }
+.wb-w-64p { width: 64%; }
+.wb-w-60p { width: 60%; }
+.wb-w-half { width: 50%; }
+.wb-w-30p { width: 30%; }
+.wb-w-25p { width: 25%; }
+.wb-w-22p { width: 22%; }
+.wb-w-20p { width: 20%; }
+.wb-w-18p { width: 18%; }
+.wb-w-17p { width: 17%; }
+.wb-w-15p { width: 15%; }
+.wb-w-14p { width: 14%; }
+.wb-w-12p { width: 12%; }
+.wb-w-10p { width: 10%; }
+.wb-w-7p { width: 7%; }
+.wb-w-6p { width: 6%; }
+.wb-w-5p { width: 5%; }
+.wb-w-2p { width: 2%; }
+.wb-w-1p { width: 1%; }
+.wb-w-250 { width: 250px; }
+.wb-w-190 { width: 190px; }
+.wb-w-186 { width: 186px; }
+.wb-w-165 { width: 165px; }
+.wb-w-155 { width: 155px; }
+.wb-w-150 { width: 150px; }
+.wb-w-110 { width: 110px; }
+.wb-w-100 { width: 100px; }
+.wb-w-96 { width: 96px; }
+.wb-w-75 { width: 75px; }
+.wb-w-50 { width: 50px; }
+.wb-w-40 { width: 40px; }
+.wb-w-18 { width: 18px; }
+.wb-w-10 { width: 10px; }
+.wb-w-5 { width: 5px; }
+
+.wb-h-114 { height: 114px; }
+.wb-h-65 { height: 65px; }
+.wb-h-50 { height: 50px; }
+.wb-h-43 { height: 43px; }
+.wb-h-40 { height: 40px; }
+.wb-h-35 { height: 35px; }
+.wb-h-25 { height: 25px; }
+.wb-h-20 { height: 20px; }
+.wb-h-18 { height: 18px; }
+.wb-h-15 { height: 15px; }
+.wb-h-10 { height: 10px; }
+.wb-h-7 { height: 7px; }
+.wb-h-5 { height: 5px; }
+.wb-h-1 { height: 1px; }
+
+.wb-cellspace-0 { border-collapse: collapse; border-spacing: 0; }
+.wb-cellspace-1 { border-collapse: separate; border-spacing: 1px; }
+.wb-cellspace-2 { border-collapse: separate; border-spacing: 2px; }
+.wb-cellspace-10 { border-collapse: separate; border-spacing: 10px; }
+
+.wb-cellpad-0 > tbody > tr > th,
+.wb-cellpad-0 > tbody > tr > td,
+.wb-cellpad-0 > tr > th,
+.wb-cellpad-0 > tr > td { padding: 0; }
+.wb-cellpad-1 > tbody > tr > th,
+.wb-cellpad-1 > tbody > tr > td,
+.wb-cellpad-1 > tr > th,
+.wb-cellpad-1 > tr > td { padding: 1px; }
+.wb-cellpad-3 > tbody > tr > th,
+.wb-cellpad-3 > tbody > tr > td,
+.wb-cellpad-3 > tr > th,
+.wb-cellpad-3 > tr > td { padding: 3px; }
+.wb-cellpad-2 > tbody > tr > th,
+.wb-cellpad-2 > tbody > tr > td,
+.wb-cellpad-2 > tr > th,
+.wb-cellpad-2 > tr > td { padding: 2px; }
+.wb-cellpad-4 > tbody > tr > th,
+.wb-cellpad-4 > tbody > tr > td,
+.wb-cellpad-4 > tr > th,
+.wb-cellpad-4 > tr > td { padding: 4px; }
+.wb-cellpad-5 > tbody > tr > th,
+.wb-cellpad-5 > tbody > tr > td,
+.wb-cellpad-5 > tr > th,
+.wb-cellpad-5 > tr > td { padding: 5px; }
+.wb-cellpad-8 > tbody > tr > th,
+.wb-cellpad-8 > tbody > tr > td,
+.wb-cellpad-8 > tr > th,
+.wb-cellpad-8 > tr > td { padding: 8px; }
+.wb-cellpad-15 > tbody > tr > th,
+.wb-cellpad-15 > tbody > tr > td,
+.wb-cellpad-15 > tr > th,
+.wb-cellpad-15 > tr > td { padding: 15px; }
+.wb-cellpad-20 > tbody > tr > th,
+.wb-cellpad-20 > tbody > tr > td,
+.wb-cellpad-20 > tr > th,
+.wb-cellpad-20 > tr > td { padding: 20px; }
+
+.wb-table-center {
+    margin-left: auto;
+    margin-right: auto;
+}
+.wb-table-left {
+    margin-left: 0;
+    margin-right: auto;
+}
+.wb-table-right {
+    margin-left: auto;
+    margin-right: 0;
+}
+
+.wb-text-left { text-align: left; }
+.wb-text-center { text-align: center; }
+.wb-text-right { text-align: right; }
+.wb-valign-top { vertical-align: top; }
+.wb-valign-middle { vertical-align: middle; }
+.wb-valign-bottom { vertical-align: bottom; }
+.wb-nowrap { white-space: nowrap; }
+.wb-img-borderless { border: 0; }
+.wb-img-top { vertical-align: top; }
+.wb-img-middle { vertical-align: middle; }
+.wb-img-bottom { vertical-align: bottom; }
+.wb-img-left { float: left; }
+.wb-img-right { float: right; }
+.wb-bg-debug-label { background-color: var(--corebb-debug-label-bg); }
+.wb-bg-debug-value { background-color: var(--corebb-debug-value-bg); }
+.wb-bg-vn-chrome { background-color: var(--corebb-page-bg); }
+.wb-stage-banner {
+    background: #7a0000;
+    color: #ffffff;
+    text-align: center;
+    font-family: Verdana, Arial, sans-serif;
+    font-size: 12px;
+    font-weight: bold;
+    padding: 5px 8px;
+    border-bottom: 1px solid #330000;
+    letter-spacing: .03em;
+}
+
+html.corebb-dark-mode body.wb-vn-eol,
+html.corebb-dark-mode body.wb-vn-eol .wb-vn-chrome-bg,
+html.corebb-dark-mode body.wb-vn-eol .wb-bg-vn-chrome,
+html.corebb-dark-mode body.wb-vn-eol #footerWrapper,
+html.corebb-dark-mode body.wb-vn-eol #footerNetwork,
+html.corebb-dark-mode body.wb-vn-eol .footerLogo {
+    background-color: var(--corebb-page-bg) !important;
+}
+
+html.corebb-dark-mode body.wb-vn-eol #footerWrapper {
+    border-color: var(--corebb-page-bg) !important;
+}
+
+html.corebb-dark-mode body.wb-vn-eol #footerNetwork *,
+html.corebb-dark-mode body.wb-vn-eol .VersionText,
+html.corebb-dark-mode body.wb-vn-eol .SmallText,
+html.corebb-dark-mode body.wb-vn-eol .InputNotes {
+    color: var(--corebb-muted-text) !important;
+}
+
+html.corebb-dark-mode body.wb-vn-eol .LargeText,
+html.corebb-dark-mode body.wb-vn-eol .MediumText {
+    color: var(--corebb-row-text) !important;
+}
+
+html.corebb-dark-mode body.wb-vn-eol .wb-control-links b {
+    color: var(--corebb-muted-text) !important;
+}
+
+html.corebb-dark-mode body.wb-vn-eol .BoardColumn,
+html.corebb-dark-mode body.wb-vn-eol .BoardColumnStat {
+    color: var(--corebb-column-text) !important;
+}
+
+html.corebb-dark-mode body.wb-vn-eol .BoardColumnLink {
+    color: var(--corebb-column-link) !important;
+}
+
+html.corebb-dark-mode body.wb-vn-eol .BoardCategoryLink {
+    color: var(--corebb-category-link) !important;
+}
+
+html.corebb-dark-mode body.wb-vn-eol .BoardCategoryToggle {
+    color: var(--corebb-category-toggle) !important;
+}
+
+html.corebb-dark-mode body.wb-vn-eol .BoardRowALink,
+html.corebb-dark-mode body.wb-vn-eol .BoardRowBLink,
+html.corebb-dark-mode body.wb-vn-eol .BoardRowBLinkB,
+html.corebb-dark-mode body.wb-vn-eol .SubjectLink,
+html.corebb-dark-mode body.wb-vn-eol .MultiPages,
+html.corebb-dark-mode body.wb-vn-eol .wb-post-action-row a,
+html.corebb-dark-mode body.wb-vn-eol .wb-post-action-row a.SmallText,
+html.corebb-dark-mode body.wb-vn-eol .wb-post-action-row a:link,
+html.corebb-dark-mode body.wb-vn-eol .wb-post-action-row a:visited,
+html.corebb-dark-mode body.wb-vn-eol .wb-post-action-row a.SmallText:link,
+html.corebb-dark-mode body.wb-vn-eol .wb-post-action-row a.SmallText:visited,
+html.corebb-dark-mode body.wb-vn-eol #footerNetwork a {
+    color: var(--corebb-link) !important;
+}
+
+html.corebb-dark-mode body.wb-vn-eol .AuthorLink:not([style]),
+html.corebb-dark-mode body.wb-vn-eol a.AuthorLink:not([style]):link,
+html.corebb-dark-mode body.wb-vn-eol a.AuthorLink:not([style]):visited {
+    color: var(--corebb-username-link) !important;
+}
+
+html.corebb-dark-mode body.wb-vn-eol a.AuthorLink:not([style]):hover {
+    color: #b3c8d8 !important;
+}
+
+html.corebb-dark-mode body.wb-vn-eol .MainMenuLink,
+html.corebb-dark-mode body.wb-vn-eol .MainMenuRow a:not(.AuthorLink),
+html.corebb-dark-mode body.wb-vn-eol .MainMenuRow a:not(.AuthorLink):link,
+html.corebb-dark-mode body.wb-vn-eol .MainMenuRow a:not(.AuthorLink):visited {
+    color: var(--corebb-menu-link) !important;
+}
+
+html.corebb-dark-mode body.wb-vn-eol .MainMenuRow a:not(.AuthorLink):hover {
+    color: #c6ced8 !important;
+}
+
+html.corebb-dark-mode body.wb-vn-eol a.SubjectLink:visited,
+html.corebb-dark-mode body.wb-vn-eol a.BoardRowBLink:visited {
+    color: var(--corebb-link-visited) !important;
+}
+
+html.corebb-dark-mode body.wb-vn-eol .wb-pm-page .PrivMsgViewLink,
+html.corebb-dark-mode body.wb-vn-eol .wb-pm-page a.PrivMsgViewLink,
+html.corebb-dark-mode body.wb-vn-eol .wb-pm-page a.PrivMsgViewLink:link,
+html.corebb-dark-mode body.wb-vn-eol .wb-pm-page a.PrivMsgViewLink:visited,
+html.corebb-dark-mode body.wb-vn-eol .wb-pm-page a.PrivMsgViewLink:active,
+html.corebb-dark-mode body.wb-vn-eol .wb-pm-page a.PrivMsgViewText[href],
+html.corebb-dark-mode body.wb-vn-eol .wb-pm-page a.PrivMsgViewText[href]:link,
+html.corebb-dark-mode body.wb-vn-eol .wb-pm-page a.PrivMsgViewText[href]:visited,
+html.corebb-dark-mode body.wb-vn-eol .wb-pm-page a.PrivMsgViewText[href]:active {
+    color: var(--corebb-link) !important;
+}
+
+html.corebb-dark-mode body.wb-vn-eol .wb-pm-page .PrivMsgViewText,
+html.corebb-dark-mode body.wb-vn-eol .wb-pm-page .PrivMsgUsername {
+    color: var(--corebb-muted-text) !important;
+}
+
+html.corebb-dark-mode body.wb-vn-eol .pagination,
+html.corebb-dark-mode body.wb-vn-eol .currentpage {
+    background-color: var(--corebb-menu-bg);
+    color: var(--corebb-page-text);
+    border-color: var(--corebb-divider);
+}
+
+html.corebb-dark-mode body.wb-vn-eol .code,
+html.corebb-dark-mode body.wb-vn-eol .QuotedText {
+    background-color: var(--corebb-code-bg);
+    color: var(--corebb-code-text);
+    border-color: var(--corebb-divider);
+}
+
+html.corebb-dark-mode body.wb-vn-eol .bbcode-code-content .token.comment,
+html.corebb-dark-mode body.wb-vn-eol .bbcode-code-content .token.prolog,
+html.corebb-dark-mode body.wb-vn-eol .bbcode-code-content .token.doctype,
+html.corebb-dark-mode body.wb-vn-eol .bbcode-code-content .token.cdata {
+    color: #7f8790;
+}
+
+html.corebb-dark-mode body.wb-vn-eol .bbcode-code-content .token.punctuation,
+html.corebb-dark-mode body.wb-vn-eol .bbcode-code-content .token.operator,
+html.corebb-dark-mode body.wb-vn-eol .bbcode-code-content .token.entity,
+html.corebb-dark-mode body.wb-vn-eol .bbcode-code-content .token.url,
+html.corebb-dark-mode body.wb-vn-eol .bbcode-code-content .token.variable {
+    color: #a8b0b8;
+}
+
+html.corebb-dark-mode body.wb-vn-eol .bbcode-code-content .token.property,
+html.corebb-dark-mode body.wb-vn-eol .bbcode-code-content .token.tag,
+html.corebb-dark-mode body.wb-vn-eol .bbcode-code-content .token.boolean,
+html.corebb-dark-mode body.wb-vn-eol .bbcode-code-content .token.number,
+html.corebb-dark-mode body.wb-vn-eol .bbcode-code-content .token.constant,
+html.corebb-dark-mode body.wb-vn-eol .bbcode-code-content .token.symbol,
+html.corebb-dark-mode body.wb-vn-eol .bbcode-code-content .token.deleted {
+    color: #d28b8b;
+}
+
+html.corebb-dark-mode body.wb-vn-eol .bbcode-code-content .token.selector,
+html.corebb-dark-mode body.wb-vn-eol .bbcode-code-content .token.attr-name,
+html.corebb-dark-mode body.wb-vn-eol .bbcode-code-content .token.string,
+html.corebb-dark-mode body.wb-vn-eol .bbcode-code-content .token.char,
+html.corebb-dark-mode body.wb-vn-eol .bbcode-code-content .token.builtin,
+html.corebb-dark-mode body.wb-vn-eol .bbcode-code-content .token.inserted {
+    color: #8fc9a3;
+}
+
+html.corebb-dark-mode body.wb-vn-eol .bbcode-code-content .token.atrule,
+html.corebb-dark-mode body.wb-vn-eol .bbcode-code-content .token.attr-value,
+html.corebb-dark-mode body.wb-vn-eol .bbcode-code-content .token.function,
+html.corebb-dark-mode body.wb-vn-eol .bbcode-code-content .token.class-name {
+    color: #7fa6d6;
+}
+
+html.corebb-dark-mode body.wb-vn-eol .bbcode-code-content .token.keyword,
+html.corebb-dark-mode body.wb-vn-eol .bbcode-code-content .token.regex,
+html.corebb-dark-mode body.wb-vn-eol .bbcode-code-content .token.important {
+    color: #b396c9;
+}

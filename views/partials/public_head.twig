@@ -1,0 +1,61 @@
+<title>{{ layout.head.title|default('CoreBB') }}</title>
+<meta charset="utf-8">
+<script>
+(function(){
+    try {
+        if (window.localStorage && localStorage.getItem('corebbThemeMode') === 'dark') {
+            document.documentElement.className = document.documentElement.className
+                ? document.documentElement.className + ' corebb-dark-mode'
+                : 'corebb-dark-mode';
+        }
+    } catch (e) {}
+}());
+</script>
+<script>
+(function(){
+    try {
+        if (location.pathname.indexOf('/mobile/') === 0) { return; }
+        var params = new URLSearchParams(location.search);
+        var requested = (params.get('view') || '').toLowerCase();
+        var cookieMatch = document.cookie.match(/(?:^|;\s*)corebb_view_mode=([^;]+)/);
+        var stored = cookieMatch ? decodeURIComponent(cookieMatch[1]).toLowerCase() : '';
+        if (requested === 'desktop' || requested === 'classic') { return; }
+        if (requested === 'mobile' || stored === 'mobile') {
+            redirect();
+            return;
+        }
+        var ua = (navigator.userAgent || '').toLowerCase();
+        var uaMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile|phone|tablet|kindle|silk|windows phone|mobile safari/.test(ua);
+        var hintMobile = navigator.userAgentData && navigator.userAgentData.mobile === true;
+        var screenWidth = Math.min(
+            window.screen && window.screen.width ? window.screen.width : 9999,
+            window.screen && window.screen.height ? window.screen.height : 9999
+        );
+        var coarsePointer = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+        if (stored === 'desktop' && !uaMobile && !hintMobile && !(coarsePointer && screenWidth <= 820)) { return; }
+        if (!uaMobile && !hintMobile && !(coarsePointer && screenWidth <= 820)) { return; }
+        redirect();
+
+        function redirect() {
+            var target = new URLSearchParams();
+            var payload = {{ layout.head.mobile_fallback|json_encode|raw }};
+            Object.keys(payload).forEach(function(key) {
+                target.set(key, payload[key]);
+            });
+            target.set('view', 'mobile');
+            target.set('return', location.pathname + location.search + location.hash);
+            location.replace('/mobile/?' + target.toString());
+        }
+    } catch (e) {}
+}());
+</script>
+{% for stylesheet in layout.head.stylesheets|default([]) %}
+<link rel="stylesheet" href="{{ stylesheet }}" media="screen">
+{% endfor %}
+{% for script in layout.head.scripts|default([]) %}
+    {% if 'prism-corebb' in script %}
+        <script data-manual src="{{ script }}"></script>
+    {% else %}
+        <script src="{{ script }}"></script>
+    {% endif %}
+{% endfor %}

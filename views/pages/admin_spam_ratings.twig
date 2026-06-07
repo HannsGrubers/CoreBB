@@ -1,0 +1,61 @@
+{% include 'partials/admin_messages.twig' with {messages: model.messages|default([]), errors: model.errors|default([])} only %}
+{% set boards = model.boards|default([]) %}
+{% set selectedBoard = model.selected_board|default(0) %}
+{% set unit = model.unit|default('days') %}
+
+<div class="corebb-admin-modern-page">
+    <div class="corebb-admin-modern-header">
+        <div>
+            <div class="corebb-admin-modern-eyebrow">Moderation</div>
+            <h2>Spam Ratings</h2>
+            <div class="corebb-admin-modern-meta">
+                <span>{{ boards|length|number_format }} boards available</span>
+                {% if selectedBoard > 0 %}<span>Board #{{ selectedBoard }}</span>{% endif %}
+            </div>
+        </div>
+        <div class="corebb-admin-modern-actions">
+            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
+        </div>
+    </div>
+
+    <div class="corebb-admin-modern-note is-muted">
+        Generate postable BBCode ratings for a target board. This tool only reads forum activity and does not post anything automatically.
+    </div>
+
+    <div class="corebb-admin-modern-panel">
+        <form class="corebb-admin-modern-form" method="get" action="/admin/">
+            <input type="hidden" name="act" value="spam_ratings">
+            <div class="corebb-admin-modern-grid">
+                <label for="corebbSpamBoard">Target Board</label>
+                <select id="corebbSpamBoard" name="board">
+                    <option value="0">Select a board...</option>
+                    {% for board in boards %}
+                        {% set boardId = board.id|default(0) %}
+                        <option value="{{ boardId }}"{% if boardId == selectedBoard %} selected{% endif %}>{{ board.category_name|default('')|trim }} / {{ board.name|default('')|trim }}</option>
+                    {% endfor %}
+                </select>
+
+                <label for="corebbSpamPeriod">Period</label>
+                <span>
+                    <input id="corebbSpamPeriod" type="text" name="period" size="4" value="{{ model.period|default(7) }}">
+                    <select name="unit">
+                        <option value="days"{% if unit == 'days' %} selected{% endif %}>Days</option>
+                        <option value="weeks"{% if unit == 'weeks' %} selected{% endif %}>Weeks</option>
+                    </select>
+                    <span class="corebb-admin-modern-help">Days: 1-365. Weeks: 1-52.</span>
+                </span>
+
+                <div class="corebb-admin-modern-submit corebb-admin-modern-full">
+                    <button class="corebb-board-action-link" type="submit">Generate Spam Ratings</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    {% if selectedBoard > 0 %}
+        <div class="corebb-admin-modern-panel">
+            <div class="corebb-admin-section-title">Postable BBCode</div>
+            <textarea class="corebb-admin-schema-textarea" cols="100" rows="32" wrap="soft">{{ model.bbcode|default('') }}</textarea>
+        </div>
+    {% endif %}
+</div>

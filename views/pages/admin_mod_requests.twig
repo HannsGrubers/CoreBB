@@ -1,0 +1,111 @@
+{% include 'partials/admin_messages.twig' with {messages: model.messages|default([]), errors: model.errors|default([])} only %}
+{% set old = model.old|default(false) %}
+{% set requests = model.requests|default([]) %}
+
+<div class="corebb-admin-modern-page">
+    <div class="corebb-admin-modern-header">
+        <div>
+            <div class="corebb-admin-modern-eyebrow">Moderation</div>
+            <h2>{{ old ? 'Old Moderation Requests' : 'New Moderation Requests' }}</h2>
+            <div class="corebb-admin-modern-meta">
+                <span>{{ requests|length|number_format }} shown</span>
+                {% if model.selected_board_label|default('') != '' %}<span>{{ model.selected_board_label }}</span>{% endif %}
+                {% if model.severity|default('') != '' %}<span>Severity {{ model.severity }}</span>{% endif %}
+                {% if model.url_filter|default('') != '' %}<span>URL filter active</span>{% endif %}
+            </div>
+        </div>
+        <div class="corebb-admin-modern-actions">
+            <a class="corebb-board-action-link" href="{{ model.new_requests_url|default('/admin/?act=mod_requests') }}">New Requests</a>
+            <a class="corebb-board-action-link" href="{{ model.old_requests_url|default('/admin/?act=mod_requests&old=yes') }}">Old Requests</a>
+            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
+        </div>
+    </div>
+
+    <div class="corebb-admin-filter-bar">
+        <form method="get" action="/admin/">
+            <input type="hidden" name="act" value="mod_requests">
+            {% if old %}<input type="hidden" name="old" value="yes">{% endif %}
+            <label class="corebb-admin-modern-label" for="corebbModBoard">Board</label>
+            <select id="corebbModBoard" name="boardid">
+                <option value="0">All visible boards</option>
+                {% for board in model.board_options|default([]) %}
+                    <option value="{{ board.id|default(0) }}"{% if model.selected_board_id|default(0) == board.id|default(0) %} selected{% endif %}>{{ board.label|default('Board') }}</option>
+                {% endfor %}
+            </select>
+            <label class="corebb-admin-modern-label" for="corebbModSeverity">Severity</label>
+            <input id="corebbModSeverity" name="severity" type="text" maxlength="2" size="3" value="{{ model.severity|default('') }}">
+            <label class="corebb-admin-modern-label" for="corebbModUrlFilter">URL</label>
+            <input id="corebbModUrlFilter" name="url" type="text" maxlength="50" size="18" value="{{ model.url_filter|default('') }}">
+            <button class="corebb-board-action-link" type="submit">Apply</button>
+            <a class="corebb-board-action-link" href="{{ old ? '/admin/?act=mod_requests&old=yes' : '/admin/?act=mod_requests' }}">Clear</a>
+        </form>
+    </div>
+
+    <table class="corebb-admin-modern-table wb-table">
+        <thead>
+            <tr>
+                <th>Severity</th>
+                <th>Message</th>
+                <th>Requester</th>
+                <th>User</th>
+                <th>Board</th>
+                <th>Reason</th>
+                <th>Date Added</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if requests is empty %}
+                <tr>
+                    <td colspan="8" class="corebb-admin-modern-empty">No {{ old ? 'old' : 'new' }} moderation requests found.</td>
+                </tr>
+            {% else %}
+                {% for request in requests %}
+                    <tr>
+                        <td><span class="corebb-admin-status-pill">{{ request.severity|default(1) }}</span></td>
+                        <td>
+                            <a class="corebb-admin-text-link" href="{{ request._moderate_url|default('#') }}">#{{ request.postid|default(0) }}</a><br>
+                            <a class="corebb-admin-text-link" href="{{ request._thread_url|default('#') }}" target="boardLink">{{ request._post_title_label|default('View Message') }}</a>
+                        </td>
+                        <td><a class="corebb-admin-text-link" href="{{ request._reporter_url|default('#') }}">{{ request._reporter_label|default('Unknown') }}</a></td>
+                        <td><a class="corebb-admin-text-link" href="{{ request._user_url|default('#') }}">{{ request._author_label|default('Unknown') }}</a></td>
+                        <td>{{ request.board_name|default('') }}</td>
+                        <td>{{ request._reason_label|default('') }}</td>
+                        <td class="wb-nowrap">{{ request.created_at|default('') }}</td>
+                        <td>
+                            <div class="corebb-admin-modern-submit">
+                                <a class="corebb-board-action-link" href="{{ request._moderate_url|default('#') }}">Moderate</a>
+                                {% if request.status|default('new') == 'new' %}
+                                    <form class="corebb-admin-modern-form" method="post" action="{{ model.action_url|default('/admin/?act=mod_requests') }}" onsubmit="return confirm('Close this moderation request?');">
+                                        {% include 'partials/csrf_field.twig' %}
+                                        <input type="hidden" name="mod_request_token" value="{{ model.token|default('') }}">
+                                        <input type="hidden" name="action" value="close_request">
+                                        <input type="hidden" name="request_id" value="{{ request.id|default(0) }}">
+                                        <button class="corebb-board-action-link" type="submit">Close</button>
+                                    </form>
+                                {% else %}
+                                    <span class="corebb-admin-modern-help">{{ request._status_label|default('') }}</span>
+                                    <form class="corebb-admin-modern-form" method="post" action="{{ model.action_url|default('/admin/?act=mod_requests&old=yes') }}">
+                                        {% include 'partials/csrf_field.twig' %}
+                                        <input type="hidden" name="mod_request_token" value="{{ model.token|default('') }}">
+                                        <input type="hidden" name="action" value="reopen_request">
+                                        <input type="hidden" name="request_id" value="{{ request.id|default(0) }}">
+                                        <button class="corebb-board-action-link" type="submit">Reopen</button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td></td>
+                        <td colspan="7"><strong>Comments:</strong> <span class="corebb-admin-prewrap">{{ request.comments|default('') }}</span></td>
+                    </tr>
+                {% endfor %}
+            {% endif %}
+        </tbody>
+    </table>
+
+    {% if model.pagination.visible|default(false) %}
+        <div class="corebb-admin-modern-panel wb-text-center">{% include 'partials/board_pagination.twig' with {pagination: model.pagination} only %}</div>
+    {% endif %}
+</div>

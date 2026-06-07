@@ -1,0 +1,47 @@
+{% set messages = model.messages|default([]) %}
+{% set errors = model.errors|default([]) %}
+{% set file = model.style_file|default({}) %}
+{% set styleContents = model.style_contents|default('') %}
+
+<div class="corebb-admin-modern-page">
+    <div class="corebb-admin-modern-header">
+        <div>
+            <div class="corebb-admin-modern-eyebrow">System</div>
+            <h2>Edit System Style</h2>
+            <div class="corebb-admin-modern-meta">
+                <span>{{ file.setting|default('style.css') }}</span>
+            </div>
+        </div>
+        <div class="corebb-admin-modern-actions">
+            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
+        </div>
+    </div>
+
+    {% include 'partials/admin_messages.twig' with {messages: messages, errors: errors} only %}
+
+    <div class="corebb-admin-modern-note{% if not file.path_allowed|default(false) or not file.inside_root|default(false) or not file.exists|default(false) or not file.writable|default(false) %} is-danger{% endif %}">
+        Editing style file: <strong>{{ file.setting|default('style.css') }}</strong>
+        {% if not file.path_allowed|default(false) %}
+            <span>Warning: the configured style path must be a relative .css file under the forum root.</span>
+        {% elseif not file.inside_root|default(false) %}
+            <span>Warning: the configured style path is outside the forum root and cannot be edited here.</span>
+        {% elseif not file.exists|default(false) %}
+            <span>Warning: the configured style file does not exist.</span>
+        {% elseif not file.writable|default(false) %}
+            <span>Warning: PHP cannot write to this style file. Change file permissions before saving.</span>
+        {% else %}
+            <span>Changes to the system style sheet take effect immediately.</span>
+        {% endif %}
+    </div>
+
+    <div class="corebb-admin-modern-panel">
+        <form class="corebb-admin-modern-form" name="form1" method="post" action="/admin/?act=edit_style&amp;method=post">
+            {% include 'partials/csrf_field.twig' %}
+            <textarea class="corebb-admin-editor" name="newstyle" cols="75" rows="30" wrap="soft">{{ styleContents }}</textarea>
+            <div class="corebb-admin-modern-submit">
+                <button class="corebb-board-action-link" type="submit" name="Submit" value="Submit Changes">Submit Changes</button>
+                <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
+            </div>
+        </form>
+    </div>
+</div>

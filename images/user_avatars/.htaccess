@@ -1,0 +1,22 @@
+Options -Indexes
+
+# Defense-in-depth for avatar uploads. PHP should never execute here even if a
+# bad file or misnamed polyglot image is somehow written into this folder.
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+
+RemoveHandler .php .php3 .php4 .php5 .php7 .php8 .phtml .phar .cgi .pl .asp .aspx .jsp
+RemoveType .php .php3 .php4 .php5 .php7 .php8 .phtml .phar .cgi .pl .asp .aspx .jsp
+
+<FilesMatch "\.(?:php|php[0-9]?|phtml|phar|cgi|pl|asp|aspx|jsp)$">
+    Require all denied
+</FilesMatch>
+
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+</IfModule>

@@ -1,0 +1,47 @@
+<table class="wb-cellspace-1 wb-cellpad-3 BoardRowB wb-usercp-workspace wb-table" style="width: 100%;">
+    <tr class="wb-text-left wb-valign-top">
+        <td class="wb-valign-top wb-usercp-nav-cell" style="width: 250px; width: 250px; min-width: 250px; max-width: 250px; padding-right: 6px;">
+            {% include 'partials/usercp_menu.twig' with {model: model} only %}
+        </td>
+        <td class="wb-usercp-content wb-valign-top">
+            <table class="wb-cellpad-0 wb-cellspace-1 wb-table" style="width: 100%;">
+                <tr><td class="wb-text-left BoardColumn" style="width: 100%; height: 15px;">Edit Options</td></tr>
+                {% if model.message|default('') %}
+                    <tr><td class="BoardRowA"><div class="wb-text-center"><b>{{ model.message }}</b></div></td></tr>
+                {% endif %}
+                <tr>
+                    <td class="wb-text-left BoardRowB" style="height: 10px;">
+                        <form name="form1" method="post" action="/user-cp/options/">
+                            {% include 'partials/csrf_field.twig' %}
+                            <p><strong>&nbsp;&nbsp;Max Messages Preference</strong><br>
+                                &nbsp;&nbsp;Optional Input. Select the number of messages you want shown when viewing a topic and its replies.<br>
+                                &nbsp;&nbsp;
+                                <select name="ThreadPages" id="ThreadPages">
+                                    {% for size in model.options.allowedPageSizes|default([]) %}
+                                        <option value="{{ size }}"{% if model.options.ThreadPages|default(25) == size %} selected{% endif %}>{{ size }}</option>
+                                    {% endfor %}
+                                </select>
+                            </p>
+                            <p>&nbsp;&nbsp;<strong>Max Topics Preference</strong><br>
+                                &nbsp;&nbsp;Optional Input. Select the number of topics you want shown on the main board index page. (Does not include sticky topics)<br>
+                                &nbsp;&nbsp;
+                                <select name="BoardPages" id="BoardPages">
+                                    {% for size in model.options.allowedPageSizes|default([]) %}
+                                        <option value="{{ size }}"{% if model.options.BoardPages|default(25) == size %} selected{% endif %}>{{ size }}</option>
+                                    {% endfor %}
+                                </select>
+                                <br><br>
+                                <input type="submit" name="Submit" value="Apply Settings" class="formsubmit">
+                                <br><br>
+                                <strong>Note - These settings apply to Private Messages as well.</strong>
+                            </p>
+                        </form>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="MainMenuRow wb-text-right" style="height: 15px;"><input type="button" onclick="window.location.href='/';" value="Forum Index &raquo;" class="formsubmit" /> &nbsp;</td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>

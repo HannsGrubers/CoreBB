@@ -1,0 +1,112 @@
+{% include 'partials/admin_messages.twig' with {messages: model.messages|default([]), errors: model.errors|default([])} only %}
+{% set search = model.search|default({username: '', userid: '', ip: ''}) %}
+{% set selectedUser = model.selected_user|default(null) %}
+{% set selectedIp = model.selected_ip|default('') %}
+{% set selectedIpDisplay = model.selected_ip_display|default(selectedIp) %}
+{% set rows = model.rows|default([]) %}
+
+<div class="corebb-admin-modern-page">
+    <div class="corebb-admin-modern-header">
+        <div>
+            <div class="corebb-admin-modern-eyebrow">People</div>
+            <h2>User IP Check</h2>
+            <div class="corebb-admin-modern-meta">
+                {% if selectedIp != '' %}
+                    <span>{{ selectedIpDisplay }}</span>
+                    <span>{{ rows|length|number_format }} matching users</span>
+                {% else %}
+                    <span>Find users by username, user ID, or IP address.</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="corebb-admin-modern-actions">
+            <a class="corebb-board-action-link" href="/admin/?act=host_lookup">Host Lookup</a>
+            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
+        </div>
+    </div>
+
+    <div class="corebb-admin-modern-panel">
+        <form class="corebb-admin-modern-form" method="get" action="/admin/">
+            <input type="hidden" name="act" value="user_ip_check">
+            <div class="corebb-admin-modern-grid">
+                <label for="corebbIpCheckUsername">User Name</label>
+                <input id="corebbIpCheckUsername" name="username" type="text" value="{{ search.username|default('') }}">
+
+                <label for="corebbIpCheckUserId">User ID</label>
+                <input id="corebbIpCheckUserId" name="userid" type="text" value="{{ search.userid|default('') }}">
+
+                <label for="corebbIpCheckIp">IP Address</label>
+                <input id="corebbIpCheckIp" name="ip" type="text" value="{{ search.ip|default('') }}">
+
+                <div class="corebb-admin-modern-submit corebb-admin-modern-full">
+                    <button class="corebb-board-action-link" type="submit">Find</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    {% if selectedUser %}
+        <div class="corebb-admin-modern-note is-muted">
+            Showing users with the same IP as <a class="corebb-admin-text-link" target="{{ selectedUser.user_link.target|default('_top') }}" href="{{ selectedUser.user_link.url|default('#') }}">{{ selectedUser.user_link.label|default(selectedUser.username|default('Unknown')) }}</a>.
+        </div>
+    {% endif %}
+
+    {% if selectedIp != '' %}
+        <div class="corebb-admin-modern-panel">
+            <div class="corebb-admin-section-title">Users With IP Address: <a class="corebb-admin-text-link" href="/admin/?act=user_ip_check&amp;ip={{ selectedIp|url_encode }}">{{ selectedIpDisplay }}</a></div>
+            <table class="corebb-admin-modern-table wb-table">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Banned?</th>
+                        <th>IP Address</th>
+                        <th>Options</th>
+                        <th>Last Login Date</th>
+                        <th>Last Post Date</th>
+                        <th>Date Added</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if rows is empty %}
+                        <tr>
+                            <td colspan="7" class="corebb-admin-modern-empty">No users were found with this IP address.</td>
+                        </tr>
+                    {% else %}
+                        {% for row in rows %}
+                            <tr>
+                                <td><a class="corebb-admin-text-link" target="{{ row.user_link.target|default('_top') }}" href="{{ row.user_link.url|default('#') }}">{{ row.user_link.label|default(row.username|default('Unknown')) }}</a></td>
+                                <td>
+                                    {% if row.banned_raw|default(false) %}
+                                        <span class="corebb-admin-status-pill is-danger">True</span>
+                                    {% else %}
+                                        <span class="corebb-admin-status-pill">False</span>
+                                    {% endif %}
+                                </td>
+                                <td><a class="corebb-admin-text-link" target="boardLink" href="/admin/?act=user_ip_check&amp;ip={{ row.ip_address|default('')|url_encode }}">{{ row.ip_address_display|default(row.ip_address|default('')) }}</a></td>
+                                <td>
+                                    <div class="corebb-admin-modern-submit">
+                                        <a class="corebb-board-action-link" target="boardLink" href="{{ row.notes_url|default('#') }}">Notes</a>
+                                        {% if row.banned_raw|default(false) %}
+                                            <a class="corebb-board-action-link is-danger" target="boardLink" href="{{ row.unban_url|default('#') }}">Unban</a>
+                                        {% else %}
+                                            <a class="corebb-board-action-link is-danger" target="boardLink" href="{{ row.ban_url|default('#') }}">Ban</a>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td>{{ row.last_login_date|default('') }}</td>
+                                <td>{{ row.last_post_date|default('') }}</td>
+                                <td>{{ row.date_added|default('') }}</td>
+                            </tr>
+                        {% endfor %}
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if rows|length >= model.result_limit|default(0) %}
+            <div class="corebb-admin-modern-note is-muted">Only the first {{ model.result_limit|default(0) }} matching users are shown.</div>
+        {% endif %}
+    {% else %}
+        <div class="corebb-admin-modern-note is-muted">Enter a user name, user ID, or IP address to check matching users.</div>
+    {% endif %}
+</div>

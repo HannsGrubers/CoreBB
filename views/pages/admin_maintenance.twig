@@ -1,0 +1,91 @@
+{% set messages = model.messages|default([]) %}
+{% set errors = model.errors|default([]) %}
+{% set cacheReady = model.cache_ready|default(false) %}
+{% set rebuiltAt = model.cache_rebuilt_at|default('never') %}
+{% set searchReady = model.search_ready|default(false) %}
+{% set searchPreparedAt = model.search_prepared_at|default('never') %}
+{% set backupDirectory = model.backup_directory|default('') %}
+{% set backupRecent = model.backup_recent|default([]) %}
+
+<div class="corebb-admin-modern-page">
+    {% include 'partials/admin_messages.twig' with {messages: messages, errors: errors} only %}
+
+    <div class="corebb-admin-modern-header">
+        <div>
+            <div class="corebb-admin-modern-eyebrow">System</div>
+            <h2>Database Tools</h2>
+            <div class="corebb-admin-modern-meta">
+                <span>Count cache: {{ cacheReady ? 'enabled' : 'disabled' }}</span>
+                <span>Fulltext search: {{ searchReady ? 'ready' : 'not ready' }}</span>
+                <span>Recent backups: {{ backupRecent|length }}</span>
+            </div>
+        </div>
+        <div class="corebb-admin-modern-actions">
+            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
+        </div>
+    </div>
+
+    <div class="corebb-admin-modern-split">
+        <div class="corebb-admin-modern-choice">
+            <h3>Rebuild Counts</h3>
+            <span class="corebb-admin-modern-help">Last rebuilt: {{ rebuiltAt }}</span>
+            <p>Recalculates topic reply counts, board topic/message counts, and user post counts from visible posts. Posts sitting in the deleted-post queue are excluded.</p>
+            <form class="corebb-admin-modern-form" method="post" action="/admin/?act=database_tools">
+                {% include 'partials/csrf_field.twig' %}
+                <input type="hidden" name="action" value="rebuild_counts">
+                <button class="corebb-board-action-link" type="submit">Rebuild Counts and Enable Cache</button>
+            </form>
+        </div>
+
+        <div class="corebb-admin-modern-choice">
+            <h3>Prepare / Repair Search Indexes</h3>
+            <span class="corebb-admin-modern-help">Last prepared: {{ searchPreparedAt }}</span>
+            <p>Checks and creates the fulltext indexes used by CoreBB search. This improves keyword searches across post titles, post bodies, and topic titles while keeping the old LIKE search as a fallback when fulltext is unavailable.</p>
+            <form class="corebb-admin-modern-form" method="post" action="/admin/?act=database_tools">
+                {% include 'partials/csrf_field.twig' %}
+                <input type="hidden" name="action" value="prepare_search_indexes">
+                <button class="corebb-board-action-link" type="submit">Prepare / Repair Search Indexes</button>
+            </form>
+        </div>
+
+        <div class="corebb-admin-modern-choice">
+            <h3>Run Database Backup</h3>
+            <span class="corebb-admin-modern-help">Writes a private SQL dump.</span>
+            <p>Exports the current database structure and row data into the private CoreBB backup directory. The admin panel records the run, but does not expose a public download link.</p>
+            <form class="corebb-admin-modern-form" method="post" action="/admin/?act=database_tools">
+                {% include 'partials/csrf_field.twig' %}
+                <input type="hidden" name="action" value="create_backup">
+                <button class="corebb-board-action-link" type="submit" onclick="return confirm('Run a full database backup now? This can take a while on large databases.');">Create Database Backup</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="corebb-admin-modern-note is-muted">
+        <strong>Backup storage</strong>
+        <span>{{ backupDirectory }}</span>
+    </div>
+
+    {% if backupRecent %}
+        <div class="corebb-admin-modern-panel">
+            <div class="corebb-admin-section-title">Recent Backups</div>
+            <table class="corebb-admin-modern-table corebb-admin-backup-table wb-table">
+                <tr>
+                    <th>File</th>
+                    <th>Size</th>
+                    <th>Created</th>
+                </tr>
+                {% for backup in backupRecent %}
+                    <tr>
+                        <td class="corebb-admin-backup-file-cell">{{ backup.file|default('') }}</td>
+                        <td>{{ backup.size|default('') }}</td>
+                        <td>{{ backup.created|default('') }}</td>
+                    </tr>
+                {% endfor %}
+            </table>
+        </div>
+    {% endif %}
+
+    <div class="corebb-admin-modern-note is-muted">
+        These tools run inside the admin panel with normal admin access checks. On shared hosting, run database tools deliberately; they may touch large tables and should not be triggered from public page loads.
+    </div>
+</div>

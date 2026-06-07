@@ -1,0 +1,36 @@
+{% if model.error|default('') is not empty %}
+<table class="wb-cellpad-15 wb-cellspace-0 wb-table" style="width: 100%;"><tr><td class="BoardRowB">
+    {{ model.error }}
+    {% if model.returnUrl|default('') is not empty %}<p><a class="BoardRowBLink" href="{{ model.returnUrl }}">{{ model.returnText|default('Continue') }}</a></p>{% endif %}
+</td></tr></table>
+{% else %}
+<table class="wb-cellspace-1 wb-cellpad-3 BoardRowB wb-table" style="width: 100%;">
+<tr>
+    <td class="wb-valign-top" style="width: 250px; padding-right: 6px;">
+        {% include 'partials/blog_user_info.twig' with {user: model.user} only %}
+        <br>
+        {% include 'partials/blog_sidebar.twig' with {title: 'My Controls', controls: model.controls|default([])} only %}
+    </td>
+    <td class="wb-valign-top">
+        <table class="wb-table-center wb-cellpad-3 wb-cellspace-1 wb-table" style="width: 100%;">
+            <tr><td class="BoardColumn"><strong>Blog Entry</strong></td></tr>
+            <tr><td class="BoardRowB" style="padding: 6px;">
+                {% if model.entryModel.canModify|default(false) %}
+                    <div class="wb-text-right">
+                        <strong><a class="MultiPages" href="/blogs/entry/{{ model.entryModel.id|default(0) }}/edit/">Edit</a></strong>
+                        <span class="SmallText">|</span>
+                        <strong><a class="MultiPages" href="/blogs/entry/{{ model.entryModel.id|default(0) }}/delete/">Delete</a></strong>
+                    </div><hr>
+                {% endif %}
+                <span class="LargeText"><strong>{{ model.entryModel.title|default('') }}</strong></span><br>
+                <span class="SmallText">By</span>
+                <a class="MultiPages" href="/profile/{{ model.entryModel.posterId|default(0) }}/">{{ model.entryModel.authorName|default('Unknown') }}</a>
+                <span class="SmallText">at {{ model.entryModel.posttime|default('') }}</span>
+                <hr>
+                <div style="padding: 2px;">{% include 'partials/formatted_content.twig' with {content: post_body_model(model.entryModel.body|default(''))} only %}</div>
+            </td></tr>
+        </table>
+    </td>
+</tr>
+</table>
+{% endif %}

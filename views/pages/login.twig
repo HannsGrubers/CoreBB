@@ -1,0 +1,77 @@
+<table class="wb-cellspace-1 wb-cellpad-3 BoardRowB wb-public-form-workspace wb-table" style="width: 100%;">
+    <tr>
+        <td colspan="2" class="BoardColumn"><b>Log In to CoreBB</b></td>
+    </tr>
+
+    {% if model.error|default('') %}
+        <tr class="BoardRowA">
+            <td colspan="2" style="padding: 6px;">
+                <span class="ErrorFont">{{ model.error }}</span>
+            </td>
+        </tr>
+    {% endif %}
+
+    <tr class="BoardRowB">
+        <td class="wb-valign-top" style="width: 62%; padding-right: 6px;">
+            <form name="form1" method="post" action="{{ url('auth.php?action=login_submit') }}">
+                {% include 'partials/csrf_field.twig' %}
+                <table class="wb-cellspace-1 wb-cellpad-3 wb-table" style="width: 100%;">
+                    <tr>
+                        <td colspan="2" class="BoardColumn"><b>Existing User Login</b></td>
+                    </tr>
+                    <tr class="BoardRowB">
+                        <td class="InputSection" style="width: 130px;">User Name:</td>
+                        <td><input class="formtext" autocomplete="username" type="text" size="28" name="username" maxlength="72" value=""></td>
+                    </tr>
+                    <tr class="BoardRowB">
+                        <td class="InputSection">Password:</td>
+                        <td><input class="formtext" autocomplete="current-password" type="password" size="28" name="password" maxlength="72"></td>
+                    </tr>
+                    <tr class="BoardRowA">
+                        <td>&nbsp;</td>
+                        <td class="InputNotes">
+                            Forgot your <a class="BoardRowBLink" href="{{ url('auth.php?action=recover') }}">password</a>?
+                            Need a new <a class="BoardRowBLink" href="{{ url('auth.php?action=resend') }}">verification email</a>?
+                        </td>
+                    </tr>
+                    <tr class="BoardRowB">
+                        <td class="InputSection">Prompt for Password:</td>
+                        <td>
+                            <select name="expiry">
+                                {% for seconds, label in model.expiryOptions|default([]) %}
+                                    <option value="{{ seconds }}"{% if seconds == model.defaultExpiry|default(28800) %} selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                    </tr>
+                    <tr class="BoardRowB">
+                        <td>&nbsp;</td>
+                        <td><input class="formsubmit" type="submit" value=" Login " name="cmdSubmit" id="cmdSubmit"></td>
+                    </tr>
+                </table>
+            </form>
+        </td>
+
+        <td class="wb-valign-top" style="width: 38%;">
+            <table class="wb-cellspace-1 wb-cellpad-3 wb-table" style="width: 100%;">
+                <tr>
+                    <td class="BoardColumn"><b>New User?</b></td>
+                </tr>
+                <tr class="BoardRowB">
+                    <td>
+                        <b><a class="BoardRowBLinkB" href="{{ url('auth.php?action=register') }}" target="_top">Sign up now!</a></b><br><br>
+                        Registration is quick, and verified accounts can post, send private messages, and manage their profile.
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+
+    <tr class="BoardRowA">
+        <td colspan="2" style="padding: 6px;">
+            Having problems staying logged in? Read our
+            <a class="BoardRowBLink" href="{{ url('support.php?action=faq') }}">Frequently Asked Questions</a> page.<br>
+            Also, <a class="BoardRowBLink" href="{{ url('auth.php?action=logout') }}"><strong>resetting/deleting</strong></a> your browser cookies may solve login issues.
+        </td>
+    </tr>
+</table>

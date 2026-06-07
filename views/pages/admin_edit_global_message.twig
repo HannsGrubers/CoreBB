@@ -1,0 +1,47 @@
+{% set messages = model.messages|default([]) %}
+{% set globalMessages = model.global_messages|default([]) %}
+
+<div class="corebb-admin-modern-page">
+    <div class="corebb-admin-modern-header">
+        <div>
+            <div class="corebb-admin-modern-eyebrow">System</div>
+            <h2>Edit Global Messages</h2>
+            <div class="corebb-admin-modern-meta">
+                <span>{{ globalMessages|length|number_format }} messages</span>
+            </div>
+        </div>
+        <div class="corebb-admin-modern-actions">
+            <a class="corebb-board-action-link" href="/admin/?act=global_message">Add Message</a>
+            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
+        </div>
+    </div>
+
+    {% include 'partials/admin_messages.twig' with {messages: messages} only %}
+
+    {% if globalMessages is empty %}
+        <div class="corebb-admin-modern-panel">
+            <span class="corebb-admin-modern-help">No global messages exist.</span>
+        </div>
+    {% else %}
+        {% for row in globalMessages %}
+            <div class="corebb-admin-modern-panel">
+                <form class="corebb-admin-modern-form" method="post" action="/admin/?act=edit_global_message&amp;method=post">
+                    {% include 'partials/csrf_field.twig' %}
+                    <div class="corebb-admin-modern-grid">
+                        <label for="corebbGlobalMessage{{ row.id|default(0) }}">Message #{{ row.id|default(0) }}</label>
+                        <input id="corebbGlobalMessage{{ row.id|default(0) }}" name="message" type="text" value="{{ row.message|default('') }}" size="90" maxlength="255">
+
+                        <span class="corebb-admin-modern-label">Poster</span>
+                        <span>{{ row.poster|default('') }}</span>
+
+                        <div class="corebb-admin-modern-submit corebb-admin-modern-full">
+                            <input type="hidden" name="id" value="{{ row.id|default(0) }}">
+                            <button class="corebb-board-action-link" type="submit">Save Message</button>
+                            <button type="submit" class="corebb-board-action-link is-danger" formaction="/admin/?act=remove_global_message&amp;method=delete" formmethod="post" onclick="return confirm('Remove this global message?');">Remove</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        {% endfor %}
+    {% endif %}
+</div>

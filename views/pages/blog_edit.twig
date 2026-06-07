@@ -1,0 +1,32 @@
+{% if model.error|default('') is not empty or model.result|default('') is not empty %}
+<table class="wb-cellpad-15 wb-cellspace-0 wb-table" style="width: 100%;"><tr><td class="BoardRowB">
+    {{ model.error|default(model.result|default('')) }}
+    {% if model.returnUrl|default('') is not empty %}<p><a class="BoardRowBLink" href="{{ model.returnUrl }}">{{ model.returnText|default('Continue') }}</a></p>{% endif %}
+</td></tr></table>
+{% else %}
+<script src="{{ asset('scripts/posttoolbar_support.js') }}" id="posttoolbar_support"></script>
+<script src="{{ asset('scripts/posttoolbar.js') }}" id="posttoolbar_main"></script>
+
+<form name="frmMain" id="frmMain" method="post" action="/blogs/edit/">
+{% include 'partials/csrf_field.twig' %}
+<table class="wb-cellspace-1 wb-cellpad-3 wb-table" style="width: 100%;">
+    <tr><td colspan="2" class="BoardColumn"><strong>Edit Blog Entry</strong></td></tr>
+    <tr class="BoardRowB">
+        <td class="BoardRowA" style="width: 150px;"><div class="InputSection wb-text-right">Subject:&nbsp;</div></td>
+        <td class="BoardRowB" style="height: 30px;"><input name="message_subject" size="75" maxlength="100" tabindex="1" value="{{ model.subject|default('') }}" id="message_subject" type="text"></td>
+    </tr>
+    <tr class="BoardRowB">
+        <td class="BoardRowA"><div class="InputSection wb-text-right">Format:&nbsp;</div></td>
+        {% include 'partials/post_toolbar.twig' %}
+    </tr>
+    <tr class="BoardRowB">
+        <td class="wb-valign-top BoardRowA"><div class="InputSection wb-text-right">Message:&nbsp;</div></td>
+        <td class="BoardRowB">
+            <textarea name="message_body" cols="60" rows="17" wrap="soft" style="width: 100%;" onselect="pst_fnSaveCaret(this);" onkeyup="pst_fnSaveCaret(this);" onclick="pst_fnSaveCaret(this);" tabindex="2" id="message_body">{{ model.body|default('') }}</textarea>
+            <input type="hidden" name="id" value="{{ model.id|default(0) }}"><br>
+            <input style="font-weight: bold; text-decoration: underline;" type="submit" name="submitButton" value="Save Blog Entry">
+        </td>
+    </tr>
+</table>
+</form>
+{% endif %}

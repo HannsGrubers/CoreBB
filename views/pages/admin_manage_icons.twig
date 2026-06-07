@@ -1,0 +1,229 @@
+{% include 'partials/admin_messages.twig' with {messages: model.messages|default([]), errors: model.errors|default([])} only %}
+{% set filters = model.filters|default({}) %}
+{% set stats = model.stats|default({}) %}
+{% set icons = model.icons|default([]) %}
+{% set queryString = model.queryString|default('') %}
+{% set actionUrl = '/admin/?act=manage_icons' ~ (queryString != '' ? '&' ~ queryString : '') %}
+{% set type = filters.type|default('all') %}
+{% set status = filters.status|default('all') %}
+{% set usage = filters.usage|default('all') %}
+
+<div class="corebb-admin-modern-page">
+    <div class="corebb-admin-modern-header">
+        <div>
+            <div class="corebb-admin-modern-eyebrow">Content</div>
+            <h2>Avatar/Icon Manager</h2>
+            <div class="corebb-admin-modern-meta">
+                <span>{{ stats.total|default(0)|number_format }} total</span>
+                <span>{{ stats.approved|default(0)|number_format }} approved</span>
+                <span>{{ stats.unused_uploaded|default(0)|number_format }} unused uploads</span>
+            </div>
+        </div>
+        <div class="corebb-admin-modern-actions">
+            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
+        </div>
+    </div>
+
+    <table class="corebb-admin-modern-table corebb-admin-snapshot-table wb-table">
+        <thead>
+            <tr>
+                <th>Total</th>
+                <th>User Uploaded</th>
+                <th>Shared/Default</th>
+                <th>Approved</th>
+                <th>Unapproved</th>
+                <th>Unused Uploads</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>{{ stats.total|default(0)|number_format }}</td>
+                <td>{{ stats.uploaded|default(0)|number_format }}</td>
+                <td>{{ stats.shared|default(0)|number_format }}</td>
+                <td>{{ stats.approved|default(0)|number_format }}</td>
+                <td>{{ stats.unapproved|default(0)|number_format }}</td>
+                <td>{{ stats.unused_uploaded|default(0)|number_format }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="corebb-admin-modern-panel">
+        <div class="corebb-admin-section-title">Find Icons</div>
+        <form class="corebb-admin-modern-form" method="get" action="/admin/">
+            <input type="hidden" name="act" value="manage_icons">
+            <div class="corebb-admin-modern-grid">
+                <label for="corebbIconSearch">Search</label>
+                <span>
+                    <input id="corebbIconSearch" type="text" name="q" value="{{ filters.q|default('') }}" size="35">
+                    <span class="corebb-admin-modern-help">ID, owner username, filename, or path.</span>
+                </span>
+
+                <label for="corebbIconType">Type</label>
+                <select id="corebbIconType" name="type">
+                    <option value="all"{% if type == 'all' %} selected{% endif %}>All icons</option>
+                    <option value="uploaded"{% if type == 'uploaded' %} selected{% endif %}>User uploads only</option>
+                    <option value="shared"{% if type == 'shared' %} selected{% endif %}>Shared/default only</option>
+                </select>
+
+                <label for="corebbIconStatus">Status</label>
+                <select id="corebbIconStatus" name="status">
+                    <option value="all"{% if status == 'all' %} selected{% endif %}>Any status</option>
+                    <option value="approved"{% if status == 'approved' %} selected{% endif %}>Approved</option>
+                    <option value="unapproved"{% if status == 'unapproved' %} selected{% endif %}>Unapproved</option>
+                </select>
+
+                <label for="corebbIconUsage">Usage</label>
+                <select id="corebbIconUsage" name="usage">
+                    <option value="all"{% if usage == 'all' %} selected{% endif %}>Any usage</option>
+                    <option value="used"{% if usage == 'used' %} selected{% endif %}>In use</option>
+                    <option value="unused"{% if usage == 'unused' %} selected{% endif %}>Unused</option>
+                </select>
+
+                <div class="corebb-admin-modern-submit corebb-admin-modern-full">
+                    <button class="corebb-board-action-link" type="submit">Filter</button>
+                    <button class="corebb-board-action-link" type="button" onclick="window.location.href='/admin/?act=manage_icons';">Reset</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="corebb-admin-modern-panel">
+        <div class="corebb-admin-section-title">Add Shared/Default Icon</div>
+        <form class="corebb-admin-modern-form" method="post" action="{{ actionUrl }}" enctype="multipart/form-data">
+            {% include 'partials/csrf_field.twig' %}
+            <input type="hidden" name="admin_icons_token" value="{{ model.token|default('') }}">
+            <input type="hidden" name="icon_action" value="upload_shared">
+            <div class="corebb-admin-modern-grid">
+                <label for="corebbSharedIconFile">Image File</label>
+                <span>
+                    <input id="corebbSharedIconFile" type="file" name="shared_icon_file" accept="image/png,image/gif,image/jpeg">
+                    <span class="corebb-admin-modern-help">Allowed: PNG, GIF, JPG. Max {{ model.maxWidth|default(120) }}x{{ model.maxHeight|default(120) }} pixels, {{ (model.maxBytes|default(524288) / 1024)|round(0, 'floor')|number_format }} KB.</span>
+                </span>
+
+                <label for="corebbSharedIconName">Display Name</label>
+                <span>
+                    <input id="corebbSharedIconName" type="text" name="shared_icon_name" size="35">
+                    <span class="corebb-admin-modern-help">Optional. Defaults to the uploaded filename.</span>
+                </span>
+
+                <div class="corebb-admin-modern-submit corebb-admin-modern-full">
+                    <button class="corebb-board-action-link" type="submit">Upload Shared Icon</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <table class="corebb-admin-modern-table corebb-admin-icon-table wb-table">
+        <thead>
+            <tr>
+                <th>Preview</th>
+                <th>ID</th>
+                <th>File</th>
+                <th>Owner</th>
+                <th>Status</th>
+                <th>In Use By</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if icons is empty %}
+                <tr>
+                    <td colspan="7" class="corebb-admin-modern-empty">No icons matched those filters.</td>
+                </tr>
+            {% else %}
+                {% for icon in icons %}
+                    <tr>
+                        <td class="wb-text-center">
+                            {% if icon.src|default('') != '' %}
+                                <span class="corebb-admin-icon-preview"><img src="{{ icon.src }}" alt="{{ icon.alt|default('Icon ' ~ icon.id|default(0)) }}"></span>
+                            {% else %}
+                                <span class="corebb-admin-modern-help">No path</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <strong>#{{ icon.id|default(0) }}</strong><br>
+                            <span class="corebb-admin-modern-help">{{ icon.type_label|default('shared') }}</span>
+                        </td>
+                        <td class="corebb-admin-icon-file-cell">
+                            <strong class="corebb-admin-icon-file-name">{{ icon.filename|default('') != '' ? icon.filename : '(unnamed)' }}</strong><br>
+                            <span class="corebb-admin-modern-help corebb-admin-icon-file-path">{{ icon.filepath|default('') }}</span>
+                            {% if icon.mime|default('') != '' %}<br><span class="corebb-admin-modern-help">{{ icon.mime }}</span>{% endif %}
+                            {% if icon.uploaded_at_label|default('') != '' %}<br><span class="corebb-admin-modern-help">Uploaded: {{ icon.uploaded_at_label }}</span>{% endif %}
+                        </td>
+                        <td>
+                            {% if icon.userid|default(0) > 0 %}
+                                {% include 'partials/user_name.twig' with {user: icon.owner|default({})} only %}<br>
+                                <span class="corebb-admin-modern-help">User #{{ icon.userid|default(0) }}</span>
+                            {% else %}
+                                <span class="corebb-admin-modern-help">System/default</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="corebb-admin-status-pill">{{ icon.status_label|default('Approved') }}</span><br>
+                            <span class="corebb-admin-modern-help">{{ icon.visibility_label|default('Shared/default') }}</span>
+                        </td>
+                        <td>
+                            {% if icon.usage_count|default(0) > 0 %}
+                                <strong>{{ icon.usage_count|number_format }}</strong> user{{ icon.usage_count == 1 ? '' : 's' }}<br>
+                                <span class="corebb-admin-modern-help">{{ icon.used_by|default('') }}</span>
+                            {% else %}
+                                <span class="corebb-admin-modern-help">Unused</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="corebb-admin-modern-submit">
+                                <form class="corebb-admin-modern-form" method="post" action="{{ actionUrl }}">
+                                    {% include 'partials/csrf_field.twig' %}
+                                    <input type="hidden" name="admin_icons_token" value="{{ model.token|default('') }}">
+                                    <input type="hidden" name="icon_id" value="{{ icon.id|default(0) }}">
+                                    {% if icon.is_approved|default(false) %}
+                                        <input type="hidden" name="icon_action" value="unapprove">
+                                        <button class="corebb-board-action-link" type="submit">Unapprove</button>
+                                    {% else %}
+                                        <input type="hidden" name="icon_action" value="approve">
+                                        <button class="corebb-board-action-link" type="submit">Approve</button>
+                                    {% endif %}
+                                </form>
+                                <form class="corebb-admin-modern-form" method="post" action="{{ actionUrl }}">
+                                    {% include 'partials/csrf_field.twig' %}
+                                    <input type="hidden" name="admin_icons_token" value="{{ model.token|default('') }}">
+                                    <input type="hidden" name="icon_id" value="{{ icon.id|default(0) }}">
+                                    {% if icon.is_uploaded|default(false) %}
+                                        <input type="hidden" name="icon_action" value="make_shared">
+                                        <button class="corebb-board-action-link" type="submit">Make Shared</button>
+                                    {% else %}
+                                        <input type="hidden" name="icon_action" value="make_uploaded">
+                                        <button class="corebb-board-action-link" type="submit">Make User Upload</button>
+                                    {% endif %}
+                                </form>
+                                <form class="corebb-admin-modern-form" method="post" action="{{ actionUrl }}" onsubmit="return confirm('Delete icon #{{ icon.id|default(0) }}? Users using it will be reset to no icon.');">
+                                    {% include 'partials/csrf_field.twig' %}
+                                    <input type="hidden" name="admin_icons_token" value="{{ model.token|default('') }}">
+                                    <input type="hidden" name="icon_id" value="{{ icon.id|default(0) }}">
+                                    <input type="hidden" name="icon_action" value="delete">
+                                    <button class="corebb-board-action-link is-danger" type="submit">Delete</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            {% endif %}
+        </tbody>
+    </table>
+
+    {% if model.pagination.visible|default(false) %}
+        <div class="corebb-admin-modern-panel wb-text-center">{% include 'partials/board_pagination.twig' with {pagination: model.pagination} only %}</div>
+    {% endif %}
+
+    <div class="corebb-admin-modern-panel">
+        <form class="corebb-admin-modern-form" method="post" action="{{ actionUrl }}" onsubmit="return confirm('Delete every unused user-uploaded avatar? Shared/default icons are not touched.');">
+            {% include 'partials/csrf_field.twig' %}
+            <input type="hidden" name="admin_icons_token" value="{{ model.token|default('') }}">
+            <input type="hidden" name="icon_action" value="delete_unused_uploaded">
+            <div class="corebb-admin-modern-submit">
+                <button class="corebb-board-action-link is-danger" type="submit">Delete Unused Uploaded Avatars</button>
+                <span class="corebb-admin-modern-help">This only targets user uploads that no profile currently uses.</span>
+            </div>
+        </form>
+    </div>
+</div>

@@ -1,0 +1,90 @@
+{% set postId = post.post_id|default(post.id|default(0)) %}
+{% set posterId = post.poster_id|default(post.posterid|default(0)) %}
+{% set authorAccessLevel = post.author_access_level|default(post._author_accesslevel|default(0)) %}
+{% set signature = post.signature|default('')|trim %}
+{% set showActions = post.show_actions|default(false) %}
+<tr class="BoardRowA" id="post{{ postId }}" style="text-align:left; vertical-align:top;">
+    <td class="BoardRowA" rowspan="{{ showActions ? 3 : 2 }}" style="width:17%; vertical-align:top;">
+        <div class="BoardUserStats" style="font-size: 8pt;">
+            {% include 'partials/user_name.twig' with {user: user_name_model(posterId, post.poster_name|default('Unknown'))} only %}
+            {% include 'partials/user_star.twig' with {star: user_star_model(post.author_posts_count|default(0), posterId)} only %}
+            {% if post.author_title|default('') is not empty %}
+                <br><span style="font-size:7pt;"><b>Title:</b> {% include 'partials/user_title.twig' with {title: user_title_model(post.author_title|default(''))} only %}</span>
+            {% endif %}
+            <br><b>Posts:</b> {{ post.author_posts_display|default('0') }}<br>
+            <b>Registered:</b> {{ post.author_regdate|default('') }}<br>
+            <div class="wb-post-avatar-slot">{% include 'partials/user_icon.twig' with {icon: user_icon_model(posterId)} only %}</div>
+        </div>
+    </td>
+    <td class="BoardRowA wb-post-date-row" style="width: 83%; vertical-align: middle; height: 1px; white-space: nowrap;">
+        <span style="font-weight: bold;">Date Posted:</span>
+        <span>{{ post.post_time_display|default('-') }}</span>
+        <span style="font-weight: bold;">Subject:</span>
+        {{ post.post_title|default('') }}
+        {% if post.was_edited|default(false) %}
+            - <span style="font-weight: bold;">Date Edited:</span> {{ post.edit_time_display|default('') }}
+            ({{ post.edit_count_text|default('1 edit total') }})
+            <span style="font-weight: bold;">Edited By:</span> {% include 'partials/user_name.twig' with {user: user_name_model(post.edited_by_id|default(0))} only %}
+        {% endif %}
+    </td>
+</tr>
+<tr style="vertical-align: top;">
+    <td class="BoardRowB wb-post-body-cell" style="width: 83%; vertical-align: top;">
+        <div class="wb-post-body-min">
+            {% if pollModel.exists|default(false) %}
+                {% include 'partials/thread_poll.twig' with {pollModel: pollModel, pollMessage: pollMessage, topicId: pollModel.topicId|default(0)} only %}
+            {% endif %}
+            {% include 'partials/formatted_content.twig' with {content: post_body_model(post.post_body|default(''), authorAccessLevel)} only %}
+            {% if signature is not empty %}
+                <p>&nbsp;</p>
+                <span class="SignatureTitle">-----signature-----</span>
+                <div class="SignatureText">{% include 'partials/formatted_content.twig' with {content: post_body_model(signature, authorAccessLevel)} only %}</div>
+            {% endif %}
+        </div>
+    </td>
+</tr>
+{% if showActions %}
+<tr style="text-align: right; vertical-align: bottom;">
+    <td class="BoardRowB wb-post-action-row" style="height: 1px; vertical-align: bottom; white-space: nowrap;">
+        {% if archiveReadOnly %}
+            <a class="SmallText"><b>Secure Archive - Read Only</b></a> -
+        {% elseif locked and not canModerate %}
+            <a class="SmallText"><b>Topic Locked</b></a> -
+        {% else %}
+            <a class="SmallText" href="{{ post.reply_url|default('#') }}"><b>Post Reply</b></a> -
+            <a class="SmallText" href="{{ post.quote_url|default('#') }}"><b>Quote</b></a> -
+        {% endif %}
+
+        {% if post.can_user_edit|default(false) %}
+            <a href="{{ post.edit_url|default('#') }}" class="SmallText"><b>Edit Message</b></a>
+            <a class="SmallText"> (<b>{{ post.edit_minutes_left|default(0) }}</b> minutes left)</a> -
+        {% endif %}
+
+        <a class="SmallText"><b>Notify</b></a>
+        - <a class="SmallText" href="{{ post.report_url|default('#') }}"><b>Report Message</b></a>
+        - <a class="SmallText" href="{{ post.pm_url|default('#') }}"><b>Private Message</b></a>
+        {% if post.post_history_url|default('') is not empty %}
+            - <a class="SmallText" href="{{ post.post_history_url }}"><b>Post History</b></a>
+        {% else %}
+            - <a class="SmallText"><b>Post History</b></a>
+        {% endif %}
+
+        {% if canModerate %}
+            - <a class="SmallText"><b>Moderate:</b> [</a>
+            <a class="SmallText" href="{{ post.remove_url|default('#') }}">Remove</a>,
+            <a class="SmallText" href="{{ post.moderator_edit_url|default('#') }}">Edit</a>,
+            <a class="SmallText" href="{{ post.ban_url|default('#') }}">Ban</a>,
+            {% if post.admin_notes_url|default('') is not empty %}
+                <a class="SmallText" href="{{ post.admin_notes_url }}">Notes</a>,
+            {% else %}
+                <a class="SmallText">Notes</a>,
+            {% endif %}
+            <a class="SmallText" href="{{ post.ipc_url|default('#') }}">IPC</a>,
+            <a class="SmallText" href="{{ post.lock_url|default('#') }}">{{ post.lock_label|default('Lock') }}</a>
+            <a class="SmallText">]</a>
+        {% endif %}
+
+        <a href="javascript:void(window.open('{{ post.post_id_url|default('#') }}','ViewPostID','width=200,height=50,scrollbars=no,toolbar=no,location=no,resizable=no'))" onmouseover="javascript:window.status='View Current Post ID';return true" onmouseout="javascript:window.status='';return true"><img src="{{ post.question_icon_url|default(asset('images/question.gif')) }}" style="vertical-align:top;" alt="Post ID: {{ postId }}" title="Post ID: {{ postId }}"></a>
+    </td>
+</tr>
+{% endif %}

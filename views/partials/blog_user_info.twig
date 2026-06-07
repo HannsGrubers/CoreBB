@@ -1,0 +1,18 @@
+<table class="wb-table-center wb-cellpad-3 wb-cellspace-1 wb-table" style="width: 100%;">
+    <tr><td class="BoardColumn"><strong>User Info</strong></td></tr>
+    <tr><td class="BoardRowB" style="padding: 6px;">
+        <div style="text-align: center;">{% include 'partials/user_icon.twig' with {icon: user_icon_model(user.id|default(0))} only %}</div>
+        <div style="text-align: center; margin-top: 4px;">{% include 'partials/user_name.twig' with {user: user_name_model(user.id|default(0), user.username|default('Unknown'))} only %}</div>
+        {% if user.userTitle|default('')|trim is not empty %}
+            <div style="text-align: center;"><span style="font-size:7pt;"><strong>Title:</strong> {% include 'partials/user_title.twig' with {title: user_title_model(user.userTitle)} only %}</span></div>
+        {% endif %}
+        <br>
+        <div class="MediumText" style="text-align: center;">
+            <strong>Blog Posts:</strong> {{ user.blogPosts|default('0') }}<br>
+            <strong>Blog Created:</strong> {{ user.regdate|default('') }}<br>
+            {% if user.locked is defined %}
+                <strong>Status:</strong> {{ user.locked ? 'Closed' : 'Open' }}<br>
+            {% endif %}
+        </div>
+    </td></tr>
+</table>

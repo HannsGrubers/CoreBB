@@ -1,0 +1,718 @@
+/* CoreBB VNBoards end-of-life public theme. */
+html, body {
+    margin: 0;
+    padding: 0;
+    background: #ffffff;
+    color: #000000;
+    font-family: verdana, arial, sans-serif;
+    font-size: 10pt;
+}
+html.corebb-dark-mode,
+html.corebb-dark-mode body,
+body.corebb-dark-mode {
+    background-color: #17191c !important;
+    background-image: none !important;
+}
+
+A:HOVER { TEXT-DECORATION: UNDERLINE; }
+a img { border: 0; }
+
+.networkBar {
+    background-color: #000;
+    background-image: linear-gradient(#f7f7f7, #bdbdbd);
+    background-repeat: repeat-x;
+    border-bottom: 1px solid #909090;
+    height: 20px;
+    overflow: hidden;
+}
+.networkFrame {
+    width: 974px;
+    text-align: left;
+    margin-left: auto;
+    margin-right: auto;
+    background-repeat: no-repeat;
+    background-position: 5px 0;
+    float: left;
+}
+.networkLinks {
+    padding: 5px 10px 0 200px;
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 9px;
+    color: #333;
+    white-space: nowrap;
+}
+.networkLinks a, .networkLinks a:link, .networkLinks a:visited, .networkLinks a:active {
+    color: #333;
+    padding: 0 5px 0 5px;
+    text-decoration: none;
+}
+.networkLinks a:hover { color: red; }
+
+.MainTable { background-color: white; font-family: verdana,arial,sans-serif; font-weight: normal; font-size: 10pt; color: black; text-decoration: none; }
+.MainMenuRowAlt { background-color: transparent; font-family: verdana,arial,sans-serif; font-weight: bold; font-size: 10pt; color: maroon; text-decoration: none; }
+.MainMenuRow { background-color: #cccccc; font-family: verdana,arial,sans-serif; font-weight: normal; font-size: 10pt; color: black; text-decoration: none; }
+.MainMenuLink { background-color: transparent; font-family: verdana,arial,sans-serif; font-weight: bold; font-size: 10pt; color: black; text-decoration: underline; }
+.MainMenuFont { background-color: transparent; font-family: verdana,arial,sans-serif; font-weight: normal; font-size: 10pt; color: black; text-decoration: none; }
+.ErrorFont { background-color: transparent; font-family: verdana,arial,sans-serif; font-weight: bold; font-size: 10pt; color: red; text-decoration: none; }
+.BoardColumn { background-color: #666666; font-family: verdana,arial,sans-serif; font-weight: bold; font-size: 10pt; color: white; text-decoration: none; }
+.BoardColumnLink { background-color: transparent; font-family: verdana,arial,sans-serif; font-weight: bold; font-size: 10pt; color: orange; text-decoration: none; }
+.BoardColumnStat { background-color: transparent; font-family: verdana,arial,sans-serif; font-weight: bold; font-size: 10pt; color: white; text-decoration: none; }
+.BoardRowA { background-color: #b1b3bc; font-family: verdana,arial,sans-serif; font-weight: normal; font-size: 10pt; color: black; text-decoration: none; }
+.BoardRowALink { background-color: transparent; font-family: verdana,arial,sans-serif; font-weight: normal; font-size: 10pt; color: blue; text-decoration: none; }
+.BoardRowB { background-color: #c1c2c9; font-family: verdana,arial,sans-serif; font-weight: normal; font-size: 10pt; color: black; text-decoration: none; }
+.BoardRowBLink { background-color: transparent; font-family: verdana,arial,sans-serif; font-weight: normal; font-size: 10pt; color: blue; text-decoration: none; }
+.BoardRowBLinkB { background-color: transparent; font-family: verdana,arial,sans-serif; font-weight: bold; font-size: 10pt; color: blue; text-decoration: none; }
+.ModLinks { background-color: transparent; font-family: verdana,arial,sans-serif; font-weight: bold; font-size: 10pt; color: blue; text-decoration: none; }
+.SubjectLink { background-color: transparent; font-family: verdana,arial,sans-serif; font-weight: bold; font-size: 10pt; color: blue; text-decoration: none; }
+a.SubjectLink { background-color: transparent; font-family: verdana,arial,sans-serif; font-weight: bold; font-size: 10pt; color: blue; text-decoration: none; }
+a.SubjectLink:active { background-color: transparent; font-family: verdana,arial,sans-serif; font-weight: bold; font-size: 10pt; color: purple; text-decoration: underline; }
+a.SubjectLink:visited { background-color: transparent; font-family: verdana,arial,sans-serif; font-weight: normal; font-size: 10pt; color: purple; text-decoration: none; }
+.AuthorLink { background-color: transparent; font-family: verdana,arial,sans-serif; font-weight: bold; font-size: 10pt; color: blue; text-decoration: none; }
+.VersionText { background-color: transparent; font-family: verdana,arial,sans-serif; font-weight: normal; font-size: 8pt; color: #666666; text-decoration: none; }
+.InputSection { background-color: transparent; font-family: verdana,arial,sans-serif; font-weight: bold; font-size: 10pt; color: black; text-decoration: none; }
+.InputNotes { background-color: transparent; font-family: verdana,arial,sans-serif; font-weight: normal; font-size: 9pt; color: maroon; text-decoration: none; width: 65%; }
+.SignatureTitle { background-color: transparent; font-family: verdana,arial,sans-serif; font-weight: bold; font-size: 9pt; color: maroon; text-decoration: none; }
+.SignatureText { background-color: transparent; font-family: verdana,arial,sans-serif; font-weight: normal; font-size: 9pt; color: #333333; text-decoration: none; }
+.SystemMessage { background-color: transparent; font-family: verdana,arial,sans-serif; font-weight: bold; font-size: 10pt; color: #00FF00; text-decoration: none; }
+.RegisterMain { background-color: transparent; font-family: verdana,arial,sans-serif; font-weight: bold; font-size: 9pt; color: black; text-decoration: none; }
+.RegisterSub { background-color: transparent; font-family: verdana,arial,sans-serif; font-weight: normal; font-size: 7pt; color: black; text-decoration: none; }
+.MultiPages { background-color: transparent; font-family: verdana,arial,sans-serif; font-weight: normal; font-size: 7pt; color: blue; text-decoration: none; }
+.SmallText { background-color: transparent; font-family: verdana,arial,sans-serif; font-weight: normal; font-size: 7pt; color: black; text-decoration: none; }
+.SmallText_Code_Block { background-color: transparent; font-family: verdana,arial,sans-serif; font-weight: normal; font-size: 7pt; color: white; text-decoration: none; }
+.MediumText { background-color: transparent; font-family: verdana,arial,sans-serif; font-weight: normal; font-size: 9pt; color: black; text-decoration: none; }
+.MediumTextLink { background-color: transparent; font-family: verdana,arial,sans-serif; font-weight: normal; font-size: 9pt; color: blue; text-decoration: none; }
+.LargeText { background-color: transparent; font-family: verdana,arial,sans-serif; font-weight: normal; font-size: 13pt; color: black; text-decoration: none; }
+.mailcenter { background-color: transparent; font-family: verdana,arial,sans-serif; font-weight: bold; font-size: 10pt; color: black; text-decoration: none; }
+.ErrReport { background-color: black; font-family: verdana,arial,sans-serif; font-weight: normal; font-size: 8pt; color: white; text-decoration: none; }
+.RegSubTxt { background-color: transparent; font-family: verdana,arial,sans-serif; font-weight: normal; font-size: 8pt; color: black; text-decoration: none; }
+.BoldText { background-color: transparent; font-family: verdana,arial,sans-serif; font-weight: bold; font-size: 10pt; color: black; text-decoration: none; }
+.TimestampText { background-color: transparent; font-family: verdana,arial,sans-serif; font-weight: bold; font-size: 8pt; color: #FF0000; text-decoration: none; }
+.NameText { background-color: transparent; font-family: verdana,arial,sans-serif; font-weight: bold; font-size: 8pt; color: #000099; text-decoration: none; }
+.MessageText { background-color: transparent; font-family: verdana,arial,sans-serif; font-weight: bold; font-size: 8pt; color: #003333; text-decoration: none; }
+.KeyText { background-color: transparent; font-family: verdana,arial,sans-serif; font-weight: normal; font-size: 8pt; color: #003333; text-decoration: none; }
+
+.MainBorder { border:1px solid black; }
+.SubBorder { border:1px dashed darkblue; }
+
+.formtext {
+    color: #000000;
+    font-size: 10px;
+    font-family: Verdana, Arial, sans-serif;
+    border: 1px solid #999999;
+    padding: 1px;
+}
+.formsubmit, input[type="submit"], input[type="button"], button {
+    background: #c1c2c9;
+    color: black;
+    font-size: 10px;
+    font-family: Verdana, Arial, sans-serif;
+    font-weight: bold;
+    border: 1px inset #999999;
+}
+input, select, textarea {
+    font-family: Verdana, Arial, sans-serif;
+    font-size: 10pt;
+}
+.pagination {
+    background: #EFEFEF;
+    padding: 2px;
+    border: 1px solid #CECECE;
+}
+.pagination a:link, .pagination a:active, .pagination a:visited { text-decoration: none; font-size: 7pt; }
+.currentpage {
+    background: #c1c2c9;
+    color: black;
+    padding: 2px;
+    font-size: 10px;
+    font-family: Verdana, Arial, sans-serif;
+    font-weight: bold;
+    border: 1px inset #CECECE;
+}
+
+.code {
+    color: #000000;
+    background-color: #dddddd;
+    font-family: "courier new", "times new roman", monospace;
+    font-size: 11px;
+    line-height: 1.3em;
+    border: 1px solid #000000;
+    margin: 1px auto 1px auto;
+    padding: 1px;
+    width: 99%;
+    white-space: nowrap;
+    overflow: auto;
+    max-height: 24em;
+}
+.quoteheader, .codeheader {
+    color: #000000;
+    text-decoration: none;
+    font-style: normal;
+    font-weight: bold;
+    font-size: x-small;
+    line-height: 1.2em;
+}
+.AdminActions {
+    color: #000000;
+    background-color: #C1C2C9;
+    font-family: "courier new", "times new roman", monospace;
+    font-size: 11px;
+    line-height: 1.3em;
+    /* Admin action lists render as table rows now; do not restore the old data-block border. */
+    border: 0;
+    padding: 0;
+    width: 100%;
+    overflow: visible;
+    max-height: none;
+}
+
+.BoardUserStats { font-size: 8pt; }
+.wb-user-title { font-size: 7pt; }
+
+/* Keep the 100% footer border inside the viewport; otherwise it adds a 2px horizontal scroll. */
+#footerWrapper {
+    border: 1px solid #FFF;
+    background-color: #FFF;
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 10px;
+}
+#footerNetwork * { font: 10px verdana,sans-serif !important; color: #000; }
+#footerNetwork a { color: #06C; text-decoration: none; }
+#footerNetwork a:hover { color: #999; text-decoration: none; }
+#footerNetwork { width: 100%; box-sizing: border-box; padding-bottom: 10px; background-color: #fff; margin-right: auto; margin-left: auto; }
+.footerLogo { display: block; width: 110px; height: 65px; text-indent: -9999px; background: #ffffff; }
+.footerLogoCell { display: none; vertical-align: middle; width: 0; }
+.footerTextCell { vertical-align: middle; text-align: center; }
+.footerRss { position: relative; top: 4px; border: 0; }
+.wb-vn-header-nav-spacer {
+    padding: 4px 0 0 0;
+}
+.wb-vn-header-nav {
+    padding: 2px 0;
+}
+.wb-vn-header-nav p {
+    margin: 0;
+}
+.wb-vn-header-content-spacer {
+    height: 18px;
+    font-size: 0;
+    line-height: 0;
+}
+.corebb-dark-mode .wb-vn-chrome-bg {
+    background-color: #17191c !important;
+}
+.corebb-dark-mode #footerWrapper,
+.corebb-dark-mode #footerNetwork,
+.corebb-dark-mode .footerLogo {
+    background-color: #17191c !important;
+}
+.corebb-dark-mode #footerWrapper {
+    border-color: #17191c !important;
+}
+.corebb-dark-mode #footerNetwork *,
+.corebb-dark-mode .footerTextCell {
+    color: #8d96a0 !important;
+}
+.corebb-dark-mode #footerNetwork a {
+    color: #7fa6d6 !important;
+}
+.corebb-dark-mode #footerNetwork a:hover {
+    color: #b8cfe8 !important;
+}
+
+/* Thread polish */
+.wb-post-avatar-slot { min-height: 132px; width: 132px; margin-top: 4px; }
+.wb-post-avatar-slot img { max-width: 120px; max-height: 120px; }
+.wb-thread-topic-title { font-weight: normal; text-decoration: none; }
+.QuotedText { margin: 4px 0 8px 24px; padding: 4px 0 0 12px; }
+.QuotedText hr { border: 0; border-top: 1px solid #777777; height: 0; margin: 6px 0 10px 0; }
+
+/* VN-style post spacing helpers. */
+.wb-post-date-row, .wb-post-action-row { height: 1px; padding: 4px 2px; line-height: 1.15; }
+.wb-post-body-cell { vertical-align: top; }
+.wb-post-body-min { min-height: 132px; }
+.wb-post-action-row { vertical-align: bottom; }
+
+
+
+/* VN EOL login/register/search workspace padding. */
+.wb-public-form-workspace {
+    margin: 0;
+}
+.wb-public-form-workspace form {
+    margin: 0;
+    padding: 0;
+}
+.wb-public-form-workspace .BoardColumn {
+    padding-left: 4px;
+    padding-right: 4px;
+}
+
+/* VN EOL User CP / sidebar workspace cleanup */
+.wb-usercp-workspace {
+    margin: 0;
+}
+.wb-usercp-workspace td {
+    font-family: verdana, arial, sans-serif;
+    font-size: 10pt;
+}
+.wb-usercp-nav-cell {
+    width: 250px !important;
+    min-width: 250px;
+    max-width: 250px;
+    vertical-align: top;
+}
+.wb-usercp-content {
+    vertical-align: top;
+}
+.wb-usercp-content form {
+    margin: 0;
+    padding: 0;
+}
+.wb-usercp-content p {
+    margin-top: 6px;
+    margin-bottom: 6px;
+}
+.wb-usercp-current-icon {
+    padding: 6px 0 4px 0;
+    min-height: 124px;
+}
+.wb-usercp-content .BoardColumn,
+.wb-usercp-content .MainMenuRow,
+.wb-control-box .BoardColumn {
+    padding-left: 4px;
+    padding-right: 4px;
+}
+.wb-control-links,
+.wb-control-links .MultiPages {
+    font-size: 9pt;
+}
+.wb-control-links b {
+    color: #000000;
+}
+
+/* Private Messages: VNBoards-style compact message center rows.
+   Kept here after the User CP workspace refresh so PM pages do not fall back to browser defaults. */
+.PrivMsgViewLink {
+    background-color: transparent;
+    font-family: verdana,arial,sans-serif;
+    font-weight: bold;
+    font-size: 8pt;
+    color: blue;
+    text-decoration: none;
+}
+a.PrivMsgViewLink,
+a.PrivMsgViewLink:link,
+a.PrivMsgViewLink:active {
+    background-color: transparent;
+    font-family: verdana,arial,sans-serif;
+    font-weight: bold;
+    font-size: 8pt;
+    color: blue;
+    text-decoration: none;
+}
+a.PrivMsgViewLink:visited {
+    color: purple;
+    font-weight: normal;
+    text-decoration: none;
+}
+.PrivMsgViewText,
+a.PrivMsgViewText,
+a.PrivMsgViewText:link,
+a.PrivMsgViewText:active {
+    background-color: transparent;
+    font-family: verdana,arial,sans-serif;
+    font-weight: normal;
+    font-size: 8pt;
+    color: black;
+    text-decoration: none;
+}
+a.PrivMsgViewText:visited {
+    color: purple;
+    text-decoration: none;
+}
+.PrivMsgUsername {
+    background-color: transparent;
+    font-family: verdana,arial,sans-serif;
+    font-weight: bold;
+    font-size: 8pt;
+    color: black;
+    font-style: italic;
+    text-decoration: none;
+}
+.PrivMsgSubmitButton {
+    font-family: verdana,arial,sans-serif;
+    font-size: 8pt;
+    font-weight: bold;
+    padding: 1px 5px;
+}
+.PrivMsgListRowA {
+    background-color: #b1b3bc;
+    font-family: verdana,arial,sans-serif;
+    font-weight: normal;
+    font-size: 10pt;
+    color: black;
+    text-decoration: none;
+}
+.PrivMsgListRowB {
+    background-color: #c1c2c9;
+    font-family: verdana,arial,sans-serif;
+    font-weight: normal;
+    font-size: 10pt;
+    color: black;
+    text-decoration: none;
+}
+.wb-pm-page form {
+    margin: 0;
+    padding: 0;
+}
+.wb-pm-page table {
+    margin-top: 0;
+    margin-bottom: 0;
+}
+.wb-pm-page .BoardColumn {
+    padding-top: 1px;
+    padding-bottom: 1px;
+}
+.wb-pm-page .PrivMsgListRowA,
+.wb-pm-page .PrivMsgListRowB {
+    padding-top: 1px;
+    padding-bottom: 1px;
+}
+.wb-pm-page .SmallText {
+    font-size: 7pt;
+}
+.wb-pm-message-meta .wb-pm-meta-label,
+.wb-pm-folder-table .wb-pm-folder-items {
+    padding-left: 8px;
+    padding-right: 8px;
+    white-space: nowrap;
+}
+
+
+/* HTML5 document-shell presentation hooks */
+html,
+body {
+    margin: 0;
+}
+body.wb-classic-body {
+    background: #ffffff url("images/body_bg.gif");
+    color: #000000;
+}
+body.wb-vn-eol {
+    background: #ffffff;
+    color: #000000;
+}
+body.wb-admin-body {
+    background: #cccccc;
+    color: #000000;
+}
+
+/* VN compact form/button polish. */
+.wb-post-form-table > tbody > tr > td,
+.wb-post-form-table > tr > td,
+.wb-pm-form-table > tbody > tr > td,
+.wb-pm-form-table > tr > td {
+    padding: 4px;
+}
+.wb-post-form-table textarea,
+.wb-pm-form-table textarea {
+    box-sizing: border-box;
+}
+input[type="submit"],
+input[type="button"],
+button,
+.formsubmit,
+.markupButton {
+    background-color: #d7d7d7 !important;
+    color: #000000 !important;
+    font-family: Verdana, Arial, sans-serif !important;
+    font-size: 10px !important;
+    font-weight: bold !important;
+    border-top: 1px solid #ffffff !important;
+    border-left: 1px solid #ffffff !important;
+    border-right: 1px solid #666666 !important;
+    border-bottom: 1px solid #666666 !important;
+    padding: 1px 6px !important;
+    margin: 0 1px 0 0;
+    line-height: 14px;
+    cursor: pointer !important;
+    vertical-align: middle;
+    appearance: auto;
+    -webkit-appearance: push-button;
+}
+input[type="submit"]:hover,
+input[type="button"]:hover,
+button:hover,
+.formsubmit:hover,
+.markupButton:hover {
+    background-color: #eeeeee !important;
+}
+input[type="submit"]:active,
+input[type="button"]:active,
+button:active,
+.formsubmit:active,
+.markupButton:active {
+    border-top: 1px solid #666666 !important;
+    border-left: 1px solid #666666 !important;
+    border-right: 1px solid #ffffff !important;
+    border-bottom: 1px solid #ffffff !important;
+}
+input[type="submit"]:disabled,
+input[type="button"]:disabled,
+button:disabled,
+.formsubmit:disabled,
+.markupButton:disabled {
+    cursor: default !important;
+    color: #777777 !important;
+}
+
+.wb-inline-post-link {
+    display: inline;
+    margin: 0;
+    padding: 0;
+}
+
+button.wb-link-submit {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    color: inherit !important;
+    cursor: pointer !important;
+    font: inherit !important;
+    line-height: inherit !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    text-align: left !important;
+    text-decoration: none !important;
+    vertical-align: baseline !important;
+}
+
+button.wb-link-submit.MainMenuFont {
+    color: black !important;
+}
+
+button.wb-link-submit.MultiPages {
+    color: blue !important;
+}
+
+button.wb-link-submit:hover,
+button.wb-link-submit:active {
+    background: transparent !important;
+    border: 0 !important;
+    text-decoration: underline !important;
+}
+
+/* VN-style thread action links: keep them classic blue even inside SmallText rows. */
+.wb-post-action-row a,
+.wb-post-action-row a.SmallText,
+.wb-post-action-row a:link,
+.wb-post-action-row a:visited,
+.wb-post-action-row a.SmallText:link,
+.wb-post-action-row a.SmallText:visited {
+    color: #0000CC !important;
+}
+.wb-post-action-row a:hover,
+.wb-post-action-row a.SmallText:hover {
+    color: #0000FF !important;
+}
+
+/* Board Rules / FAQ tidy layout */
+.wb-rules-faq-page {
+    margin: 0;
+}
+.wb-rules-content {
+    vertical-align: top;
+    overflow-wrap: break-word;
+}
+.wb-rules-section {
+    margin: 0 0 6px 0;
+}
+.wb-rules-section td {
+    line-height: 1.32;
+}
+.wb-rules-section .BoardRowB {
+    padding: 5px;
+}
+.wb-rules-section p {
+    margin: 4px 0 8px 0;
+}
+.wb-rules-section ol,
+.wb-rules-section ul {
+    margin-top: 4px;
+    margin-bottom: 8px;
+    padding-left: 26px;
+}
+.wb-rules-section li {
+    margin-bottom: 2px;
+}
+
+/* Profile topic/post history: match compact VN index/forum list spacing. */
+.wb-profile-content-workspace {
+    margin: 0;
+}
+.wb-profile-content-workspace td,
+.wb-profile-content-table td {
+    font-family: verdana, arial, sans-serif;
+    font-size: 10pt;
+}
+.wb-profile-content-workspace .BoardColumn,
+.wb-profile-content-workspace .MainMenuRow,
+.wb-profile-content-table .BoardColumn {
+    padding-left: 4px;
+    padding-right: 4px;
+}
+.wb-profile-content-toolbar {
+    padding: 5px;
+    line-height: 1.35;
+}
+.wb-profile-content-table {
+    margin: 0;
+}
+.wb-profile-content-table .BoardRowA,
+.wb-profile-content-table .BoardRowB {
+    padding-top: 3px;
+    padding-bottom: 3px;
+}
+.wb-profile-post-excerpt {
+    display: block;
+    padding-top: 2px;
+    line-height: 1.18;
+}
+.wb-profile-post-topic {
+    display: block;
+    padding-top: 1px;
+    line-height: 1.15;
+}
+
+/* CoreBB BBCode code blocks: quote-style display */
+.bbcode-code-block {
+    clear: both;
+}
+.bbcode-rule {
+    border: 0;
+    border-top: 1px solid #777777;
+    height: 0;
+    margin: 6px 0 10px 0;
+}
+.bbcode-center {
+    display: block;
+    text-align: center;
+}
+.bbcode-blink {
+    text-decoration: none;
+}
+.bbcode-list-item {
+    display: block;
+    margin-left: 1.5em;
+}
+.bbcode-list-item::before {
+    content: "\2022";
+    margin-right: 0.4em;
+}
+.bbcode-markdown-block {
+    margin: 4px 0;
+}
+.bbcode-markdown-block p,
+.bbcode-markdown-block ul,
+.bbcode-markdown-block ol,
+.bbcode-markdown-block blockquote {
+    margin-top: 0;
+    margin-bottom: 8px;
+}
+.bbcode-markdown-block ul,
+.bbcode-markdown-block ol {
+    padding-left: 1.5em;
+}
+.bbcode-markdown-block p:last-child,
+.bbcode-markdown-block ul:last-child,
+.bbcode-markdown-block ol:last-child,
+.bbcode-markdown-block blockquote:last-child {
+    margin-bottom: 0;
+}
+.bbcode-markdown-block pre {
+    margin: 4px 0 8px 0;
+    overflow: auto;
+}
+.bbcode-markdown-block code {
+    font-family: "Courier New", Courier, monospace;
+    font-size: 9pt;
+}
+.wb-user-icon-frame {
+    display: inline-block;
+    padding: 5px;
+}
+.bbcode-code-pre {
+    margin: 0;
+    padding: 0;
+    overflow: auto;
+    background: transparent;
+    color: #000000;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 9pt;
+    line-height: 14px;
+    white-space: pre;
+}
+.bbcode-code-content {
+    font-family: "Courier New", Courier, monospace;
+    font-size: 9pt;
+    white-space: pre;
+}
+
+/* CoreBB Prism syntax colors: muted VN-style palette inside quote-style code blocks. */
+.bbcode-code-content .token.comment,
+.bbcode-code-content .token.prolog,
+.bbcode-code-content .token.doctype,
+.bbcode-code-content .token.cdata {
+    color: #666666;
+    font-style: italic;
+}
+.bbcode-code-content .token.punctuation {
+    color: #333333;
+}
+.bbcode-code-content .token.property,
+.bbcode-code-content .token.tag,
+.bbcode-code-content .token.boolean,
+.bbcode-code-content .token.number,
+.bbcode-code-content .token.constant,
+.bbcode-code-content .token.symbol,
+.bbcode-code-content .token.deleted {
+    color: #990000;
+}
+.bbcode-code-content .token.selector,
+.bbcode-code-content .token.attr-name,
+.bbcode-code-content .token.string,
+.bbcode-code-content .token.char,
+.bbcode-code-content .token.builtin,
+.bbcode-code-content .token.inserted {
+    color: #006600;
+}
+.bbcode-code-content .token.operator,
+.bbcode-code-content .token.entity,
+.bbcode-code-content .token.url,
+.bbcode-code-content .token.variable {
+    color: #000099;
+}
+.bbcode-code-content .token.atrule,
+.bbcode-code-content .token.attr-value,
+.bbcode-code-content .token.function,
+.bbcode-code-content .token.class-name {
+    color: #0000aa;
+}
+.bbcode-code-content .token.keyword {
+    color: #000080;
+    font-weight: bold;
+}
+.bbcode-code-content .token.regex,
+.bbcode-code-content .token.important {
+    color: #990099;
+}
+.bbcode-code-content .token.important,
+.bbcode-code-content .token.bold {
+    font-weight: bold;
+}
+.bbcode-code-content .token.italic {
+    font-style: italic;
+}

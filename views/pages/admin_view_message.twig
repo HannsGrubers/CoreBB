@@ -1,0 +1,127 @@
+{% include 'partials/admin_messages.twig' with {messages: model.messages|default([]), errors: model.errors|default([])} only %}
+{% set mode = model.mode|default('form') %}
+
+<div class="corebb-admin-modern-page">
+    {% if model.message|default('') != '' %}
+        <div class="corebb-admin-modern-note">{{ model.message|replace({'+': ' '}) }}</div>
+    {% endif %}
+
+    {% if model.delete_redirect|default('') != '' %}
+        <div class="corebb-admin-modern-panel">
+            <div class="corebb-admin-section-title">Next Step</div>
+            <a class="corebb-board-action-link" href="{{ model.delete_redirect }}">Continue</a>
+        </div>
+    {% endif %}
+
+    {% if mode == 'view' %}
+        {% set post = model.post|default({}) %}
+        {% set poster = model.poster|default({}) %}
+        {% set posterId = post.posterid|default(0) %}
+        {% set postEdit = model.post_edit|default({}) %}
+
+        <div class="corebb-admin-modern-header">
+            <div>
+                <div class="corebb-admin-modern-eyebrow">Content</div>
+                <h2>Message #{{ post.id|default(0) }}</h2>
+                <div class="corebb-admin-modern-meta">
+                    <span>{{ model.post_date|default('') }}</span>
+                    <span>{{ post.title|default('') }}</span>
+                </div>
+            </div>
+            <div class="corebb-admin-modern-actions">
+                <a class="corebb-board-action-link" href="/admin/?act=deleted_posts">Deleted Posts</a>
+                <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
+            </div>
+        </div>
+
+        {% if model.is_deleted|default(false) %}
+            <div class="corebb-admin-modern-note is-danger">
+                <strong>This message is currently in the Deleted Posts bin.</strong> It is hidden from public board/topic views until restored.
+                <span><a class="corebb-admin-text-link" href="/admin/?act=deleted_posts">Open Deleted Posts</a></span>
+            </div>
+        {% endif %}
+
+        <div class="corebb-admin-post-view">
+            <div class="corebb-admin-post-author">
+                {% include 'partials/user_name.twig' with {user: user_name_model(posterId, poster.username|default('Unknown User'))} only %}
+                {% include 'partials/user_star.twig' with {star: user_star_model(poster.posts|default(0), posterId)} only %}
+                {% if poster.level_name|default('') != '' %}<br><strong>Level:</strong> {{ poster.level_name }}{% endif %}
+                <br><strong>Posts:</strong> {{ poster.posts|default(0)|number_format }}<br>
+                {% if poster.registered|default('') != '' %}<strong>Registered:</strong> {{ poster.registered }}<br>{% endif %}
+                <div class="wb-post-avatar-slot">{% include 'partials/user_icon.twig' with {icon: user_icon_model(posterId)} only %}</div>
+            </div>
+            <div>
+                <div class="corebb-admin-post-meta">
+                    <span><strong>Date Posted:</strong> {{ model.post_date|default('') }}</span>
+                    <span><strong>Subject:</strong> {{ post.title|default('') }}</span>
+                    {% if postEdit.was_edited|default(false) %}
+                        <span><strong>Date Edited:</strong> {{ postEdit.date|default('') }} ({{ postEdit.count_text|default('1 edit total') }})</span>
+                        <span><strong>Edited By:</strong> {% include 'partials/user_name.twig' with {user: user_name_model(postEdit.edited_by_id|default(0), 'Unknown')} only %}</span>
+                    {% endif %}
+                </div>
+                <div class="corebb-admin-post-body">
+                    {% include 'partials/formatted_content.twig' with {content: post_body_model(post.body|default(''), poster.accesslevel|default(0))} only %}
+                </div>
+            </div>
+        </div>
+
+        <div class="corebb-admin-modern-panel">
+            <div class="corebb-admin-section-title">Moderation Tools</div>
+            {% if not model.can_modify_message|default(false) %}
+                <span class="corebb-admin-modern-help">{{ model.modify_block_reason|default('You cannot modify this message.') }}</span>
+            {% else %}
+                <form class="corebb-admin-modern-form" method="post" action="/admin/?act=view_message&amp;method=edit">
+                    {% include 'partials/csrf_field.twig' %}
+                    <input type="hidden" name="messageid" value="{{ post.id|default(0) }}">
+                    <div class="corebb-admin-modern-grid">
+                        <label for="corebbMessageSubject">Subject</label>
+                        <input id="corebbMessageSubject" type="text" name="message_subject" value="{{ model.edit_subject|default('') }}">
+
+                        <label for="corebbMessageBody">Message</label>
+                        <textarea id="corebbMessageBody" name="message_body" rows="10">{{ model.edit_body|default('') }}</textarea>
+
+                        <div class="corebb-admin-modern-submit corebb-admin-modern-full">
+                            <button class="corebb-board-action-link" type="submit">Save Edited Message</button>
+                        </div>
+                    </div>
+                </form>
+
+                <form class="corebb-admin-modern-form" method="post" action="/admin/?act=view_message&amp;method=delete" onsubmit="return confirm('Move this message to the Deleted Posts bin? It can be restored later.');">
+                    {% include 'partials/csrf_field.twig' %}
+                    <input type="hidden" name="messageid" value="{{ post.id|default(0) }}">
+                    <div class="corebb-admin-modern-submit">
+                        <button class="corebb-board-action-link is-danger" type="submit">Move to Deleted Posts</button>
+                        <span class="corebb-admin-modern-help">Deleting the only visible message in a topic will hide the topic until a post is restored.</span>
+                    </div>
+                </form>
+            {% endif %}
+        </div>
+    {% else %}
+        <div class="corebb-admin-modern-header">
+            <div>
+                <div class="corebb-admin-modern-eyebrow">Content</div>
+                <h2>View a Message</h2>
+                <div class="corebb-admin-modern-meta">
+                    <span>Look up a single message by ID.</span>
+                </div>
+            </div>
+            <div class="corebb-admin-modern-actions">
+                <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
+            </div>
+        </div>
+    {% endif %}
+
+    <div class="corebb-admin-modern-panel">
+        <form class="corebb-admin-modern-form" method="post" action="/admin/?act=view_message&amp;method=view">
+            {% include 'partials/csrf_field.twig' %}
+            <div class="corebb-admin-modern-grid">
+                <label for="corebbViewMessageId">Message ID</label>
+                <span>
+                    <input id="corebbViewMessageId" type="text" name="messageid" value="{% if model.messageid|default(0) > 0 %}{{ model.messageid }}{% endif %}">
+                    <button class="corebb-board-action-link" type="submit">Submit</button>
+                    <span class="corebb-admin-modern-help">Message IDs can be found by clicking the <img src="{{ asset('images/question.gif') }}" alt="?"> button in each post/message.</span>
+                </span>
+            </div>
+        </form>
+    </div>
+</div>

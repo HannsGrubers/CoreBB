@@ -1,0 +1,15 @@
+{% set name = forum.title|default(forum.name|default('Untitled Board')) %}
+{% set boardUrl = forum.board_url|default('#') %}
+{% set description = forum.description|default('') %}
+{% set newMark = forum.new_mark|default('') %}
+{% set topics = forum.topic_count|default(0) %}
+{% set posts = forum.post_count|default(0) %}
+{% set lastPost = forum.last_post_display|default('No Posts') %}
+{% set secureArchive = forum.secure_archive|default(false) %}
+<tr class="BoardRowB">
+    <td style="width: 10px;"><div class="wb-text-center"><b>{{ newMark }}</b></div></td>
+    <td style="height: 20px;">&nbsp;&nbsp;<a class="BoardRowBLink" href="{{ boardUrl }}">{{ name }}</a>{% if secureArchive %} <span class="SmallText">(Secure Archive)</span>{% endif %}&nbsp;- {{ description }}</td>
+    <td>&nbsp;&nbsp;{{ topics }}</td>
+    <td>&nbsp;&nbsp;{{ posts }}</td>
+    <td>&nbsp;{{ lastPost }}</td>
+</tr>

@@ -1,0 +1,63 @@
+<script>
+(function(){
+    var storageKey = document.body && document.body.getAttribute('data-corebb-theme-storage')
+        ? document.body.getAttribute('data-corebb-theme-storage')
+        : 'corebbThemeMode';
+    var darkColor = '#363636';
+    var select = document.getElementById('corebbThemeMode');
+    function storedMode(){
+        try {
+            return window.localStorage ? localStorage.getItem(storageKey) : '';
+        } catch (e) {
+            return '';
+        }
+    }
+    function storeMode(mode){
+        try {
+            if (window.localStorage) {
+                localStorage.setItem(storageKey, mode);
+            }
+        } catch (e) {}
+    }
+    function applyMode(mode){
+        var isDark = mode === 'dark';
+        var className = 'corebb-dark-mode';
+        var htmlClasses = document.documentElement.className || '';
+        var bodyClasses = document.body ? (document.body.className || '') : '';
+        htmlClasses = htmlClasses.replace(new RegExp('(^|\\s)' + className + '(?=\\s|$)', 'g'), ' ').replace(/^\\s+|\\s+$/g, '');
+        bodyClasses = bodyClasses.replace(new RegExp('(^|\\s)' + className + '(?=\\s|$)', 'g'), ' ').replace(/^\\s+|\\s+$/g, '');
+        if (isDark) {
+            document.documentElement.className = htmlClasses ? htmlClasses + ' ' + className : className;
+            if (document.body) {
+                document.body.className = bodyClasses ? bodyClasses + ' ' + className : className;
+            }
+        } else {
+            document.documentElement.className = htmlClasses;
+            if (document.body) {
+                document.body.className = bodyClasses;
+            }
+        }
+        document.documentElement.style.backgroundColor = isDark ? darkColor : '';
+        if (document.body) {
+            document.body.style.backgroundColor = isDark ? darkColor : '';
+            document.body.style.backgroundImage = isDark ? 'none' : '';
+        }
+        if (select) {
+            select.value = isDark ? 'dark' : 'light';
+        }
+    }
+    function defaultMode(){
+        return document.body && document.body.getAttribute('data-corebb-theme-default') === 'dark' ? 'dark' : 'light';
+    }
+    var stored = storedMode();
+    var mode = stored === 'dark' || stored === 'light' ? stored : defaultMode();
+    applyMode(mode);
+    if (select) {
+        select.onchange = function(){
+            var nextMode = select.value === 'dark' ? 'dark' : 'light';
+            storeMode(nextMode);
+            applyMode(nextMode);
+        };
+    }
+}());
+</script>

@@ -1,0 +1,32 @@
+{% set topicId = topic.topic_id|default(topic.id|default(0)) %}
+{% set title = topic.subject|default(topic.title|default('Untitled Topic')) %}
+{% set topicPages = topic.topic_pages|default({visible: false, items: []}) %}
+{% set replyCount = topic.reply_count|default(0) %}
+{% set lastPost = topic.last_post_display|default('-') %}
+{% set lastPosterId = topic.last_poster_id|default(0) %}
+{% set lastPosterName = topic.last_poster_name|default('') %}
+{% set lastPostUrl = topic.last_post_url|default('#') %}
+{% set isSticky = topic.is_sticky|default(false) %}
+{% set hasPoll = topic.has_poll|default(false) %}
+{% set isLocked = topic.is_locked|default(false) %}
+{% set threadUrl = topic.thread_url|default('/topic/' ~ topicId ~ '/') %}
+<tr class="wb-text-left wb-valign-top">
+    <td class="BoardRowB">
+        {% if isSticky %}
+            <img src="{{ asset('images/sticky.gif') }}" alt="Sticky" class="wb-img-middle">&nbsp;
+        {% endif %}
+        {% if hasPoll %}
+            <img src="{{ asset('images/poll.gif') }}" alt="Poll" class="wb-img-middle">&nbsp;
+        {% endif %}
+        {% if not isSticky and not hasPoll %}
+            &diams;
+        {% endif %}
+        <a class="BoardRowBLinkB" href="{{ threadUrl }}">{{ title }}</a>{% if isLocked %} <span class="SmallText">[Locked]</span>{% endif %}
+        {% if topicPages.visible|default(false) %}
+            <span class="SmallText">[</span>{% for item in topicPages.items|default([]) %}{% if not loop.first %}<span class="SmallText">, </span>{% endif %}{% if item.type == 'ellipsis' %}<span class="SmallText">...</span>{% else %}<a class="SmallText" href="{{ item.url }}">{{ item.page }}</a>{% endif %}{% endfor %}<span class="SmallText">]</span>
+        {% endif %}
+    </td>
+    <td class="wb-nowrap BoardRowA">{% include 'partials/user_name.twig' with {user: user_name_model(topic.poster_id|default(0), topic.poster_name|default(''))} only %}</td>
+    <td class="BoardRowB" style="width: 3%;"><div style="text-align: center;"><a class="VersionText">{{ replyCount > 0 ? replyCount : '-' }}</a></div></td>
+    <td class="wb-nowrap BoardRowA">&nbsp;{{ lastPost }}{% if lastPosterId > 0 or lastPosterName is not empty %} <span class="SmallText">by {% include 'partials/user_name.twig' with {user: user_name_model(lastPosterId, lastPosterName)} only %} <a class="BoardRowALink" href="{{ lastPostUrl }}">&raquo;</a></span>{% endif %}</td>
+</tr>

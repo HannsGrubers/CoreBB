@@ -1,0 +1,31 @@
+{% set messages = model.messages|default([]) %}
+{% set errors = model.errors|default([]) %}
+{% set tos = model.tos|default('') %}
+
+<div class="corebb-admin-modern-page">
+    <div class="corebb-admin-modern-header">
+        <div>
+            <div class="corebb-admin-modern-eyebrow">System</div>
+            <h2>Edit System TOS</h2>
+            <div class="corebb-admin-modern-meta">
+                <span>Changes take effect immediately.</span>
+            </div>
+        </div>
+        <div class="corebb-admin-modern-actions">
+            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
+        </div>
+    </div>
+
+    {% include 'partials/admin_messages.twig' with {messages: messages, errors: errors} only %}
+
+    <div class="corebb-admin-modern-panel">
+        <form class="corebb-admin-modern-form" name="form1" method="post" action="/admin/?act=edit_tos&amp;method=post">
+            {% include 'partials/csrf_field.twig' %}
+            <textarea class="corebb-admin-editor" name="newtos" cols="75" rows="30" wrap="soft">{{ tos }}</textarea>
+            <div class="corebb-admin-modern-submit">
+                <button class="corebb-board-action-link" type="submit" name="Submit" value="Submit Changes">Submit Changes</button>
+                <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
+            </div>
+        </form>
+    </div>
+</div>

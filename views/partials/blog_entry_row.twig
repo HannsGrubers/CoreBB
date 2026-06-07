@@ -1,0 +1,23 @@
+<tr>
+    <td class="wb-valign-top BoardRowB" style="width: 1%; padding: 5px; white-space: nowrap;">{% include 'partials/user_icon.twig' with {icon: user_icon_model(entry.posterId|default(0), true)} only %}</td>
+    <td class="wb-valign-top BoardRowB" style="width: 99%; padding: 5px;">
+        <a class="MultiPages" href="/profile/{{ entry.posterId|default(0) }}/"><strong>{{ entry.authorName|default('Unknown') }}</strong></a><br>
+        {% if entry.authorTitle|default('')|trim is not empty %}
+            <span style="font-size:7pt;"><strong>Title:</strong> {% include 'partials/user_title.twig' with {title: user_title_model(entry.authorTitle)} only %}</span><br>
+        {% endif %}
+        <div style="margin-top: 3px;"><span class="LargeText"><strong>{{ entry.title|default('') }}</strong></span></div>
+        <span class="SmallText">{{ entry.posttime|default('') }}</span><br>
+        <div style="margin-top: 4px;"><span class="MediumText">{{ entry.bodyPreview|default('') }}</span></div>
+    </td>
+</tr>
+<tr>
+    <td colspan="2" class="BoardRowB" style="padding: 4px 5px;"><div class="wb-text-right">
+        <strong><a class="MultiPages" href="/blogs/entry/{{ entry.id|default(0) }}/">Read More</a></strong>
+        {% if entry.showControls|default(false) %}
+            <span class="SmallText">|</span>
+            <strong><a class="MultiPages" href="/blogs/entry/{{ entry.id|default(0) }}/edit/">Edit</a></strong>
+            <span class="SmallText">|</span>
+            <strong><a class="MultiPages" href="/blogs/entry/{{ entry.id|default(0) }}/delete/">Delete</a></strong>
+        {% endif %}
+    </div></td>
+</tr>

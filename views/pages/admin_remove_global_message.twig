@@ -1,0 +1,53 @@
+{% set messages = model.messages|default([]) %}
+{% set globalMessages = model.global_messages|default([]) %}
+
+<div class="corebb-admin-modern-page">
+    <div class="corebb-admin-modern-header">
+        <div>
+            <div class="corebb-admin-modern-eyebrow">System</div>
+            <h2>Remove Global Messages</h2>
+            <div class="corebb-admin-modern-meta">
+                <span>{{ globalMessages|length|number_format }} messages</span>
+            </div>
+        </div>
+        <div class="corebb-admin-modern-actions">
+            <a class="corebb-board-action-link" href="/admin/?act=global_message">Add Message</a>
+            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
+        </div>
+    </div>
+
+    {% include 'partials/admin_messages.twig' with {messages: messages} only %}
+
+    {% if globalMessages is empty %}
+        <div class="corebb-admin-modern-panel">
+            <span class="corebb-admin-modern-help">No global messages exist.</span>
+        </div>
+    {% else %}
+        <table class="corebb-admin-modern-table corebb-admin-global-message-table wb-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Message</th>
+                    <th>Poster</th>
+                    <th class="corebb-admin-action-column">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in globalMessages %}
+                    <tr>
+                        <td>#{{ row.id|default(0) }}</td>
+                        <td>{{ row.message|default('') }}</td>
+                        <td>{{ row.poster|default('') }}</td>
+                        <td class="corebb-admin-action-column">
+                            <form class="corebb-admin-inline-form" method="post" action="/admin/?act=remove_global_message&amp;method=delete" onsubmit="return confirm('Remove this global message?');">
+                                {% include 'partials/csrf_field.twig' %}
+                                <input type="hidden" name="id" value="{{ row.id|default(0) }}">
+                                <button type="submit" class="corebb-board-action-link is-danger">Remove</button>
+                            </form>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+</div>

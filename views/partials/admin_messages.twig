@@ -1,0 +1,16 @@
+{% set messages = messages|default([]) %}
+{% set errors = errors|default([]) %}
+{% if messages %}
+    <div class="corebb-admin-page-message">
+        {% for message in messages %}
+            <strong>{{ message }}</strong>{% if not loop.last %}<br>{% endif %}
+        {% endfor %}
+    </div>
+{% endif %}
+{% if errors %}
+    <div class="corebb-admin-page-message is-error">
+        {% for error in errors %}
+            <strong>{{ error }}</strong>{% if not loop.last %}<br>{% endif %}
+        {% endfor %}
+    </div>
+{% endif %}

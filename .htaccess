@@ -1,0 +1,129 @@
+Options -Indexes
+
+RewriteEngine On
+
+# Keep substitutions relative so the same rules work at the vhost root or in a
+# subdirectory such as /forum.
+
+# One-off import/repair tools are not public forum endpoints.
+# Keep the archive importer and legacy maintenance scripts off the web after launch.
+RewriteRule ^tools(?:/|$) - [F,L]
+
+# Twig templates are server-side source files, not public assets.
+# Return 404 so direct template URLs do not confirm file existence.
+RewriteRule ^views(?:/|$) - [R=404,L]
+RewriteRule \.twig$ - [R=404,L,NC]
+
+# Controllers are internal rewrite targets.  Direct browser requests receive
+# the same no-confirmation 404 treatment as server-side templates.
+RewriteCond %{THE_REQUEST} \s/+controllers(?:/|\?|\s) [NC]
+RewriteRule ^controllers(?:/|$) - [R=404,L]
+
+# Error helper route from the old app. In .htaccess context the match does not
+# start with a leading slash.
+RewriteRule ^err/([^/]+)/([^/]+)/?$ controllers/support.php?action=error&$1=$2 [L,QSA]
+
+# Versioned JSON API routes.
+RewriteRule ^api/v1/?$ api/v1/index.php [L,QSA]
+RewriteRule ^api/v1/(.*)$ api/v1/index.php?path=$1 [L,QSA]
+
+# Fresh-install bootstrap. The controller intentionally does not load normal
+# forum config because a new install does not have private config yet.
+RewriteRule ^install/?$ controllers/install.php [L,QSA]
+
+# Friendly shell routes for common non-board pages.
+RewriteRule ^logoff/?$ controllers/auth.php?action=logout [L,QSA]
+RewriteRule ^logout/?$ controllers/auth.php?action=logout [L,QSA]
+RewriteRule ^login/?$ controllers/auth.php?action=login [L,QSA]
+RewriteRule ^login/submit/?$ controllers/auth.php?action=login_submit [L,QSA]
+RewriteRule ^register/?$ controllers/auth.php?action=register [L,QSA]
+RewriteRule ^recover-account/?$ controllers/auth.php?action=recover [L,QSA]
+RewriteRule ^reset-password/?$ controllers/auth.php?action=reset [L,QSA]
+RewriteRule ^verify-email/?$ controllers/auth.php?action=verify [L,QSA]
+RewriteRule ^resend-verification/?$ controllers/auth.php?action=resend [L,QSA]
+RewriteRule ^banned/?$ controllers/support.php?action=banned [L,QSA]
+RewriteRule ^denied/?$ controllers/support.php?action=denied [L,QSA]
+RewriteRule ^user-cp/?$ controllers/usercp.php?action=index [L,QSA]
+RewriteRule ^notifications/?$ controllers/usercp.php?action=notifications [L,QSA]
+RewriteRule ^user-cp/profile/?$ controllers/usercp.php?action=profile [L,QSA]
+RewriteRule ^user-cp/avatar/?$ controllers/usercp.php?action=avatar [L,QSA]
+RewriteRule ^user-cp/signature/?$ controllers/usercp.php?action=signature [L,QSA]
+RewriteRule ^user-cp/options/?$ controllers/usercp.php?action=options [L,QSA]
+RewriteRule ^user-cp/appearance$ controllers/usercp.php?action=appearance [L,QSA]
+RewriteRule ^user-cp/appearance/$ controllers/usercp.php?action=appearance [L,QSA]
+RewriteRule ^admin/?$ admin.php [L,QSA]
+RewriteRule ^blogs/?$ controllers/blogs.php [L,QSA]
+RewriteRule ^blogs/my/?$ controllers/blogs.php?action=my [L,QSA]
+RewriteRule ^blogs/new/?$ controllers/post.php?act=blog [L,QSA]
+RewriteRule ^blogs/modify/?$ controllers/blogs.php?action=modify [L,QSA]
+RewriteRule ^blogs/user/([0-9]+)/?$ controllers/blogs.php?action=viewblog&id=$1 [L,QSA]
+RewriteRule ^blogs/entry/([0-9]+)/?$ controllers/blogs.php?action=viewentry&id=$1 [L,QSA]
+RewriteRule ^blogs/entry/([0-9]+)/edit/?$ controllers/blogs.php?action=edit&id=$1 [L,QSA]
+RewriteRule ^blogs/entry/([0-9]+)/delete/?$ controllers/blogs.php?action=delete&id=$1 [L,QSA]
+RewriteRule ^blogs/edit/?$ controllers/blogs.php?action=edit [L,QSA]
+RewriteRule ^blogs/delete/?$ controllers/blogs.php?action=delete [L,QSA]
+RewriteRule ^search/?$ controllers/content.php?action=search [L,QSA]
+RewriteRule ^contact-mods/?$ controllers/support.php?action=contact [L,QSA]
+RewriteRule ^board-rules-faq/?$ controllers/support.php?action=faq [L,QSA]
+RewriteRule ^rules/?$ controllers/support.php?action=faq [L,QSA]
+RewriteRule ^faq/?$ controllers/support.php?action=faq [L,QSA]
+RewriteRule ^profile/([0-9]+)/(topics|posts)/?$ controllers/content.php?action=profile_content&id=$1&type=$2&p=1 [L,QSA]
+RewriteRule ^profile/([0-9]+)/(topics|posts)/p([0-9]+)/?$ controllers/content.php?action=profile_content&id=$1&type=$2&p=$3 [L,QSA]
+RewriteRule ^profile/([0-9]+)/?$ controllers/content.php?action=profile&id=$1 [L,QSA]
+RewriteRule ^private-messages/?$ controllers/messages.php?action=folder&folder=unread [L,QSA]
+RewriteRule ^private-messages/unread/?$ controllers/messages.php?action=folder&folder=unread [L,QSA]
+RewriteRule ^private-messages/read/?$ controllers/messages.php?action=folder&folder=read [L,QSA]
+RewriteRule ^private-messages/sent/?$ controllers/messages.php?action=folder&folder=sent [L,QSA]
+RewriteRule ^private-messages/send/?$ controllers/messages.php?action=send [L,QSA]
+RewriteRule ^private-messages/send/([^/]+)/?$ controllers/messages.php?action=send&usr=$1 [L,QSA]
+RewriteRule ^private-messages/message/([0-9]+)/([^/]+)/?$ controllers/messages.php?action=view&pm=$1&method=$2 [L,QSA]
+RewriteRule ^post-id/([0-9]+)/?$ controllers/content.php?action=post_id&id=$1 [L,QSA]
+RewriteRule ^report-message/([0-9]+)/?$ controllers/support.php?action=report&post=$1 [L,QSA]
+RewriteRule ^poll/vote/?$ controllers/poll.php [L,QSA]
+RewriteRule ^moderator/?$ controllers/moderation.php [L,QSA]
+
+# VN-style public routes.
+RewriteRule ^post/image-upload/?$ controllers/post.php?act=image_upload [L,QSA]
+RewriteRule ^post/submit/?$ controllers/post.php [L,QSA]
+RewriteRule ^post/reply/([0-9]+)/b([0-9]+)/q([0-9]+)/?$ controllers/post.php?id=$1&brd=$2&act=reply&quote=$3 [L,QSA]
+RewriteRule ^post/reply/([0-9]+)/b([0-9]+)/?$ controllers/post.php?id=$1&brd=$2&act=reply [L,QSA]
+RewriteRule ^post/new/b([0-9]+)/poll/?$ controllers/post.php?boardid=$1&act=new&poll=1 [L,QSA]
+RewriteRule ^post/new/b([0-9]+)/?$ controllers/post.php?boardid=$1&act=new [L,QSA]
+RewriteRule ^post/edit/([0-9]+)/?$ controllers/post.php?edit=$1 [L,QSA]
+RewriteRule ^board/([0-9]+)/favorite/?$ controllers/forum.php?action=favorite&brd=$1 [L,QSA]
+
+# Generic pretty fallbacks used when an old link cannot know the board slug yet.
+RewriteRule ^board/([0-9]+)/?$ controllers/forum.php?action=board&id=$1&p=1 [L,QSA]
+RewriteRule ^board/([0-9]+)/p([0-9]+)/?$ controllers/forum.php?action=board&id=$1&p=$2 [L,QSA]
+RewriteRule ^topic/([0-9]+)/?$ controllers/forum.php?action=thread&id=$1&p=1 [L,QSA]
+RewriteRule ^topic/([0-9]+)/p([0-9]+)/?$ controllers/forum.php?action=thread&id=$1&p=$2 [L,QSA]
+
+RewriteRule ^([a-zA-Z0-9_\-]+)/b([0-9]+)/([0-9]+)/p([0-9]+)/?$ controllers/forum.php?action=thread&id=$3&brd=$2&p=$4 [L,QSA]
+RewriteRule ^([a-zA-Z0-9_\-]+)/b([0-9]+)/([0-9]+)/?$ controllers/forum.php?action=thread&id=$3&brd=$2&p=1 [L,QSA]
+RewriteRule ^([a-zA-Z0-9_\-]+)/b([0-9]+)/p([0-9]+)/?$ controllers/forum.php?action=board&id=$2&p=$3 [L,QSA]
+RewriteRule ^([a-zA-Z0-9_\-]+)/b([0-9]+)/?$ controllers/forum.php?action=board&id=$2&p=1 [L,QSA]
+
+# Keep sensitive source/config/archive artifacts from being downloaded directly.
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+<FilesMatch "^(?:composer\.(?:json|lock)|package(?:-lock)?\.json|phpunit\.xml(?:\.dist)?|README(?:\..*)?|CHANGELOG(?:\..*)?)$">
+    Require all denied
+</FilesMatch>
+
+<FilesMatch "^(config(?:\..*)?|dbheader|database)\.php$">
+    Require all denied
+</FilesMatch>
+
+<FilesMatch "^(?:error_log|(?:invalidaccess|mail_debug)\.txt)$">
+    Require all denied
+</FilesMatch>
+
+<FilesMatch "\.(sql|bak|backup|old|orig|log|ini|md|zip|tar|gz|7z)$">
+    Require all denied
+</FilesMatch>
+
+# php -- BEGIN cPanel-generated handler, do not edit
+# This domain inherits the “PHP” package.
+# php -- END cPanel-generated handler, do not edit

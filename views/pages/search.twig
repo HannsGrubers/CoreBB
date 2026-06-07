@@ -1,0 +1,144 @@
+{% set input = model.input|default({}) %}
+{% set boards = model.boards|default([]) %}
+{% set type = input.type|default('posts') %}
+{% set q = input.q|default('') %}
+{% set author = input.author|default('') %}
+{% set boardId = input.boardid|default(0) %}
+<table class="wb-cellspace-1 wb-cellpad-3 BoardRowB wb-public-form-workspace wb-table" style="width: 100%; margin-bottom: 0;">
+    <tr>
+        <td colspan="2" class="BoardColumn"><b>Search CoreBB</b></td>
+    </tr>
+    <tr class="BoardRowB">
+        <td class="wb-valign-top" style="width: 70%; padding-right: 6px;">
+            <form method="get" action="/search/" style="margin:0; padding:0;">
+                <table class="wb-cellpad-3 wb-cellspace-1 wb-table" style="width: 100%;">
+                    <tr>
+                        <td colspan="2" class="BoardColumn"><b>Search Criteria</b></td>
+                    </tr>
+                    <tr class="BoardRowB">
+                        <td class="InputSection wb-text-right" style="width: 155px;">Keyword:</td>
+                        <td>
+                            <input class="formtext" type="text" name="q" size="50" maxlength="80" value="{{ q }}"><br>
+                            <span class="SmallText">Minimum 3 characters for keyword searches.</span>
+                        </td>
+                    </tr>
+                    <tr class="BoardRowA">
+                        <td class="InputSection wb-text-right">Search In:</td>
+                        <td>
+                            <label><input type="radio" name="type" value="posts"{{ type == 'posts' ? ' checked' : '' }}> Posts</label>
+                            &nbsp;&nbsp;
+                            <label><input type="radio" name="type" value="topics"{{ type == 'topics' ? ' checked' : '' }}> Topics Only</label>
+                            &nbsp;&nbsp;
+                            <label><input type="radio" name="type" value="users"{{ type == 'users' ? ' checked' : '' }}> Users</label>
+                        </td>
+                    </tr>
+                    <tr class="BoardRowB">
+                        <td class="InputSection wb-text-right">Limit to Board:</td>
+                        <td>
+                            <select name="boardid" class="formtext" style="min-width:320px;">
+                                <option value="0">All Boards</option>
+                                {% for board in boards %}
+                                    {% set id = board.id|default(0) %}
+                                    <option value="{{ id }}"{{ boardId == id ? ' selected' : '' }}>{{ board.name|default('Board') }}</option>
+                                {% endfor %}
+                            </select><br>
+                            <span class="SmallText">Ignored for user searches.</span>
+                        </td>
+                    </tr>
+                    <tr class="BoardRowA">
+                        <td class="InputSection wb-text-right">Posted By:</td>
+                        <td>
+                            <input class="formtext" type="text" name="author" size="34" maxlength="50" value="{{ author }}"><br>
+                            <span class="SmallText">Optional username filter for post and topic searches.</span>
+                        </td>
+                    </tr>
+                    <tr class="BoardRowB">
+                        <td>&nbsp;</td>
+                        <td>
+                            <input class="formsubmit" type="submit" value=" Search ">
+                            &nbsp;&nbsp;
+                            <a class="BoardRowBLink" href="/search/">Reset</a>
+                        </td>
+                    </tr>
+                </table>
+            </form>
+        </td>
+        <td class="wb-valign-top" style="width: 30%;">
+            <table class="wb-cellspace-1 wb-cellpad-3 wb-table" style="width: 100%;">
+                <tr>
+                    <td class="BoardColumn"><b>Search Tips</b></td>
+                </tr>
+                <tr class="BoardRowB">
+                    <td>
+                        <b>Posts</b> searches message bodies and topic titles.<br><br>
+                        <b>Topics Only</b> searches topic subjects.<br><br>
+                        <b>Users</b> searches screen names. Board and author filters are ignored for user searches.
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
+
+{% if model.searched|default(false) %}
+<table class="wb-cellpad-1 wb-cellspace-1 wb-table" style="width: 100%; margin-top: 0;">
+    <tr>
+        <td colspan="5" class="BoardColumn">
+            <b>Search Results</b>
+            {% if q is not empty %} for "{{ q }}"{% endif %}
+            <span class="SmallText">({{ model.total|default(0) }} found)</span>
+        </td>
+    </tr>
+    {% if model.pagination.visible|default(false) %}
+        <tr><td colspan="5">{% include 'partials/board_pagination.twig' with {pagination: model.pagination} only %}</td></tr>
+    {% endif %}
+
+    {% if model.message|default('') is not empty %}
+        <tr><td colspan="5" class="BoardRowB"><div style="text-align: center;"><b>{{ model.message }}</b></div></td></tr>
+    {% elseif type == 'users' %}
+        <tr>
+            <td class="BoardColumn">Username</td>
+            <td class="BoardColumn">Posts</td>
+            <td class="BoardColumn">Registered</td>
+        </tr>
+        {% for item in model.items|default([]) %}
+            <tr>
+                <td class="BoardRowB"><a class="BoardRowBLink" href="{{ item.url|default('#') }}"><b>{% include 'partials/formatted_content.twig' with {content: search_highlight_model(item.title|default('Unknown'), q)} only %}</b></a></td>
+                <td class="BoardRowA wb-nowrap">{{ item.posts|default(0)|number_format }}</td>
+                <td class="BoardRowB wb-nowrap">{{ item.date|default('') }}</td>
+            </tr>
+        {% endfor %}
+    {% else %}
+        <tr>
+            <td class="BoardColumn">Topic / Post</td>
+            <td class="BoardColumn" style="width: 20%;">Board</td>
+            <td class="BoardColumn" style="width: 14%;">Author</td>
+            <td class="BoardColumn" style="width: 18%;">Date</td>
+            {% if type == 'topics' %}<td class="BoardColumn" style="width: 6%;">Replies</td>{% endif %}
+        </tr>
+        {% for item in model.items|default([]) %}
+            <tr class="wb-valign-top">
+                <td class="BoardRowB">
+                    {% if item.sticky|default(false) %}<span class="SmallText">[Sticky]</span> {% endif %}
+                    {% if item.locked|default(false) %}<span class="SmallText">[Locked]</span> {% endif %}
+                    <a class="BoardRowBLink" href="{{ item.url|default('#') }}"><b>{% include 'partials/formatted_content.twig' with {content: search_highlight_model(item.title|default('Untitled'), q)} only %}</b></a>
+                    {% if item.kind|default('') == 'post' and item.topic_title|default('') != item.title|default('') %}
+                        <br><span class="SmallText">In topic: {% include 'partials/formatted_content.twig' with {content: search_highlight_model(item.topic_title|default(''), q)} only %}</span>
+                    {% endif %}
+                    {% if item.excerpt|default('') is not empty %}
+                        <br><span class="SmallText">{% include 'partials/formatted_content.twig' with {content: search_highlight_model(item.excerpt, q)} only %}</span>
+                    {% endif %}
+                </td>
+                <td class="BoardRowA"><a class="BoardRowBLink" href="{{ item.board_url|default('#') }}">{{ item.board_name|default('Board') }}</a></td>
+                <td class="BoardRowB wb-nowrap"><a class="BoardRowBLink" href="{{ item.author_url|default('#') }}">{{ item.author|default('Unknown') }}</a></td>
+                <td class="BoardRowA wb-nowrap">{{ item.date|default('') }}</td>
+                {% if type == 'topics' %}<td class="BoardRowB wb-text-center">{{ item.replies|default(0) }}</td>{% endif %}
+            </tr>
+        {% endfor %}
+    {% endif %}
+
+    {% if model.pagination.visible|default(false) %}
+        <tr><td colspan="5">{% include 'partials/board_pagination.twig' with {pagination: model.pagination} only %}</td></tr>
+    {% endif %}
+</table>
+{% endif %}

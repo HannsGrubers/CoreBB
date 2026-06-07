@@ -1,0 +1,9 @@
+<div id="divFacesMenu" class="BoardRowA" onClick="hideElement('divFacesMenu');" style="display:none; position:absolute; border:2px solid black; padding:2px; left: 397px; top: 408px;">
+    {% for row in faces.rows|default([]) %}
+        {% for face in row %}
+            {% if not loop.first %}&nbsp;{% endif %}<a class="BoardRowALink" href="javascript:fnMarkupFace('{{ face.name|e('js') }}');" title="{{ face.name }}"><img src="{{ asset('images/faces/' ~ face.file) }}" alt="{{ face.name }}"></a>
+        {% endfor %}
+        &nbsp;<br>
+    {% endfor %}
+    [<a href="javascript:return(false);" class="BoardRowALink">close</a>]
+</div>

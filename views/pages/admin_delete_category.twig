@@ -1,0 +1,53 @@
+{% include 'partials/admin_messages.twig' with {messages: model.messages|default([])} only %}
+{% set category = model.category|default(null) %}
+
+<div class="corebb-admin-modern-page">
+    {% if model.deleted|default(false) %}
+        <div class="corebb-admin-modern-panel">
+            <a class="corebb-board-action-link" href="/admin/?act=manageboards">Return to Manage Boards</a>
+        </div>
+    {% elseif category %}
+        <div class="corebb-admin-modern-header">
+            <div>
+                <div class="corebb-admin-modern-eyebrow">Manage Boards</div>
+                <h2>Delete Category</h2>
+                <div class="corebb-admin-modern-meta">
+                    <span>{{ category.name|default('Unnamed Category') }}</span>
+                    <span>{{ model.board_count|default(0)|number_format }} boards</span>
+                </div>
+            </div>
+            <div class="corebb-admin-modern-actions">
+                <a class="corebb-board-action-link" href="/admin/?act=manageboards">Manage Boards</a>
+            </div>
+        </div>
+
+        <div class="corebb-admin-modern-note{% if model.board_count|default(0) > 0 %} is-muted{% else %} is-danger{% endif %}">
+            Delete category <strong>{{ category.name|default('') }}</strong>?
+            {% if model.board_count|default(0) > 0 %}
+                This category still contains {{ model.board_count|default(0)|number_format }} board(s). Move or delete those boards first.
+            {% else %}
+                This only removes the empty category. It does not touch any boards or posts.
+            {% endif %}
+        </div>
+
+        <div class="corebb-admin-modern-panel">
+            {% if model.board_count|default(0) > 0 %}
+                <a class="corebb-board-action-link" href="/admin/?act=manageboards">Return to Manage Boards</a>
+            {% else %}
+                <form class="corebb-admin-modern-form" method="post" action="/admin/?act=delete_category&amp;id={{ category.id|default(0) }}&amp;method=delete">
+                    {% include 'partials/csrf_field.twig' %}
+                    <input type="hidden" name="id" value="{{ category.id|default(0) }}">
+                    <div class="corebb-admin-modern-submit">
+                        <button type="submit" class="corebb-board-action-link is-danger">Yes, delete it</button>
+                        <a class="corebb-board-action-link" href="/admin/?act=manageboards">Cancel</a>
+                    </div>
+                </form>
+            {% endif %}
+        </div>
+    {% else %}
+        <div class="corebb-admin-modern-panel">
+            Unknown category.
+            <a class="corebb-board-action-link" href="/admin/?act=manageboards">Return to Manage Boards</a>
+        </div>
+    {% endif %}
+</div>

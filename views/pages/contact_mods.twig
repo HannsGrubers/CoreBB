@@ -1,0 +1,57 @@
+{% set messages = model.messages|default([]) %}
+{% set errors = model.errors|default([]) %}
+{% set input = model.input|default({subject: '', message: ''}) %}
+{% set contactUrl = model.contact_url|default('/contact-mods/') %}
+{% set returnUrl = model.return_url|default('/') %}
+{% if messages is not empty or errors is not empty %}
+<table class="wb-cellpad-3 wb-cellspace-1 wb-table" style="width: 100%;">
+    <tr><td class="BoardColumn">&nbsp;Contact Mods Result</td></tr>
+    <tr><td class="BoardRowB">
+        {% for msg in messages %}&nbsp;<span class="SmallText">{{ msg }}</span><br>{% endfor %}
+        {% for err in errors %}&nbsp;<span class="SmallText"><b>Error:</b> {{ err }}</span><br>{% endfor %}
+    </td></tr>
+</table>
+{% endif %}
+
+<table class="wb-cellpad-3 wb-cellspace-1 wb-table" style="width: 100%;">
+    <tr><td colspan="2" class="BoardColumn">&nbsp;Contact Moderators</td></tr>
+    <tr><td colspan="2" class="BoardRowB"><span class="InputNotes">Use this form for forum/account issues that are not tied to a single post. Moderator replies are sent by private message.</span></td></tr>
+    {% if model.logged_in|default(false) is empty %}
+        <tr>
+            <td class="BoardRowA wb-text-right" style="width: 165px;"><b>Login Required:</b></td>
+            <td class="BoardRowB">You must be logged in to contact the moderators. <a class="BoardRowBLink" href="{{ url('auth.php?action=login') }}">Login</a> or <a class="BoardRowBLink" href="{{ url('auth.php?action=register') }}">Register</a>.</td>
+        </tr>
+    {% else %}
+        <tr>
+            <td class="BoardRowA wb-text-right" style="width: 165px;"><b>Logged In As:</b></td>
+            <td class="BoardRowB">{% include 'partials/user_name.twig' with {user: user_name_model(model.viewer.id|default(0), model.viewer.username|default('Unknown'))} only %}</td>
+        </tr>
+    {% endif %}
+</table>
+
+{% if model.logged_in|default(false) and model.submitted|default(false) is empty %}
+<form method="post" action="{{ contactUrl }}" style="margin:0; padding:0;">
+    {% include 'partials/csrf_field.twig' %}
+    <input type="hidden" name="contact_mods_token" value="{{ model.token|default('') }}">
+    <input type="hidden" name="return_url" value="{{ returnUrl }}">
+    <table class="wb-cellpad-3 wb-cellspace-1 wb-table" style="width: 100%;">
+        <tr><td colspan="2" class="BoardColumn">&nbsp;New Contact Mods Request</td></tr>
+        <tr>
+            <td class="BoardRowA wb-text-right" style="width: 165px;"><b>Subject:</b><br><span class="InputNotes">Required Input.</span></td>
+            <td class="BoardRowB"><input type="text" name="subject" size="60" maxlength="160" value="{{ input.subject|default('') }}"></td>
+        </tr>
+        <tr>
+            <td class="BoardRowA wb-valign-top wb-text-right"><b>Message:</b><br><span class="InputNotes">Required Input.<br>HTML is not allowed.</span></td>
+            <td class="BoardRowB"><textarea name="message" rows="8" cols="70" wrap="soft">{{ input.message|default('') }}</textarea></td>
+        </tr>
+        <tr>
+            <td class="BoardRowA">&nbsp;</td>
+            <td class="BoardRowB"><input type="submit" value="Submit"> <input type="button" value="Cancel" onclick="window.location.href='{{ returnUrl|e('js') }}';"></td>
+        </tr>
+    </table>
+</form>
+{% elseif model.logged_in|default(false) %}
+<table class="wb-cellpad-3 wb-cellspace-1 wb-table" style="width: 100%;">
+    <tr><td class="BoardRowB">&nbsp;<a class="BoardRowBLink" href="{{ contactUrl }}">Submit another Contact Mods request</a></td></tr>
+</table>
+{% endif %}

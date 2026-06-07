@@ -1,0 +1,92 @@
+{% include 'partials/admin_messages.twig' with {messages: model.messages|default([])} only %}
+{% set step = model.step|default('form') %}
+
+<div class="corebb-admin-modern-page">
+    {% if step == 'confirm' %}
+        <div class="corebb-admin-modern-header">
+            <div>
+                <div class="corebb-admin-modern-eyebrow">Manage Boards</div>
+                <h2>Confirm New Category</h2>
+                <div class="corebb-admin-modern-meta">
+                    <span>{{ model.catname|default('Unnamed Category') }}</span>
+                    {% if model.private|default(0) %}<span>Private</span>{% endif %}
+                    {% if model.secure_archive|default(0) %}<span>Secure Archive</span>{% endif %}
+                    {% if model.default_open|default(0) %}<span>Default Open</span>{% endif %}
+                </div>
+            </div>
+            <div class="corebb-admin-modern-actions">
+                <a class="corebb-board-action-link" href="/admin/?act=manageboards">Manage Boards</a>
+            </div>
+        </div>
+
+        <div class="corebb-admin-modern-panel">
+            <p>Add category <strong>{{ model.catname|default('') }}</strong>{% if model.private|default(0) %} as a private category{% endif %}{% if model.secure_archive|default(0) %} as a Secure Archive category{% endif %}{% if model.default_open|default(0) %} and default-open on the index{% endif %}?</p>
+            <form class="corebb-admin-modern-form" method="post" action="/admin/?act=add_category&amp;method=post">
+                {% include 'partials/csrf_field.twig' %}
+                <input type="hidden" name="catname" value="{{ model.catname|default('') }}">
+                <input type="hidden" name="RadioGroup1" value="{{ model.private|default(0) ? 1 : 0 }}">
+                <input type="hidden" name="secure_archive" value="{{ model.secure_archive|default(0) ? 1 : 0 }}">
+                <input type="hidden" name="default_open" value="{{ model.default_open|default(0) ? 1 : 0 }}">
+                <input type="hidden" name="confirmed" value="1">
+                <div class="corebb-admin-modern-submit">
+                    <button class="corebb-board-action-link" type="submit">Yes, Add Category</button>
+                    <a class="corebb-board-action-link" href="/admin/?act=manageboards">Cancel</a>
+                </div>
+            </form>
+        </div>
+    {% elseif step == 'done' %}
+        <div class="corebb-admin-modern-panel">
+            <a class="corebb-board-action-link" href="/admin/?act=manageboards">Return to Manage Boards</a>
+        </div>
+    {% else %}
+        <div class="corebb-admin-modern-header">
+            <div>
+                <div class="corebb-admin-modern-eyebrow">Manage Boards</div>
+                <h2>Add New Category</h2>
+                <div class="corebb-admin-modern-meta">
+                    <span>Creates a category container for boards.</span>
+                </div>
+            </div>
+            <div class="corebb-admin-modern-actions">
+                <a class="corebb-board-action-link" href="/admin/?act=manageboards">Manage Boards</a>
+            </div>
+        </div>
+
+        <div class="corebb-admin-modern-panel">
+            <form class="corebb-admin-modern-form" method="post" action="/admin/?act=add_category&amp;method=post">
+                {% include 'partials/csrf_field.twig' %}
+                <div class="corebb-admin-modern-grid">
+                    <label for="corebbCategoryName">Category Name</label>
+                    <input id="corebbCategoryName" type="text" name="catname" size="40" value="{{ model.catname|default('') }}">
+
+                    <span class="corebb-admin-modern-label">Private Category</span>
+                    <span>
+                        <label><input type="radio" name="RadioGroup1" value="0"{% if not model.private|default(0) %} checked{% endif %}> No</label>
+                        <label><input type="radio" name="RadioGroup1" value="1"{% if model.private|default(0) %} checked{% endif %}> Yes</label>
+                    </span>
+
+                    {% if model.can_manage_secure_archive|default(false) %}
+                        <span class="corebb-admin-modern-label">Secure Archive</span>
+                        <span>
+                            <label><input type="radio" name="secure_archive" value="0"{% if not model.secure_archive|default(0) %} checked{% endif %}> No</label>
+                            <label><input type="radio" name="secure_archive" value="1"{% if model.secure_archive|default(0) %} checked{% endif %}> Yes</label>
+                            <span class="corebb-admin-modern-help">Public/read-only. Only administrators can change boards, topics, posts, or polls inside it.</span>
+                        </span>
+                    {% endif %}
+
+                    <span class="corebb-admin-modern-label">Default Open on Index</span>
+                    <span>
+                        <label><input type="radio" name="default_open" value="0"{% if not model.default_open|default(0) %} checked{% endif %}> No</label>
+                        <label><input type="radio" name="default_open" value="1"{% if model.default_open|default(0) %} checked{% endif %}> Yes</label>
+                        <span class="corebb-admin-modern-help">Loads expanded for everyone on the board index.</span>
+                    </span>
+
+                    <div class="corebb-admin-modern-submit corebb-admin-modern-full">
+                        <button class="corebb-board-action-link" type="submit">Continue</button>
+                        <a class="corebb-board-action-link" href="/admin/?act=manageboards">Cancel</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    {% endif %}
+</div>

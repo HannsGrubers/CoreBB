@@ -1,0 +1,95 @@
+{% if model.missing|default(false) %}
+<table class="wb-cellpad-3 wb-cellspace-1 wb-table" style="width: 100%;">
+    <tr><td class="BoardColumn">&nbsp;Contact Moderators</td></tr>
+    <tr><td class="BoardRowB">&nbsp;{{ model.message|default('Unable to create moderator request.') }}</td></tr>
+</table>
+{% else %}
+    {% set post = model.post|default({}) %}
+    {% set threadUrl = model.thread_url|default('/topic/' ~ post.threadid|default(0) ~ '/#post' ~ post.id|default(0)) %}
+    {% set reportUrl = model.report_url|default('/report-message/' ~ post.id|default(0) ~ '/') %}
+    {% set hasSuccess = model.messages|default([]) is not empty %}
+    {% set hasErrors = model.errors|default([]) is not empty %}
+
+    {% if hasSuccess or hasErrors %}
+    <table class="wb-cellpad-3 wb-cellspace-1 wb-table" style="width: 100%;">
+        <tr><td class="BoardColumn">&nbsp;Report Result</td></tr>
+        <tr><td class="BoardRowB">
+            {% for msg in model.messages|default([]) %}&nbsp;<span class="SmallText">{{ msg }}</span><br>{% endfor %}
+            {% for err in model.errors|default([]) %}&nbsp;<span class="SmallText"><b>Error:</b> {{ err }}</span><br>{% endfor %}
+            {% if hasSuccess %}
+                &nbsp;<a class="BoardRowBLink" href="{{ threadUrl }}">Return to topic</a>
+            {% endif %}
+        </td></tr>
+    </table>
+    {% endif %}
+
+    <table class="wb-cellpad-3 wb-cellspace-1 wb-table" style="width: 100%;">
+        <tr><td colspan="2" class="BoardColumn">&nbsp;Contact Moderators</td></tr>
+        <tr><td colspan="2" class="BoardRowB"><span class="InputNotes">Use this form to report a message to the moderators. HTML is not allowed.</span></td></tr>
+        <tr>
+            <td class="BoardRowA wb-text-right" style="width: 165px;"><b>Message ID:</b></td>
+            <td class="BoardRowB">{{ post.id|default(0) }} &nbsp; <a class="BoardRowBLink" href="{{ threadUrl }}">View Message</a></td>
+        </tr>
+        <tr>
+            <td class="BoardRowA wb-text-right"><b>Author:</b></td>
+            <td class="BoardRowB">{% include 'partials/user_name.twig' with {user: user_name_model(post.author_id|default(0), post.author_username|default('Unknown'))} only %}</td>
+        </tr>
+        <tr>
+            <td class="BoardRowA wb-text-right"><b>Board:</b></td>
+            <td class="BoardRowB">{{ post.board_name|default('') }}</td>
+        </tr>
+        <tr>
+            <td class="BoardRowA wb-text-right"><b>Subject:</b></td>
+            <td class="BoardRowB">{{ post.title|default('') }}</td>
+        </tr>
+        <tr>
+            <td class="BoardRowA wb-valign-top wb-text-right"><b>Message:</b></td>
+            <td class="BoardRowB">{% include 'partials/formatted_content.twig' with {content: post_body_model(post.body_excerpt|default(post.body|default('')))} only %}</td>
+        </tr>
+    </table>
+
+    {% if not hasSuccess %}
+    <form method="post" action="{{ reportUrl }}" style="margin:0; padding:0;">
+        {% include 'partials/csrf_field.twig' %}
+        <input type="hidden" name="mod_request_token" value="{{ model.token|default('') }}">
+        <input type="hidden" name="postid" value="{{ post.id|default(0) }}">
+        <table class="wb-cellpad-3 wb-cellspace-1 wb-table" style="width: 100%;">
+            <tr><td colspan="2" class="BoardColumn">&nbsp;Report Message</td></tr>
+            <tr>
+                <td class="BoardRowA wb-text-right" style="width: 165px;"><b>Reason:</b></td>
+                <td class="BoardRowB">
+                    <select name="reason_type">
+                        <option value="TOS_Violation">TOS Violation</option>
+                        <option value="Language">Language</option>
+                        <option value="Spamming">Spamming</option>
+                        <option value="Trolling">Trolling</option>
+                        <option value="Harassment">Harassment</option>
+                        <option value="Personal_Attack">Personal Attack</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </td>
+            </tr>
+            <tr>
+                <td class="BoardRowA wb-text-right"><b>Severity:</b></td>
+                <td class="BoardRowB">
+                    <select name="severity">
+                        <option value="1">1 - Low</option>
+                        <option value="2">2</option>
+                        <option value="3">3 - Medium</option>
+                        <option value="4">4</option>
+                        <option value="5">5 - High</option>
+                    </select>
+                </td>
+            </tr>
+            <tr>
+                <td class="BoardRowA wb-valign-top wb-text-right"><b>Comments:</b><br><span class="InputNotes">Required Input.<br>Board codes are allowed.<br>HTML is not allowed.</span></td>
+                <td class="BoardRowB"><textarea name="comments" rows="5" cols="70" wrap="soft"></textarea></td>
+            </tr>
+            <tr>
+                <td class="BoardRowA">&nbsp;</td>
+                <td class="BoardRowB"><input type="submit" value="Submit"> <input type="button" value="Cancel" onclick="window.location.href='{{ threadUrl|e('js') }}';"></td>
+            </tr>
+        </table>
+    </form>
+    {% endif %}
+{% endif %}

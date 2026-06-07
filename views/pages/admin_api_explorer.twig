@@ -1,0 +1,123 @@
+{% set endpoints = model.endpoints|default([]) %}
+{% set defaultEndpoint = model.default_endpoint|default('/api/v1/health') %}
+
+<div class="corebb-admin-modern-page">
+    <div class="corebb-admin-modern-header">
+        <div>
+            <div class="corebb-admin-modern-eyebrow">System</div>
+            <h2>{{ model.title|default('API Explorer') }}</h2>
+            <div class="corebb-admin-modern-meta">
+                <span>{{ endpoints|length|number_format }} presets</span>
+                <span id="corebbApiStatus">Ready</span>
+            </div>
+        </div>
+        <div class="corebb-admin-modern-actions">
+            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
+        </div>
+    </div>
+
+    <div class="corebb-admin-modern-panel">
+        <div class="corebb-admin-modern-grid">
+            <label for="corebbApiPreset">Preset</label>
+            <select id="corebbApiPreset">
+                {% for endpoint in endpoints %}
+                    <option value="{{ endpoint.path|default('') }}">{{ endpoint.label|default(endpoint.path|default('Endpoint')) }}</option>
+                {% endfor %}
+            </select>
+
+            <label for="corebbApiPath">Endpoint</label>
+            <span>
+                <input id="corebbApiPath" type="text" value="{{ defaultEndpoint }}">
+                <button class="corebb-board-action-link" id="corebbApiRun" type="button">GET</button>
+                <button class="corebb-board-action-link" id="corebbApiCopy" type="button">Copy</button>
+                <label><input id="corebbApiRaw" type="checkbox"> Raw</label>
+            </span>
+        </div>
+    </div>
+
+    <div class="corebb-admin-modern-panel">
+        <div class="corebb-admin-section-title">Response</div>
+        <pre id="corebbApiOutput" class="corebb-admin-output corebb-admin-api-output"></pre>
+    </div>
+</div>
+
+<script type="text/javascript">
+(function(){
+    var preset = document.getElementById('corebbApiPreset');
+    var path = document.getElementById('corebbApiPath');
+    var run = document.getElementById('corebbApiRun');
+    var copy = document.getElementById('corebbApiCopy');
+    var raw = document.getElementById('corebbApiRaw');
+    var status = document.getElementById('corebbApiStatus');
+    var output = document.getElementById('corebbApiOutput');
+    var lastText = '';
+    var lastJson = null;
+
+    function normalizeEndpoint(value) {
+        value = String(value || '').replace(/^\s+|\s+$/g, '');
+        if (value === '') {
+            return '/api/v1/health';
+        }
+        if (/^https?:\/\//i.test(value)) {
+            return value;
+        }
+        return value.charAt(0) === '/' ? value : '/' + value;
+    }
+
+    function renderResponse() {
+        if (raw.checked || lastJson === null) {
+            output.textContent = lastText;
+            return;
+        }
+        output.textContent = JSON.stringify(lastJson, null, 2);
+    }
+
+    function loadEndpoint() {
+        var endpoint = normalizeEndpoint(path.value);
+        path.value = endpoint;
+        status.textContent = 'Loading...';
+        output.textContent = '';
+        lastText = '';
+        lastJson = null;
+
+        fetch(endpoint, {
+            method: 'GET',
+            credentials: 'same-origin',
+            headers: {'Accept': 'application/json'}
+        }).then(function(response){
+            status.textContent = response.status + ' ' + response.statusText;
+            return response.text().then(function(text){
+                lastText = text;
+                try {
+                    lastJson = JSON.parse(text);
+                } catch (err) {
+                    lastJson = null;
+                }
+                renderResponse();
+            });
+        }).catch(function(err){
+            status.textContent = 'Request failed';
+            lastText = String(err && err.message ? err.message : err);
+            lastJson = null;
+            renderResponse();
+        });
+    }
+
+    preset.onchange = function(){
+        path.value = preset.value;
+    };
+    raw.onchange = renderResponse;
+    run.onclick = loadEndpoint;
+    copy.onclick = function(){
+        var text = output.textContent || '';
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text);
+            status.textContent = 'Copied response';
+            return;
+        }
+        window.prompt('Copy response', text);
+    };
+
+    loadEndpoint();
+})();
+</script>

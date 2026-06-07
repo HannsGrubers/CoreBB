@@ -1,0 +1,99 @@
+{% set appearance = appearance|default({}) %}
+{% set values = appearance.values|default({}) %}
+{% set preview = appearance.preview|default({}) %}
+{% set picker = appearance.picker_defaults|default({}) %}
+{% set user = appearance.user|default({}) %}
+{% set prefix = 'appearance_' ~ appearance.mode|default('user') %}
+
+<form class="corebb-admin-modern-form corebb-user-appearance-form" method="post" action="{{ appearance.form_action|default('') }}">
+    {% include 'partials/csrf_field.twig' %}
+    <input type="hidden" name="action" value="save_appearance">
+    <input type="hidden" name="userid" value="{{ user.id|default(0) }}">
+    <input type="hidden" name="user_appearance_token" value="{{ appearance.token|default('') }}">
+    <div class="corebb-admin-section-title">Current Preview</div>
+    <div class="corebb-admin-preview-band">
+        <span class="AuthorLink"{% if preview.style_css|default('') != '' %} style="{{ preview.style_css }}"{% endif %}>{{ preview.username|default(user.username|default('Preview')) }}</span>
+    </div>
+
+    <div class="corebb-admin-modern-grid">
+        <label for="{{ prefix }}_vip_text_color">Text Color</label>
+        <span>
+            <input type="text" id="{{ prefix }}_vip_text_color" name="vip_text_color" value="{{ values.vip_text_color|default('') }}" maxlength="7" size="10" placeholder="#ffffff">
+            <input type="color" id="{{ prefix }}_vip_text_color_picker" value="{{ picker.vip_text_color|default('#ffffff') }}" title="Pick text color">
+            <button class="corebb-board-action-link" type="button" data-clear-color="{{ prefix }}_vip_text_color">Clear</button>
+        </span>
+
+        <label for="{{ prefix }}_vip_bg_color">Background Color</label>
+        <span>
+            <input type="text" id="{{ prefix }}_vip_bg_color" name="vip_bg_color" value="{{ values.vip_bg_color|default('') }}" maxlength="7" size="10" placeholder="#333333">
+            <input type="color" id="{{ prefix }}_vip_bg_color_picker" value="{{ picker.vip_bg_color|default('#333333') }}" title="Pick background color">
+            <button class="corebb-board-action-link" type="button" data-clear-color="{{ prefix }}_vip_bg_color">Clear</button>
+        </span>
+
+        <label>Bold</label>
+        <label><input type="checkbox" name="vip_bold" value="1"{% if values.vip_bold|default(0) %} checked{% endif %}> Make username bold</label>
+
+        <label>Italic</label>
+        <label><input type="checkbox" name="vip_italic" value="1"{% if values.vip_italic|default(0) %} checked{% endif %}> Make username italic</label>
+
+        <label>Strike Through</label>
+        <label><input type="checkbox" name="vip_strike" value="1"{% if values.vip_strike|default(0) %} checked{% endif %}> Add strike-through</label>
+
+        <label>Border</label>
+        <label><input type="checkbox" name="vip_border" value="1"{% if values.vip_border|default(0) %} checked{% endif %}> Add 1px border</label>
+
+        <label for="{{ prefix }}_vip_border_color">Border Color</label>
+        <span>
+            <input type="text" id="{{ prefix }}_vip_border_color" name="vip_border_color" value="{{ values.vip_border_color|default('') }}" maxlength="7" size="10" placeholder="#ffffff">
+            <input type="color" id="{{ prefix }}_vip_border_color_picker" value="{{ picker.vip_border_color|default('#ffffff') }}" title="Pick border color">
+            <button class="corebb-board-action-link" type="button" data-clear-color="{{ prefix }}_vip_border_color">Clear</button>
+            <span class="corebb-admin-modern-help">Only used when Border is checked.</span>
+        </span>
+
+        <div class="corebb-admin-modern-submit corebb-admin-modern-full">
+            <button class="corebb-board-action-link" type="submit">Save Appearance</button>
+            <button class="corebb-board-action-link is-danger" type="submit" name="clear_vip_style" value="1">Clear Appearance</button>
+        </div>
+    </div>
+</form>
+
+<script type="text/javascript">
+(function(){
+    // Keep the text field as the submitted value while the picker acts as a helper.
+    function isHexColor(value){
+        return /^#[0-9a-fA-F]{6}$/.test(value);
+    }
+    function expandShortHex(value){
+        var match = /^#([0-9a-fA-F])([0-9a-fA-F])([0-9a-fA-F])$/.exec(value);
+        return match ? ('#' + match[1] + match[1] + match[2] + match[2] + match[3] + match[3]) : value;
+    }
+    function hookColor(textId){
+        var text = document.getElementById(textId);
+        var picker = document.getElementById(textId + '_picker');
+        if(!text || !picker){
+            return;
+        }
+        picker.oninput = picker.onchange = function(){
+            text.value = picker.value;
+        };
+        text.oninput = text.onchange = function(){
+            var value = expandShortHex(text.value);
+            if(isHexColor(value)){
+                picker.value = value;
+            }
+        };
+    }
+    document.querySelectorAll('[data-clear-color]').forEach(function(button){
+        button.onclick = function(){
+            var text = document.getElementById(button.getAttribute('data-clear-color'));
+            if(text){
+                text.value = '';
+                text.focus();
+            }
+        };
+    });
+    hookColor('{{ prefix }}_vip_text_color');
+    hookColor('{{ prefix }}_vip_bg_color');
+    hookColor('{{ prefix }}_vip_border_color');
+}());
+</script>

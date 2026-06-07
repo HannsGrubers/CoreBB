@@ -1,0 +1,14 @@
+<table class="wb-cellpad-15 wb-cellspace-0 wb-table" style="width: 100%;">
+    <tr class="wb-text-left wb-valign-middle">
+        <td class="BoardRowB">
+            {{ model.message|default('') }}
+            {% if model.links|default([]) is not empty %}
+                <p>
+                {% for link in model.links %}
+                    <a class="BoardRowBLink" href="{{ link.href|default('#') }}">{{ link.text|default('Continue') }}</a><br>
+                {% endfor %}
+                </p>
+            {% endif %}
+        </td>
+    </tr>
+</table>

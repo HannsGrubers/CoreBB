@@ -1,0 +1,108 @@
+{% set users = model.users|default([]) %}
+{% set page = model.page|default(1) < 1 ? 1 : model.page|default(1) %}
+{% set totalPages = model.total_pages|default(1) < 1 ? 1 : model.total_pages|default(1) %}
+{% set total = model.total|default(0) %}
+{% set perPage = model.per_page|default(50) %}
+
+<div class="corebb-admin-modern-page">
+    <div class="corebb-admin-modern-header">
+        <div>
+            <div class="corebb-admin-modern-eyebrow">People</div>
+            <h2>Latest Users</h2>
+            <div class="corebb-admin-modern-meta">
+                <span>{{ total|number_format }} live users</span>
+                <span>Page {{ page|number_format }} of {{ totalPages|number_format }}</span>
+                <span>{{ perPage|number_format }} per page</span>
+            </div>
+        </div>
+        <div class="corebb-admin-modern-actions">
+            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
+        </div>
+    </div>
+
+    <div class="corebb-admin-modern-note is-muted">
+        Showing the newest non-archive user accounts. Archive/imported users are excluded from this list.
+    </div>
+
+    {% if totalPages > 1 %}
+        <div class="corebb-admin-modern-panel">
+            <div class="corebb-admin-modern-submit">
+                {% for pageNumber in 1..totalPages %}
+                    {% if pageNumber == page %}
+                        <span class="corebb-board-action-disabled">{{ pageNumber }}</span>
+                    {% else %}
+                        <a class="corebb-board-action-link" href="/admin/?act=latest_users&amp;page={{ pageNumber }}">{{ pageNumber }}</a>
+                    {% endif %}
+                {% endfor %}
+                {% if page > 1 %}
+                    <a class="corebb-board-action-link" href="/admin/?act=latest_users&amp;page={{ page - 1 }}">Previous</a>
+                {% else %}
+                    <span class="corebb-board-action-disabled">Previous</span>
+                {% endif %}
+                {% if page < totalPages %}
+                    <a class="corebb-board-action-link" href="/admin/?act=latest_users&amp;page={{ page + 1 }}">Next</a>
+                {% else %}
+                    <span class="corebb-board-action-disabled">Next</span>
+                {% endif %}
+                <a class="corebb-board-action-link" href="/admin/?act=latest_users&amp;page={{ page }}">Reload</a>
+            </div>
+        </div>
+    {% endif %}
+
+    <table class="corebb-admin-modern-table corebb-admin-user-list-table wb-table">
+        <thead>
+            <tr>
+                <th>User</th>
+                <th>Registered</th>
+                <th>Last Login</th>
+                <th>Posts</th>
+                <th>Level</th>
+                <th>Status</th>
+                <th>Last IP</th>
+                <th>Tools</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if users is empty %}
+                <tr>
+                    <td colspan="8" class="corebb-admin-modern-empty">No non-archive users found.</td>
+                </tr>
+            {% else %}
+                {% for user in users %}
+                    <tr>
+                        <td>
+                            <a class="corebb-admin-text-link" href="{{ user.public_profile_url|default('#') }}">{{ user.username|default('') }}</a>
+                            <span class="corebb-admin-modern-help">#{{ user.id|default(0) }}</span>
+                        </td>
+                        <td>{% if user.registered_display|default('')|trim != '' %}{{ user.registered_display }}{% endif %}</td>
+                        <td>{% if user.last_login_display|default('')|trim != '' %}{{ user.last_login_display }}{% endif %}</td>
+                        <td class="wb-text-right">{{ user.posts|default(0)|number_format }}</td>
+                        <td>{{ user.accesslevel|default(0) }} - {{ user.level_name|default('') }}</td>
+                        <td>{{ user.status_text|default('') }}</td>
+                        <td>
+                            {% if user.last_ip|default('') != '' %}
+                                <a class="corebb-admin-text-link" href="{{ user.ip_check_url|default('/admin/?act=user_ip_check') }}">{{ user.last_ip }}</a>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="corebb-admin-modern-submit">
+                                <a class="corebb-board-action-link" href="{{ user.user_pages_url|default('#') }}">User Pages</a>
+                                <a class="corebb-board-action-link" href="{{ user.admin_notes_url|default('#') }}">Notes</a>
+                                <a class="corebb-board-action-link" href="/private-messages/send/{{ user.id|default(0) }}/">PM</a>
+                                <a class="corebb-board-action-link is-danger" href="{{ user.ban_url|default('#') }}">Ban</a>
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            {% endif %}
+        </tbody>
+    </table>
+
+    {% if totalPages > 1 %}
+        {% set start = ((page - 1) * perPage) + 1 %}
+        {% set end = total < page * perPage ? total : page * perPage %}
+        <div class="corebb-admin-modern-note is-muted">
+            Showing {{ start|number_format }}-{{ end|number_format }} of {{ total|number_format }} users.
+        </div>
+    {% endif %}
+</div>

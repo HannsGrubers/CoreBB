@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <title>{{ layout.head.title|default('CoreBB Admin') }}</title>
+    <meta charset="utf-8">
+    <script>
+    (function(){
+        try {
+            var storedMode = window.localStorage ? localStorage.getItem('corebbAdminThemeMode') : '';
+            if (storedMode !== 'light') {
+                document.documentElement.className = document.documentElement.className
+                    ? document.documentElement.className + ' corebb-dark-mode'
+                    : 'corebb-dark-mode';
+            }
+        } catch (e) {}
+    }());
+    </script>
+    {% for stylesheet in layout.head.stylesheets|default([]) %}
+        <link rel="stylesheet" href="{{ stylesheet }}" media="screen">
+    {% endfor %}
+    {% for script in layout.head.scripts|default([]) %}
+        {% if 'prism-corebb' in script %}
+            <script data-manual src="{{ script }}"></script>
+        {% else %}
+            <script src="{{ script }}"></script>
+        {% endif %}
+    {% endfor %}
+</head>
+<body class="{{ layout.head.body_class|default('wb-admin-body') }}" data-corebb-theme-default="dark" data-corebb-theme-storage="corebbAdminThemeMode">
+{% if layout.head.staging|default(false) %}
+    <div class="wb-stage-banner">COREBB STAGING SITE &mdash; NOT LIVE</div>
+{% endif %}
+
+<div class="corebb-admin-app">
+    <header class="corebb-admin-header">
+        <div class="corebb-admin-brand">
+            <a href="/admin/" class="corebb-admin-brand-link">CoreBB Admin / {{ layout.chrome.board_name|default('Forum') }}</a>
+            <span class="corebb-admin-route">{{ layout.route.label|default('Dashboard') }}</span>
+        </div>
+        <div class="corebb-admin-user">
+            <span class="corebb-admin-user-name">{{ layout.viewer.username }}</span>
+            <span class="corebb-admin-user-level">{{ layout.viewer.level_label }}</span>
+        </div>
+    </header>
+
+    <nav class="corebb-admin-topnav" aria-label="Admin quick links">
+        <a href="{{ layout.chrome.board_url }}">View Forum</a>
+        <a href="{{ layout.menu.pm_url }}">Private Messages{% if layout.menu.pm_unread|default(0) > 0 %} ({{ layout.menu.pm_unread }}){% endif %}</a>
+        <a href="{{ layout.menu.notifications_url }}">Notifications{% if layout.menu.notification_count|default(0) > 0 %} ({{ layout.menu.notification_count }}){% endif %}</a>
+        <a href="{{ layout.menu.logout_url }}">Logoff</a>
+    </nav>
+
+    {% if layout.alerts|default([]) %}
+        <section class="corebb-admin-alerts" aria-label="Admin notices">
+            {% for alert in layout.alerts %}
+                <div class="corebb-admin-alert corebb-admin-alert-{{ alert.type|default('info') }}">
+                    <strong>{{ alert.label }}</strong>
+                    <span>{{ alert.message }}</span>
+                </div>
+            {% endfor %}
+        </section>
+    {% endif %}
+
+    <div class="corebb-admin-workspace">
+        {% include 'partials/admin_sidebar.twig' with {layout: layout} only %}
+
+        <main class="corebb-admin-content" aria-label="Admin content">
+            {% if layout.special_access_notice|default('') != '' %}
+                <div class="corebb-admin-special-access">
+                    <strong>Special Access Permission</strong>
+                    <span>{{ layout.special_access_notice }}</span>
+                </div>
+            {% endif %}
+            {{ content|raw }}
+        </main>
+    </div>
+
+    <footer class="corebb-admin-footer">
+        <div class="corebb-admin-footer-stats">{{ layout.footer.stats|default('') }}</div>
+        <div class="corebb-admin-footer-version">
+            {{ layout.footer.version_label }} | &copy; {{ layout.footer.copyright_start }}-{{ layout.footer.copyright_year }} {{ layout.footer.copyright_name }}
+            <select id="corebbThemeMode" class="VersionText" aria-label="Theme mode">
+                <option value="light">light</option>
+                <option value="dark">dark</option>
+            </select>
+        </div>
+    </footer>
+
+    {% if layout.footer.debug_allowed|default(false) %}
+        <section class="corebb-admin-debug">
+            <div class="corebb-admin-debug-head">Debug</div>
+            <div class="corebb-admin-debug-body">Admin layout rendered through Twig.</div>
+        </section>
+    {% endif %}
+</div>
+
+{% include 'partials/public_theme_script.twig' %}
+</body>
+</html>

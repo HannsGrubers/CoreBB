@@ -1,0 +1,164 @@
+{% set items = model.items|default([]) %}
+{% set mutes = model.mutes|default([]) %}
+{% set count = model.count|default(items|length) %}
+{% set muteCount = model.muteCount|default(mutes|length) %}
+{% set settings = model.settings|default({notifications_enabled: 1}) %}
+{% set notificationsEnabled = settings.notifications_enabled|default(1) == 1 %}
+<table class="wb-cellspace-1 wb-cellpad-3 BoardRowB wb-usercp-workspace wb-table" style="width: 100%;">
+    <tr class="wb-text-left wb-valign-top">
+        <td class="wb-valign-top wb-usercp-nav-cell" style="width: 250px; width: 250px; min-width: 250px; max-width: 250px; padding-right: 6px;">
+            <table class="wb-table-center wb-cellpad-3 wb-cellspace-1 wb-control-box wb-table" style="width: 100%;">
+                <tr><td class="BoardColumn"><strong>Navigation</strong></td></tr>
+                <tr>
+                    <td class="BoardRowB wb-control-links" style="line-height: 1.45; padding: 5px;">
+                        <b>&middot;</b>&nbsp;<a class="MultiPages" href="/notifications/">Notifications</a> <span class="SmallText">{{ count }}</span><br>
+                        <b>&middot;</b>&nbsp;<a class="MultiPages" href="/user-cp/">User CP Main</a><br>
+                        <b>&middot;</b>&nbsp;<a class="MultiPages" href="/private-messages/">Private Messages</a><br>
+                        <b>&middot;</b>&nbsp;<a class="MultiPages" href="/search/">Search</a><br>
+                        <b>&middot;</b>&nbsp;<a class="MultiPages" href="/">Forum Index</a><br>
+                    </td>
+                </tr>
+                <tr><td class="BoardColumn"><strong>About Notifications</strong></td></tr>
+                <tr>
+                    <td class="BoardRowB" style="padding: 5px;">
+                        <span class="SmallText">Notifications stay here until you clear them. Use Silence to stop future alerts from that same thread, or turn new notifications off entirely.</span>
+                    </td>
+                </tr>
+            </table>
+        </td>
+        <td class="wb-usercp-content wb-valign-top">
+            {% for message in model.messages|default([]) %}
+                <table class="wb-cellspace-1 wb-cellpad-3 wb-table" style="width: 100%; margin-bottom: 1px;">
+                    <tr><td class="MainMenuRow"><span class="MainMenuRowAlt" style="font-weight:bold;">Notification Result:</span>&nbsp;<span class="MainMenuFont">{{ message }}</span></td></tr>
+                </table>
+            {% endfor %}
+            {% for error in model.errors|default([]) %}
+                <table class="wb-cellspace-1 wb-cellpad-3 wb-table" style="width: 100%; margin-bottom: 1px;">
+                    <tr><td class="MainMenuRow"><span class="MainMenuRowAlt" style="font-weight:bold;">Notification Error:</span>&nbsp;<span class="MainMenuFont">{{ error }}</span></td></tr>
+                </table>
+            {% endfor %}
+
+            <table class="wb-cellspace-1 wb-cellpad-3 wb-table" style="width: 100%; margin-bottom: 1px;">
+                <tr>
+                    <td colspan="3" class="BoardColumn">
+                        <strong><img src="{{ asset('images/notification.gif') }}" width="18" height="18" alt="" class="wb-img-middle"> Notifications</strong>
+                        <span class="SmallText">({{ count }})</span>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="3" class="MainMenuRow">
+                        <form method="post" action="/notifications/" style="margin:0; padding:0; display:inline; float:right;">
+                            {% include 'partials/csrf_field.twig' %}
+                            {% if notificationsEnabled %}
+                                <input type="hidden" name="action" value="notifications_off">
+                                <input class="formsubmit" type="submit" value=" Turn Off New Notifications ">
+                            {% else %}
+                                <input type="hidden" name="action" value="notifications_on">
+                                <input class="formsubmit" type="submit" value=" Turn On New Notifications ">
+                            {% endif %}
+                        </form>
+                        <span class="SmallText"><strong>Status:</strong> New notifications are {{ notificationsEnabled ? 'on' : 'off' }}.</span>
+                        <br style="clear:both;">
+                    </td>
+                </tr>
+                {% if count > 0 %}
+                    <tr>
+                        <td colspan="3" class="MainMenuRow wb-text-right">
+                            <form method="post" action="/notifications/" style="margin:0; padding:0; display:inline;">
+                                {% include 'partials/csrf_field.twig' %}
+                                <input type="hidden" name="action" value="clear_all">
+                                <input class="formsubmit" type="submit" value=" Clear All Notifications ">
+                            </form>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="BoardColumn">Notification</td>
+                        <td class="BoardColumn wb-text-center" style="width: 150px;">Date</td>
+                        <td class="BoardColumn wb-text-center" style="width: 175px;">Options</td>
+                    </tr>
+                    {% for item in items %}
+                        {% set rowClass = loop.index0 is even ? 'BoardRowB' : 'BoardRowA' %}
+                        {% set eventCount = max(1, item.event_count|default(1)) %}
+                        {% set silenceButtonText = item.notification_type|default('') == 'topic_reply' ? 'Silence Thread' : 'Silence' %}
+                        <tr class="wb-valign-top">
+                            <td class="{{ rowClass }}">
+                                <img src="{{ asset('images/notification.gif') }}" width="18" height="18" alt="" class="wb-img-middle">&nbsp;
+                                {% if item.target_url|default('') != '' %}
+                                    <a class="BoardRowBLink" href="{{ item.target_url }}"><strong>{{ item.title|default('Notification') }}</strong></a>
+                                {% else %}
+                                    <strong>{{ item.title|default('Notification') }}</strong>
+                                {% endif %}
+                                {% if eventCount > 1 %}
+                                    <br><span class="SmallText"><strong>{{ eventCount }}</strong> new replies grouped into this one thread notification.</span>
+                                {% endif %}
+                                {% if item.body|default('') != '' %}
+                                    <br><span class="SmallText">{{ item.body|nl2br }}</span>
+                                {% endif %}
+                                {% if item.actor_username|default('') != '' %}
+                                    <br><span class="SmallText">From: {{ item.actor_username }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="{{ rowClass }} wb-nowrap wb-text-center"><span class="SmallText">{{ item.created_display|default('') }}</span></td>
+                            <td class="{{ rowClass }} wb-nowrap wb-text-center">
+                                <form method="post" action="/notifications/" style="margin:0 0 2px 0; padding:0;">
+                                    {% include 'partials/csrf_field.twig' %}
+                                    <input type="hidden" name="action" value="clear_one">
+                                    <input type="hidden" name="notification_id" value="{{ item.id|default(0) }}">
+                                    <input class="formsubmit" type="submit" value="Clear">
+                                </form>
+                                {% if item.can_silence|default(false) %}
+                                    <form method="post" action="/notifications/" style="margin:0; padding:0;">
+                                        {% include 'partials/csrf_field.twig' %}
+                                        <input type="hidden" name="action" value="silence_one">
+                                        <input type="hidden" name="notification_id" value="{{ item.id|default(0) }}">
+                                        <input class="formsubmit" type="submit" value="{{ silenceButtonText }}" title="{{ item.silence_label|default('Silence this notification stream') }}">
+                                    </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="3" class="BoardRowB wb-text-center" style="padding: 8px;">
+                            <strong>You have no notifications.</strong>
+                        </td>
+                    </tr>
+                {% endif %}
+            </table>
+
+            <table class="wb-cellspace-1 wb-cellpad-3 wb-table" style="width: 100%;">
+                <tr>
+                    <td colspan="3" class="BoardColumn"><strong>Silenced Notifications</strong> <span class="SmallText">({{ muteCount }})</span></td>
+                </tr>
+                {% if muteCount > 0 %}
+                    <tr>
+                        <td class="BoardColumn">Silenced Alert</td>
+                        <td class="BoardColumn wb-text-center" style="width: 150px;">Date</td>
+                        <td class="BoardColumn wb-text-center" style="width: 100px;">Options</td>
+                    </tr>
+                    {% for mute in mutes %}
+                        {% set rowClass = loop.index0 is even ? 'BoardRowB' : 'BoardRowA' %}
+                        <tr class="wb-valign-top">
+                            <td class="{{ rowClass }}"><span class="SmallText">{{ mute.label|default('Silenced notifications') }}</span></td>
+                            <td class="{{ rowClass }} wb-nowrap wb-text-center"><span class="SmallText">{{ mute.created_display|default('') }}</span></td>
+                            <td class="{{ rowClass }} wb-nowrap wb-text-center">
+                                <form method="post" action="/notifications/" style="margin:0; padding:0;">
+                                    {% include 'partials/csrf_field.twig' %}
+                                    <input type="hidden" name="action" value="unsilence">
+                                    <input type="hidden" name="mute_id" value="{{ mute.id|default(0) }}">
+                                    <input class="formsubmit" type="submit" value="Unsilence">
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="3" class="BoardRowB wb-text-center" style="padding: 8px;">
+                            <strong>No silenced notification streams.</strong>
+                        </td>
+                    </tr>
+                {% endif %}
+            </table>
+        </td>
+    </tr>
+</table>

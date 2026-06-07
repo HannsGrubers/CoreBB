@@ -1,0 +1,131 @@
+{% include 'partials/admin_messages.twig' with {messages: model.messages|default([]), errors: model.errors|default([])} only %}
+{% set rows = model.rows|default([]) %}
+{% set actionResult = model.action_result|default({}) %}
+
+<div class="corebb-admin-modern-page">
+    <div class="corebb-admin-modern-header">
+        <div>
+            <div class="corebb-admin-modern-eyebrow">Content</div>
+            <h2>Deleted Posts</h2>
+            <div class="corebb-admin-modern-meta">
+                <span>{{ model.total|default(0)|number_format }} deleted-bin posts</span>
+                <span>{{ rows|length|number_format }} shown</span>
+                {% if model.selected_board_label|default('') != '' %}<span>{{ model.selected_board_label }}</span>{% endif %}
+            </div>
+        </div>
+        <div class="corebb-admin-modern-actions">
+            <a class="corebb-board-action-link" href="/admin/?act=mod_requests">Mod Requests</a>
+            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
+        </div>
+    </div>
+
+    <div class="corebb-admin-modern-note is-muted">
+        Deleted posts are hidden from public board/topic views, user post counts, board counts, and last-post activity.
+        Restore makes the post visible again. Purge permanently deletes it from the database.
+    </div>
+
+    <div class="corebb-admin-filter-bar">
+        <form method="get" action="/admin/">
+            <input type="hidden" name="act" value="deleted_posts">
+            <label class="corebb-admin-modern-label" for="corebbDeletedPostsBoard">Board</label>
+            <select id="corebbDeletedPostsBoard" name="boardid">
+                <option value="0">All visible boards</option>
+                {% for board in model.board_options|default([]) %}
+                    <option value="{{ board.id|default(0) }}"{% if model.selected_board_id|default(0) == board.id|default(0) %} selected{% endif %}>{{ board.label|default('Board') }}</option>
+                {% endfor %}
+            </select>
+            <button class="corebb-board-action-link" type="submit">Apply</button>
+            <a class="corebb-board-action-link" href="/admin/?act=deleted_posts">Clear</a>
+        </form>
+    </div>
+
+    {% if actionResult.redirect|default('') != '' and actionResult.ok|default(false) %}
+        <div class="corebb-admin-modern-panel">
+            <div class="corebb-admin-section-title">Next Step</div>
+            <a class="corebb-board-action-link" href="{{ actionResult.redirect }}">Continue</a>
+        </div>
+    {% endif %}
+
+    <table class="corebb-admin-modern-table wb-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Author</th>
+                <th>Topic / Board</th>
+                <th>Post Preview</th>
+                <th>Deleted</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if rows is empty %}
+                <tr>
+                    <td colspan="6" class="corebb-admin-modern-empty">No deleted posts are waiting for review.</td>
+                </tr>
+            {% else %}
+                {% for row in rows %}
+                    <tr>
+                        <td>#{{ row.id|default(0) }}</td>
+                        <td>
+                            {% if row._author_url|default('') != '' %}
+                                <a class="corebb-admin-text-link" href="{{ row._author_url }}">{{ row._author_name|default('Unknown') }}</a>
+                            {% else %}
+                                {{ row._author_name|default('Unknown') }}
+                            {% endif %}
+                            <br><span class="corebb-admin-modern-help">User ID: {{ row.posterid|default(0) }}</span>
+                        </td>
+                        <td>
+                            <strong>{{ row.topic_title|default(row.title|default('Untitled')) }}</strong><br>
+                            {% if row._board_url|default('') != '' %}
+                                <a class="corebb-admin-text-link" href="{{ row._board_url }}">{{ row.board_name|default('Board') }}</a>
+                            {% else %}
+                                {{ row.board_name|default('Board') }}
+                            {% endif %}
+                            {% if row.topic_is_deleted|default(0) == 1 %}
+                                <br><span class="corebb-admin-modern-help">Parent topic currently hidden.</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <strong>{{ row.title|default('') }}</strong><br>
+                            <span class="corebb-admin-prewrap">{{ row._preview|default('') }}</span>{% if row._has_more_preview|default(false) %}...{% endif %}<br>
+                            <a class="corebb-admin-text-link" href="{{ row._view_url|default('#') }}">View full message</a>
+                        </td>
+                        <td>
+                            {{ row.deleted_at|default('') }}<br>
+                            <span class="corebb-admin-modern-help">by {{ row._deleted_by_display|default('Unknown') }}</span><br>
+                            {% if row.delete_reason|default('')|trim != '' %}
+                                <span class="corebb-admin-modern-help">Reason: {{ row.delete_reason }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if row._rights_error|default('') != '' %}
+                                <span class="corebb-admin-modern-help">{{ row._rights_error }}</span>
+                            {% else %}
+                                <div class="corebb-admin-modern-submit">
+                                    <form class="corebb-admin-modern-form" method="post" action="{{ model.action_url|default('/admin/?act=deleted_posts') }}">
+                                        {% include 'partials/csrf_field.twig' %}
+                                        <input type="hidden" name="admin_deleted_posts_token" value="{{ model.token|default('') }}">
+                                        <input type="hidden" name="postid" value="{{ row.id|default(0) }}">
+                                        <input type="hidden" name="action" value="restore">
+                                        <button class="corebb-board-action-link" type="submit">Restore</button>
+                                    </form>
+                                    <form class="corebb-admin-modern-form" method="post" action="{{ model.action_url|default('/admin/?act=deleted_posts') }}" onsubmit="return confirm('Permanently purge this deleted post? This cannot be undone.');">
+                                        {% include 'partials/csrf_field.twig' %}
+                                        <input type="hidden" name="admin_deleted_posts_token" value="{{ model.token|default('') }}">
+                                        <input type="hidden" name="postid" value="{{ row.id|default(0) }}">
+                                        <input type="hidden" name="action" value="purge">
+                                        <button class="corebb-board-action-link is-danger" type="submit">Purge</button>
+                                    </form>
+                                </div>
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            {% endif %}
+        </tbody>
+    </table>
+
+    {% if model.pagination.visible|default(false) %}
+        <div class="corebb-admin-modern-panel wb-text-center">{% include 'partials/board_pagination.twig' with {pagination: model.pagination} only %}</div>
+    {% endif %}
+</div>

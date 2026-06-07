@@ -1,0 +1,18 @@
+{% if not layout.viewer.logged_in|default(false) %}
+    <a class="MainMenuFont">Welcome, <b>Guest</b> - </a><a class="MainMenuLink" href="{{ layout.menu.login_url }}">Login</a> <a class="MainMenuFont">|</a> <a class="MainMenuLink" href="{{ layout.menu.register_url }}">Register</a> <a class="MainMenuFont">|</a>
+{% else %}
+    <a class="MainMenuFont">Logged in as:</a>
+    <a class="AuthorLink" href="{{ layout.viewer.profile_url }}"{% if layout.viewer.style_css|default('') != '' %} style="{{ layout.viewer.style_css }}"{% endif %}>{{ layout.viewer.username }}</a>
+    <a class="MainMenuFont">|</a> <a class="MainMenuLink" href="{{ layout.menu.logout_url }}">Logoff</a> <a class="MainMenuFont">|</a>
+    <a class="MainMenuLink" href="{{ layout.menu.pm_url }}">Private Messages{% if layout.menu.pm_unread|default(0) > 0 %} ({{ layout.menu.pm_unread }} New){% endif %}</a> <a class="MainMenuFont">|</a>
+{% endif %}
+<a class="MainMenuLink" href="{{ layout.menu.search_url }}">Search</a> <a class="MainMenuFont">|</a>
+{% if layout.viewer.logged_in|default(false) %}
+    <a class="MainMenuLink" href="{{ layout.menu.usercp_url }}" onMouseout="hideinfoBox()" onMouseover="infoBox('Kentucky','3,000','606,000')">User CP</a> <a class="MainMenuFont">|</a>
+    {% if layout.menu.admin_visible|default(false) %}
+        <a class="MainMenuLink" href="{{ layout.menu.admin_url }}">Admin</a> <a class="MainMenuFont">|</a>
+    {% endif %}
+{% endif %}
+<a class="MainMenuLink" href="{{ layout.menu.blogs_url }}">Blogs</a> <a class="MainMenuFont">|</a>
+<a class="MainMenuLink" href="{{ layout.menu.rules_url }}">Board Rules/FAQ</a> <a class="MainMenuFont">|</a>
+<a class="MainMenuLink" href="{{ layout.menu.contact_mods_url }}">{{ layout.menu.contact_mods_label }}</a>

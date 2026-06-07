@@ -1,0 +1,57 @@
+{% include 'partials/admin_messages.twig' with {messages: model.messages|default([])} only %}
+{% set categories = model.categories|default([]) %}
+
+<div class="corebb-admin-modern-page">
+    <div class="corebb-admin-modern-header">
+        <div>
+            <div class="corebb-admin-modern-eyebrow">Manage Boards</div>
+            <h2>Add New Board</h2>
+            <div class="corebb-admin-modern-meta">
+                <span>{{ categories|length|number_format }} categories available</span>
+            </div>
+        </div>
+        <div class="corebb-admin-modern-actions">
+            <a class="corebb-board-action-link" href="/admin/?act=manageboards">Manage Boards</a>
+        </div>
+    </div>
+
+    <div class="corebb-admin-modern-panel">
+        <form class="corebb-admin-modern-form" name="form1" method="post" action="/admin/?act=addboard">
+            {% include 'partials/csrf_field.twig' %}
+            <div class="corebb-admin-modern-grid">
+                <label for="corebbBoardCategory">Category</label>
+                <select id="corebbBoardCategory" name="catid">
+                    {% for category in categories %}
+                        <option value="{{ category.id|default(0) }}"{% if model.catid|default(0) == category.id|default(0) %} selected{% endif %}>{{ category.name|default('') }}{% if category.secure_archive|default(0) %} (Secure Archive){% endif %}</option>
+                    {% endfor %}
+                </select>
+
+                <label for="corebbBoardName">Full Board Name</label>
+                <input id="corebbBoardName" name="newboardname" type="text" value="{{ model.newboardname|default('') }}" size="50">
+
+                <label for="corebbBoardDescription">Full Board Description</label>
+                <textarea id="corebbBoardDescription" name="newboarddescription" cols="50" rows="6" wrap="soft">{{ model.newboarddescription|default('') }}</textarea>
+
+                <label for="boardtimer">Board Post Timer</label>
+                <span>
+                    <input name="boardtimer" type="text" id="boardtimer" size="5" maxlength="3" value="{{ model.boardtimer|default(30) }}">
+                    <span class="corebb-admin-modern-help">Minutes, max 999.</span>
+                </span>
+
+                <label for="corebbBoardPrivate">Private Board</label>
+                <span>
+                    <select id="corebbBoardPrivate" name="private">
+                        <option value="0"{% if not model.private|default(0) %} selected{% endif %}>No</option>
+                        <option value="1"{% if model.private|default(0) %} selected{% endif %}>Yes</option>
+                    </select>
+                    <span class="corebb-admin-modern-help">Users must be invited before they can see or enter it. Boards inside private categories also require invites.</span>
+                </span>
+
+                <div class="corebb-admin-modern-submit corebb-admin-modern-full">
+                    <button class="corebb-board-action-link" type="submit" name="Submit" value="Add">Add Board</button>
+                    <a class="corebb-board-action-link" href="/admin/?act=manageboards">Return to Manage Boards</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>

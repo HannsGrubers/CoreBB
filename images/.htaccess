@@ -1,0 +1,22 @@
+Options -Indexes
+
+# Image folders are static asset storage. Never execute or serve PHP/script files
+# from here, even if a legacy file or bad upload lands under /images.
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+
+RemoveHandler .php .php3 .php4 .php5 .php7 .php8 .phtml .phar .cgi .pl .asp .aspx .jsp
+RemoveType .php .php3 .php4 .php5 .php7 .php8 .phtml .phar .cgi .pl .asp .aspx .jsp
+
+<FilesMatch "\.(?:php|php[0-9]?|phtml|phar|cgi|pl|asp|aspx|jsp)$">
+    Require all denied
+</FilesMatch>
+
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+</IfModule>

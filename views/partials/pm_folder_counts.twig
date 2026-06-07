@@ -1,0 +1,22 @@
+{% set counts = counts|default({unread: 0, read: 0, sent: 0}) %}
+{% set active = active|default('unread') %}
+{% set folderRows = {
+    unread: {label: 'Inbox', url: '/private-messages/'},
+    sent: {label: 'Sent Items', url: '/private-messages/sent/'},
+    read: {label: 'Read Items', url: '/private-messages/read/'}
+} %}
+<table class="wb-pm-folder-table wb-cellspace-1 wb-cellpad-0 wb-table" style="width: 100%;">
+    <tr>
+        <td class="BoardColumn wb-pm-folder-name" style="width: 100%;">&nbsp;&nbsp;<img src="{{ asset('images/folder-closed.gif') }}" width="18" height="18" alt="" class="wb-img-middle">&nbsp;Folders</td>
+        <td class="BoardColumn wb-pm-folder-items" style="width: 1px; white-space: nowrap;"><div class="wb-text-center">Items</div></td>
+    </tr>
+    {% for folder, row in folderRows %}
+        {% set icon = active == folder ? 'folder-open.gif' : 'folder-closed.gif' %}
+        <tr>
+            <td class="PrivMsgListRowA" style="width: 100%;">
+                &nbsp;<img class="wb-img-middle" src="{{ asset('images/' ~ icon) }}" width="18" height="18" alt=""><a class="PrivMsgViewText" href="{{ row.url }}">{% if active == folder %}<strong>{{ row.label }}</strong>{% else %}{{ row.label }}{% endif %}</a>
+            </td>
+            <td class="PrivMsgListRowA wb-pm-folder-items" style="width: 1px; white-space: nowrap;"><div class="PrivMsgViewText wb-text-center">{{ counts[folder]|default(0) }}</div></td>
+        </tr>
+    {% endfor %}
+</table>

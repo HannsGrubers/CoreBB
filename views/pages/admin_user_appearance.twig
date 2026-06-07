@@ -1,0 +1,48 @@
+{% include 'partials/admin_messages.twig' with {messages: model.messages|default([]), errors: model.errors|default([])} only %}
+{% set mode = model.mode|default('search') %}
+{% set user = model.user|default(null) %}
+
+<div class="corebb-admin-modern-page">
+    <div class="corebb-admin-modern-header">
+        <div>
+            <div class="corebb-admin-modern-eyebrow">People</div>
+            <h2>{{ mode == 'edit' and user ? 'Edit User Appearance' : 'Find User Appearance' }}</h2>
+            <div class="corebb-admin-modern-meta">
+                {% if user %}
+                    <span>{{ user.username|default('') }}</span>
+                    <span>#{{ user.id|default(0) }}</span>
+                {% else %}
+                    <span>Search by username or user ID.</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="corebb-admin-modern-actions">
+            {% if user %}
+                <a class="corebb-board-action-link" href="{{ user.profile_url|default('#') }}">Public Profile</a>
+                <a class="corebb-board-action-link" href="/admin/?act=user_pages&amp;userid={{ user.id|default(0) }}">User Portal</a>
+                <a class="corebb-board-action-link" href="/admin/?act=user_appearance">Find Another User</a>
+            {% endif %}
+            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
+        </div>
+    </div>
+
+    {% if mode == 'edit' and user %}
+        <div class="corebb-admin-modern-panel">
+            {% include 'partials/user_appearance_form.twig' with {appearance: model.appearance|default({})} only %}
+        </div>
+    {% else %}
+        <div class="corebb-admin-modern-panel">
+            <form class="corebb-admin-modern-form" method="get" action="/admin/">
+                <input type="hidden" name="act" value="user_appearance">
+                <div class="corebb-admin-modern-grid">
+                    <label for="corebbUserAppearanceUser">User</label>
+                    <span>
+                        <input id="corebbUserAppearanceUser" type="text" name="user" value="{{ model.search_value|default('') }}">
+                        <button class="corebb-board-action-link" type="submit">Submit</button>
+                        <span class="corebb-admin-modern-help">Username or user ID.</span>
+                    </span>
+                </div>
+            </form>
+        </div>
+    {% endif %}
+</div>

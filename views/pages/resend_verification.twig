@@ -1,0 +1,25 @@
+<table class="wb-cellspace-1 wb-cellpad-0 wb-table" style="width: 100%;">
+    <tr>
+        <td class="BoardColumn"><b>Resend Verification Email</b></td>
+    </tr>
+    <tr class="BoardRowB">
+        <td style="padding: 10px;">
+            {% if model.submitted|default(false) %}
+                <p>{{ model.message|default('') }}</p>
+                {% if model.mail_error|default('') != '' %}
+                    <p class="ErrorFont">{{ model.mail_error }}</p>
+                {% endif %}
+                <p><a class="BoardRowBLink" href="{{ url('auth.php?action=login') }}">Return to Login</a></p>
+            {% else %}
+                <p>Enter the email address you used during registration. If it belongs to an unverified account, a new verification link will be emailed to you.</p>
+                <form method="post" action="{{ url('auth.php?action=resend') }}">
+                    {% include 'partials/csrf_field.twig' %}
+                    <span class="InputSection">Email Address:</span><br>
+                    <input type="email" name="email" size="35" maxlength="255" autocomplete="email"><br><br>
+                    <input type="submit" value=" Send Verification Email ">
+                </form>
+                <p><a class="BoardRowBLink" href="{{ url('auth.php?action=login') }}">Return to Login</a></p>
+            {% endif %}
+        </td>
+    </tr>
+</table>
