@@ -6,6 +6,26 @@ Current release: v1.0.0.
 
 CoreBB is a PHP/MySQL bulletin board with Twig-backed public and admin templates, a compact modern admin panel, BBCode plus Markdown-in-BBCode support, private messages, blogs, moderation tools, email verification, password recovery, and a fresh-install web installer.
 
+## Screenshots
+
+These screenshots show CoreBB running on a live forum instance during release preparation. Site-specific branding, board names, and sample content are not part of the default installer.
+
+![Forum index](docs/screenshots/live-forum-index.png)
+
+*Forum index using the classic public theme.*
+
+![Thread view with code formatting](docs/screenshots/live-code-formatting-thread.png)
+
+*Thread view with BBCode and syntax-highlighted code blocks.*
+
+![Post editor](docs/screenshots/live-post-editor.png)
+
+*Post editor with the classic BBCode toolbar.*
+
+![Admin manage boards](docs/screenshots/live-admin-manage-boards.png)
+
+*Modern dark admin board-management view.*
+
 ## Requirements
 
 - PHP 8.1 or newer.
