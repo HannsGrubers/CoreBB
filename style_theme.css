@@ -648,6 +648,16 @@ html.corebb-dark-mode body.wb-admin-body .corebb-admin-page-message.is-error {
     padding: 8px;
 }
 
+.corebb-admin-modern-panel-fixed-scroll {
+	height: 500px;
+	overflow-y: auto;
+    background: var(--corebb-row-a-bg);
+    border: 1px solid var(--corebb-divider);
+    color: var(--corebb-row-text);
+    padding: 8px;
+}
+
+
 .corebb-admin-modern-note {
     background: var(--corebb-row-a-bg);
     border-left: 4px solid var(--corebb-link);
