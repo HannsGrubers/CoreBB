@@ -17,9 +17,39 @@
  +-------------------------------------------------------+*/
 
 require_once dirname(__DIR__) . '/rate_limit_helpers.php';
+require_once dirname(__DIR__) . '/corebb_url_helpers.php';
 
 const COREBB_API_GUEST_PAGE_MAX = 100;
 const COREBB_API_AUTH_PAGE_MAX = 500;
+
+/**
+ * Build a public API URL under the active forum base path.
+ *
+ * Usage: expose API metadata that works for root and subdirectory installs.
+ * Referenced by: corebb_api_boundary() and API error metadata.
+ *
+ * @param string $path API path relative to the forum root.
+ * @return string Root-relative API URL.
+ */
+function corebb_api_public_url(string $path): string
+{
+    return corebb_public_join_base_path('/' . ltrim($path, '/'));
+}
+
+/**
+ * Build a method-qualified public API URL.
+ *
+ * Usage: document POST endpoints without losing the active forum base path.
+ * Referenced by: API error metadata.
+ *
+ * @param string $method HTTP method label.
+ * @param string $path API path relative to the forum root.
+ * @return string Method-prefixed API URL.
+ */
+function corebb_api_public_method_url(string $method, string $path): string
+{
+    return strtoupper(trim($method)) . ' ' . corebb_api_public_url($path);
+}
 
 /**
  * Resolve the client IP used for guest API rate limiting.
@@ -168,17 +198,17 @@ function corebb_api_boundary(): array
         // Let clients discover the enabled write endpoints.
         'writeEnabled' => true,
         'writeEndpoints' => [
-            'reply' => '/api/v1/post/reply',
-            'newTopic' => '/api/v1/post/new',
-            'editPost' => '/api/v1/post/edit',
-            'sendPrivateMessage' => '/api/v1/pm/send',
-            'markPrivateMessageRead' => '/api/v1/pm/messages/{id}/read',
-            'lockTopic' => '/api/v1/mod/topics/{id}/lock',
-            'unlockTopic' => '/api/v1/mod/topics/{id}/unlock',
-            'removePost' => '/api/v1/mod/posts/{id}/remove',
-            'restorePost' => '/api/v1/mod/posts/{id}/restore',
-            'banUser' => '/api/v1/mod/users/{id}/ban',
-            'unbanUser' => '/api/v1/mod/users/{id}/unban',
+            'reply' => corebb_api_public_url('/api/v1/post/reply'),
+            'newTopic' => corebb_api_public_url('/api/v1/post/new'),
+            'editPost' => corebb_api_public_url('/api/v1/post/edit'),
+            'sendPrivateMessage' => corebb_api_public_url('/api/v1/pm/send'),
+            'markPrivateMessageRead' => corebb_api_public_url('/api/v1/pm/messages/{id}/read'),
+            'lockTopic' => corebb_api_public_url('/api/v1/mod/topics/{id}/lock'),
+            'unlockTopic' => corebb_api_public_url('/api/v1/mod/topics/{id}/unlock'),
+            'removePost' => corebb_api_public_url('/api/v1/mod/posts/{id}/remove'),
+            'restorePost' => corebb_api_public_url('/api/v1/mod/posts/{id}/restore'),
+            'banUser' => corebb_api_public_url('/api/v1/mod/users/{id}/ban'),
+            'unbanUser' => corebb_api_public_url('/api/v1/mod/users/{id}/unban'),
         ],
     ];
 }

@@ -16,7 +16,39 @@
  |  mobile_helpers.php  - Mobile view routing helpers.   |
  +-------------------------------------------------------+*/
 
+require_once __DIR__ . '/corebb_url_helpers.php';
+
 const COREBB_VIEW_MODE_COOKIE = 'corebb_view_mode';
+
+/**
+ * Return the cookie path used by mobile view-mode preferences.
+ *
+ * Usage: scope mobile/desktop preference cookies to the active CoreBB install
+ * so multiple forums can share a domain without fighting over view mode.
+ * Referenced by: corebb_mobile_requested_view_mode().
+ *
+ * @return string Cookie path rooted at the forum base path.
+ */
+function corebb_mobile_cookie_path(): string
+{
+    return corebb_public_base_path();
+}
+
+/**
+ * Build a mobile shell URL under the active forum base path.
+ *
+ * Usage: keep mobile redirects working when CoreBB is installed in /forum/,
+ * /forums/, or another subdirectory.
+ * Referenced by: corebb_mobile_redirect().
+ *
+ * @param array<string, mixed> $params Query parameters for the mobile shell.
+ * @return string Root-relative mobile URL.
+ */
+function corebb_mobile_shell_url(array $params = []): string
+{
+    $query = http_build_query($params, '', '&', PHP_QUERY_RFC3986);
+    return corebb_public_join_base_path('/mobile/' . ($query !== '' ? '?' . $query : ''));
+}
 
 /**
  * Check whether the current request can safely redirect to the mobile shell.
@@ -51,7 +83,7 @@ function corebb_mobile_requested_view_mode(): string
         if (!headers_sent()) {
             setcookie(COREBB_VIEW_MODE_COOKIE, $mode, [
                 'expires' => time() + 60 * 60 * 24 * 90,
-                'path' => '/',
+                'path' => corebb_mobile_cookie_path(),
                 'httponly' => false,
                 'samesite' => 'Lax',
             ]);
@@ -72,7 +104,7 @@ function corebb_mobile_requested_view_mode(): string
 /**
  * Detect mobile/tablet browsers from request headers.
  *
- * Usage: decide whether a GET/HEAD request should be redirected to /mobile/.
+ * Usage: decide whether a GET/HEAD request should be redirected to the mobile shell.
  * Referenced by: corebb_mobile_should_use_mobile().
  *
  * @return bool True when headers indicate a mobile or tablet client.
@@ -127,7 +159,7 @@ function corebb_mobile_user_agent_is_mobile(): bool
  * user-agent checks.
  * Referenced by: corebb_mobile_redirect().
  *
- * @return bool True when a redirect to /mobile/ should occur.
+ * @return bool True when a redirect to the mobile shell should occur.
  */
 function corebb_mobile_should_use_mobile(): bool
 {
@@ -186,7 +218,7 @@ function corebb_mobile_redirect(string $screen = 'index', array $params = []): v
     // exact desktop page that triggered mobile routing.
     $params = ['screen' => $screen] + $params;
     $params['return'] = corebb_mobile_current_return_url();
-    $target = '/mobile/?' . http_build_query($params, '', '&', PHP_QUERY_RFC3986);
+    $target = corebb_mobile_shell_url($params);
     header('Location: ' . $target);
     exit;
 }

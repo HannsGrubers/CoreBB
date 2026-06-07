@@ -467,6 +467,7 @@ function corebb_public_layout_model(array $vars = [], array $context = []): arra
                 corebb_theme_url('scripts/corebb_prism_codeblocks.js'),
             ],
             'mobile_fallback' => corebb_layout_mobile_fallback_payload(),
+            'mobile_url' => corebb_layout_url('/mobile/'),
             'body_class' => 'wb-vn-eol',
             'staging' => defined('COREBB_ENV') && (string)COREBB_ENV === 'staging',
         ],

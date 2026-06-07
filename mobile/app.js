@@ -4,6 +4,8 @@
     const app = document.getElementById('mobileApp');
     const nav = document.getElementById('mobileNav');
     const sessionBar = document.getElementById('mobileSession');
+    const apiBase = String(document.body.dataset.apiBase || '/api/v1').replace(/\/+$/, '');
+    const mobileBase = String(document.body.dataset.mobileBase || '/mobile').replace(/\/+$/, '');
     let viewer = null;
     let csrf = '';
 
@@ -43,7 +45,7 @@
 
     async function api(path, options) {
         // Same-origin cookies carry the normal CoreBB login state.
-        const response = await fetch(`/api/v1/${path}`, Object.assign({
+        const response = await fetch(`${apiBase}/${String(path).replace(/^\/+/, '')}`, Object.assign({
             credentials: 'same-origin',
             headers: { Accept: 'application/json' }
         }, options || {}));
@@ -86,13 +88,13 @@
         const query = new URLSearchParams(nextParams || {});
         query.set('screen', screen);
         query.set('view', 'mobile');
-        history.pushState(null, '', `/mobile/?${query.toString()}`);
+        history.pushState(null, '', `${mobileBase}/?${query.toString()}`);
         render();
     }
 
     function replaceWithQuery(queryString) {
         const query = queryString && queryString.startsWith('?') ? queryString : '?screen=index&view=mobile';
-        history.replaceState(null, '', `/mobile/${query}`);
+        history.replaceState(null, '', `${mobileBase}/${query}`);
         render();
     }
 

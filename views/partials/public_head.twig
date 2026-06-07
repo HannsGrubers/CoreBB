@@ -14,7 +14,10 @@
 <script>
 (function(){
     try {
-        if (location.pathname.indexOf('/mobile/') === 0) { return; }
+        var mobileUrl = {{ layout.head.mobile_url|default('/mobile/')|json_encode|raw }};
+        var mobilePath = new URL(mobileUrl, location.origin).pathname;
+        var mobilePathNoSlash = mobilePath.replace(/\/+$/, '');
+        if (location.pathname === mobilePathNoSlash || location.pathname.indexOf(mobilePath) === 0) { return; }
         var params = new URLSearchParams(location.search);
         var requested = (params.get('view') || '').toLowerCase();
         var cookieMatch = document.cookie.match(/(?:^|;\s*)corebb_view_mode=([^;]+)/);
@@ -44,7 +47,7 @@
             });
             target.set('view', 'mobile');
             target.set('return', location.pathname + location.search + location.hash);
-            location.replace('/mobile/?' + target.toString());
+            location.replace(mobileUrl + '?' + target.toString());
         }
     } catch (e) {}
 }());

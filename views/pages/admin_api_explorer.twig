@@ -1,5 +1,6 @@
 {% set endpoints = model.endpoints|default([]) %}
 {% set defaultEndpoint = model.default_endpoint|default('/api/v1/health') %}
+{% set apiBasePath = model.api_base_path|default('/api/v1') %}
 
 <div class="corebb-admin-modern-page">
     <div class="corebb-admin-modern-header">
@@ -50,18 +51,40 @@
     var raw = document.getElementById('corebbApiRaw');
     var status = document.getElementById('corebbApiStatus');
     var output = document.getElementById('corebbApiOutput');
+    var apiBasePath = {{ apiBasePath|json_encode|raw }};
     var lastText = '';
     var lastJson = null;
+
+    function joinApiBase(pathValue) {
+        var base = String(apiBasePath || '/api/v1').replace(/\/+$/, '');
+        var path = String(pathValue || '').replace(/^\/+/, '');
+        return base + (path ? '/' + path : '');
+    }
 
     function normalizeEndpoint(value) {
         value = String(value || '').replace(/^\s+|\s+$/g, '');
         if (value === '') {
-            return '/api/v1/health';
+            return joinApiBase('health');
         }
         if (/^https?:\/\//i.test(value)) {
             return value;
         }
-        return value.charAt(0) === '/' ? value : '/' + value;
+        if (value.indexOf(apiBasePath + '/') === 0 || value === apiBasePath) {
+            return value;
+        }
+        if (value.indexOf('/api/v1/') === 0) {
+            return joinApiBase(value.substring('/api/v1/'.length));
+        }
+        if (value === '/api/v1') {
+            return apiBasePath;
+        }
+        if (value.indexOf('api/v1/') === 0) {
+            return joinApiBase(value.substring('api/v1/'.length));
+        }
+        if (value === 'api/v1') {
+            return apiBasePath;
+        }
+        return value.charAt(0) === '/' ? value : joinApiBase(value);
     }
 
     function renderResponse() {

@@ -35,7 +35,7 @@ function corebb_public_base_path(): string
         $base = (string)(parse_url((string)COREBB_PUBLIC_BASE_URL, PHP_URL_PATH) ?: '');
     } else {
         $script = str_replace('\\', '/', (string)($_SERVER['SCRIPT_NAME'] ?? ''));
-        $dir = trim(dirname($script), '/');
+        $dir = trim(str_replace('\\', '/', dirname($script)), '/');
         foreach (['controllers', 'mobile'] as $internalDir) {
             if ($dir === $internalDir) {
                 $dir = '';
