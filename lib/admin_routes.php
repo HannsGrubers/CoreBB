@@ -101,7 +101,7 @@ function corebb_admin_route_definitions(): array
         'updates' => [
             'label' => 'Updates',
             'view' => 'pages/admin_updates.twig',
-            'handler' => static fn(array $viewer): array => corebb_admin_updates_model($viewer, $_GET, $_POST),
+            'handler' => static fn(array $viewer): array => corebb_admin_updates_model($viewer, $_GET, $_POST, $_FILES),
         ],
         'api_explorer' => [
             'label' => 'API Explorer',

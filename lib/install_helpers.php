@@ -514,6 +514,8 @@ function corebb_install_seed_settings(PDO $pdo): void
         [null, 'last_successful_update_check_at', ''],
         [null, 'last_update_check_error', ''],
         [null, 'update_manifest_signature_status', 'unsigned'],
+        [null, 'last_update_package_path', ''],
+        [null, 'last_update_package_summary', ''],
         [null, 'rate_limit_login_enabled', '1'],
         [null, 'rate_limit_login_ip_10m_max', '8'],
         [null, 'rate_limit_login_ip_10m_window', '600'],

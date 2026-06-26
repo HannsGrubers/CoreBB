@@ -109,7 +109,7 @@ function corebb_twig(): \Twig\Environment
         'autoescape' => 'html',
         'cache' => is_dir($cacheDir) && is_writable($cacheDir) ? $cacheDir : false,
         'strict_variables' => false,
-        'auto_reload' => !defined('COREBB_ENV') || (string)COREBB_ENV !== 'production',
+        'auto_reload' => true,
     ]);
 
     $twig->addFunction(new \Twig\TwigFunction('asset', static function (string $path): string {

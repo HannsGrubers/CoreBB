@@ -53,6 +53,8 @@ function corebb_update_default_settings(): array
         'last_successful_update_check_at' => '',
         'last_update_check_error' => '',
         'update_manifest_signature_status' => 'unsigned',
+        'last_update_package_path' => '',
+        'last_update_package_summary' => '',
     ];
 }
 
@@ -162,12 +164,17 @@ function corebb_update_validate_manifest(string $body): array
  */
 function corebb_update_fetch_manifest(string $url = COREBB_UPDATE_MANIFEST_URL): array
 {
+    $fetchUrl = $url;
+    if (str_starts_with($fetchUrl, 'http://') || str_starts_with($fetchUrl, 'https://')) {
+        $fetchUrl .= (str_contains($fetchUrl, '?') ? '&' : '?') . 'corebb_cache_bust=' . rawurlencode((string)time());
+    }
+
     $context = stream_context_create([
         'http' => [
             'method' => 'GET',
             'timeout' => 8,
             'ignore_errors' => true,
-            'header' => "Accept: application/json\r\n",
+            'header' => "Accept: application/json\r\nCache-Control: no-cache\r\nPragma: no-cache\r\n",
         ],
         'ssl' => [
             'verify_peer' => true,
@@ -175,7 +182,7 @@ function corebb_update_fetch_manifest(string $url = COREBB_UPDATE_MANIFEST_URL):
         ],
     ]);
 
-    $body = @file_get_contents($url, false, $context);
+    $body = @file_get_contents($fetchUrl, false, $context);
     $now = date('Y-m-d H:i:s');
     corebb_update_set_setting('last_update_check_at', $now);
 
@@ -281,6 +288,7 @@ function corebb_update_status(?array $manifest = null): array
     $latestStable = is_array($manifest) ? trim((string)($manifest['latest_stable'] ?? '')) : '';
     $latestSecurity = is_array($manifest) ? trim((string)($manifest['latest_security'] ?? '')) : '';
     $minimumSafe = is_array($manifest) ? trim((string)($manifest['minimum_safe_version'] ?? '')) : '';
+    $manifestGenerated = is_array($manifest) ? trim((string)($manifest['generated_at'] ?? '')) : '';
     $latest = $latestSecurity !== '' ? $latestSecurity : $latestStable;
 
     $state = 'unknown';
@@ -331,6 +339,7 @@ function corebb_update_status(?array $manifest = null): array
         'latest_stable' => $latestStable,
         'latest_security' => $latestSecurity,
         'minimum_safe_version' => $minimumSafe,
+        'manifest_generated_at' => $manifestGenerated,
         'last_checked' => corebb_update_format_date($lastCheck),
         'last_successful_check' => corebb_update_format_date($lastSuccess),
         'check_status' => $checkStatus,

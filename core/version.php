@@ -11,7 +11,7 @@
  +-------------------------------------------------------+*/
 
 if (!defined('COREBB_VERSION')) {
-    define('COREBB_VERSION', '1.1.1');
+    define('COREBB_VERSION', '1.1.5');
 }
 
 if (!defined('COREBB_SCHEMA_VERSION')) {
