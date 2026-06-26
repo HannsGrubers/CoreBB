@@ -103,8 +103,19 @@ function corebb_update_cached_manifest(): ?array
     if ($raw === '') {
         return null;
     }
+    $raw = corebb_update_json_body($raw);
     $decoded = json_decode($raw, true);
     return is_array($decoded) ? $decoded : null;
+}
+
+/**
+ * Usage: Normalize manifest bytes before JSON decoding.
+ * Referenced by: cached and freshly fetched manifest reads.
+ */
+function corebb_update_json_body(string $body): string
+{
+    $body = preg_replace('/^\xEF\xBB\xBF/', '', $body) ?? $body;
+    return ltrim($body, "\x00..\x1F");
 }
 
 function corebb_update_version_valid(string $version): bool
@@ -117,6 +128,7 @@ function corebb_update_version_valid(string $version): bool
  */
 function corebb_update_validate_manifest(string $body): array
 {
+    $body = corebb_update_json_body($body);
     $manifest = json_decode($body, true);
     if (!is_array($manifest)) {
         return ['ok' => false, 'manifest' => null, 'error' => 'Update manifest is not valid JSON.'];
@@ -173,6 +185,7 @@ function corebb_update_fetch_manifest(string $url = COREBB_UPDATE_MANIFEST_URL):
         corebb_update_set_setting('last_update_check_error', $message);
         return ['ok' => false, 'message' => $message, 'manifest' => null];
     }
+    $body = corebb_update_json_body($body);
 
     $validation = corebb_update_validate_manifest($body);
     if (!$validation['ok'] || !is_array($validation['manifest'])) {
