@@ -10,7 +10,7 @@
 <table class="wb-table wb-table-center wb-w-full wb-cellpad-0 wb-cellspace-1">
     <tr class="MainMenuRow">
         <td class="wb-w-half"><div class="VersionText wb-text-left">{{ layout.footer.stats }}</div></td>
-        <td class="wb-w-half"><div class="VersionText wb-text-right">{{ layout.footer.version_label }} | &copy; {{ layout.footer.copyright_start }}-{{ layout.footer.copyright_year }} {{ layout.footer.copyright_name }}{% include 'partials/public_theme_selector.twig' %}</div></td>
+        <td class="wb-w-half"><div class="VersionText wb-text-right">{{ layout.footer.version_label }} | <a class="VersionText" href="{{ layout.footer.security_url|default('/security/') }}">Security</a> | &copy; {{ layout.footer.copyright_start }}-{{ layout.footer.copyright_year }} {{ layout.footer.copyright_name }}{% include 'partials/public_theme_selector.twig' %}</div></td>
     </tr>
 </table>
 {% include 'partials/public_theme_script.twig' %}

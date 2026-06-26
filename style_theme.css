@@ -946,6 +946,200 @@ body.wb-vn-eol .corebb-user-appearance-form .corebb-admin-modern-label {
     width: 220px;
 }
 
+.corebb-sr-only {
+    border: 0;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    padding: 0;
+    position: absolute;
+    white-space: nowrap;
+    width: 1px;
+}
+
+.corebb-admin-rights-summary-table th {
+    width: 150px;
+}
+
+.corebb-admin-rights-fieldset {
+    border: 0;
+    margin: 0;
+    padding: 0;
+}
+
+.corebb-admin-rights-fieldset legend {
+    color: var(--corebb-column-text);
+    font-weight: bold;
+    margin-bottom: 6px;
+    padding: 0;
+}
+
+.corebb-admin-rights-role-list {
+    display: grid;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.corebb-admin-rights-role-option {
+    align-items: start;
+    background: var(--corebb-row-b-bg);
+    border: 1px solid var(--corebb-divider);
+    color: var(--corebb-row-text);
+    cursor: pointer;
+    display: grid;
+    gap: 8px;
+    grid-template-columns: auto minmax(0, 1fr) minmax(140px, max-content);
+    padding: 8px;
+}
+
+.corebb-admin-rights-role-option:hover,
+.corebb-admin-rights-role-option:focus-within {
+    border-color: var(--corebb-link);
+}
+
+.corebb-admin-rights-role-option:focus-within {
+    outline: 2px solid var(--corebb-link);
+    outline-offset: 2px;
+}
+
+.corebb-admin-rights-role-option.is-current {
+    background: var(--corebb-row-a-bg);
+}
+
+.corebb-admin-rights-role-copy {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+}
+
+.corebb-admin-rights-role-copy strong {
+    color: var(--corebb-link);
+    font-size: 10pt;
+}
+
+.corebb-admin-rights-role-copy span,
+.corebb-admin-rights-role-meta {
+    color: var(--corebb-muted-text);
+    font-size: 8pt;
+    line-height: 1.35;
+}
+
+.corebb-admin-rights-role-meta {
+    text-align: right;
+}
+
+.corebb-admin-rights-role-meta em {
+    color: var(--corebb-link);
+    display: block;
+    font-style: normal;
+    font-weight: bold;
+    margin-top: 2px;
+}
+
+.corebb-admin-rights-tool-groups {
+    display: grid;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.corebb-admin-rights-tool-group {
+    border: 1px solid var(--corebb-divider);
+    background: var(--corebb-row-a-bg);
+}
+
+.corebb-admin-rights-tool-group-header {
+    align-items: center;
+    background: var(--corebb-column-bg);
+    color: var(--corebb-column-text);
+    cursor: pointer;
+    display: grid;
+    gap: 3px 8px;
+    grid-template-columns: auto minmax(0, 1fr);
+    list-style: none;
+    padding: 7px 8px;
+}
+
+.corebb-admin-rights-tool-group-header::-webkit-details-marker {
+    display: none;
+}
+
+.corebb-admin-rights-tool-group-header:focus {
+    outline: 2px solid var(--corebb-link);
+    outline-offset: 2px;
+}
+
+.corebb-admin-rights-tool-group-header::before {
+    content: ">";
+    font-size: 10pt;
+    font-weight: bold;
+    line-height: 1;
+}
+
+.corebb-admin-rights-tool-group[open] > .corebb-admin-rights-tool-group-header::before {
+    transform: rotate(90deg);
+}
+
+.corebb-admin-rights-tool-group-title {
+    font-size: 10pt;
+    font-weight: bold;
+    margin: 0;
+}
+
+.corebb-admin-rights-tool-group-meta {
+    font-size: 8pt;
+    grid-column: 2;
+    opacity: .86;
+}
+
+.corebb-admin-rights-table-wrap {
+    overflow-x: auto;
+}
+
+.corebb-admin-rights-permission-table {
+    min-width: 760px;
+}
+
+.corebb-admin-rights-permission-table th:first-child,
+.corebb-admin-rights-permission-table td:first-child {
+    text-align: center;
+    width: 80px;
+}
+
+.corebb-admin-rights-permission-table th:nth-child(2),
+.corebb-admin-rights-permission-table td:nth-child(2) {
+    width: 32%;
+}
+
+.corebb-admin-rights-permission-table tbody th {
+    background: var(--corebb-row-b-bg);
+    border-top: 1px solid var(--corebb-divider);
+    color: var(--corebb-row-text);
+    font-weight: bold;
+    padding: 6px 7px;
+    text-align: left;
+    vertical-align: middle;
+}
+
+.corebb-admin-rights-permission-table tr.is-inherited td,
+.corebb-admin-rights-permission-table tr.is-inherited th,
+.corebb-admin-rights-permission-table tr.is-explicit td,
+.corebb-admin-rights-permission-table tr.is-explicit th {
+    background: var(--corebb-row-a-bg);
+}
+
+.corebb-admin-rights-source,
+.corebb-admin-rights-status {
+    color: var(--corebb-row-text);
+    font-weight: bold;
+}
+
+.corebb-admin-rights-source.is-muted {
+    color: var(--corebb-muted-text);
+    font-weight: normal;
+}
+
 .corebb-admin-title-preview {
     font-size: 7pt;
     margin-top: 8px;
@@ -1571,6 +1765,15 @@ button.corebb-move-button:hover .corebb-move-arrow {
     .corebb-admin-modern-grid,
     .corebb-admin-modern-split {
         grid-template-columns: 1fr;
+    }
+
+    .corebb-admin-rights-role-option {
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .corebb-admin-rights-role-meta {
+        grid-column: 2;
+        text-align: left;
     }
 
     .corebb-admin-post-view {

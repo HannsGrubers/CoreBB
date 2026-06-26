@@ -1,0 +1,468 @@
+/* CoreBB Modern 2.0 public theme.
+   Loaded after style_modern.css as a sleeker second-pass override. */
+
+body.wb-vn-eol {
+    --corebb-page-bg: #f5f7fb;
+    --corebb-page-text: #152235;
+    --corebb-menu-bg: rgba(255, 255, 255, .92);
+    --corebb-menu-text: #26364a;
+    --corebb-menu-link: #172334;
+    --corebb-menu-alt: #25636a;
+    --corebb-column-bg: #203244;
+    --corebb-column-text: #f7fbff;
+    --corebb-column-link: #e5f1ff;
+    --corebb-category-link: #f0c45f;
+    --corebb-category-toggle: #f0c45f;
+    --corebb-row-a-bg: rgba(255, 255, 255, .96);
+    --corebb-row-b-bg: rgba(248, 251, 254, .96);
+    --corebb-row-text: #172334;
+    --corebb-link: #246ca8;
+    --corebb-link-visited: #6b5aa6;
+    --corebb-username-link: #26749d;
+    --corebb-muted-text: #607188;
+    --corebb-note-text: #93640d;
+    --corebb-signature-text: #53677f;
+    --corebb-input-bg: #ffffff;
+    --corebb-input-text: #172334;
+    --corebb-button-bg: #2d74b7;
+    --corebb-button-hover-bg: #215989;
+    --corebb-button-border-light: #78a9d8;
+    --corebb-button-border-dark: #1f5e96;
+    --corebb-debug-label-bg: #fff4d6;
+    --corebb-debug-value-bg: #e7f0fa;
+    --corebb-divider: #d6e0eb;
+    --corebb-code-bg: #fbfcfe;
+    --corebb-code-text: #172334;
+    --corebb-radius-subtle: 8px;
+    --corebb-shadow-soft: 0 10px 26px rgba(30, 48, 70, .08);
+    --corebb-shadow-hover: 0 14px 34px rgba(30, 48, 70, .12);
+    --corebb-focus-ring: 0 0 0 3px rgba(47, 111, 174, .18);
+}
+
+html.corebb-dark-mode body.wb-vn-eol {
+    --corebb-page-bg: #141a20;
+    --corebb-page-text: #dbe5ee;
+    --corebb-menu-bg: rgba(31, 40, 48, .94);
+    --corebb-menu-text: #dbe5ee;
+    --corebb-menu-link: #e5f1ff;
+    --corebb-menu-alt: #85c9c5;
+    --corebb-column-bg: #243446;
+    --corebb-column-text: #f4f8fc;
+    --corebb-column-link: #e5f1ff;
+    --corebb-category-link: #efd078;
+    --corebb-category-toggle: #efd078;
+    --corebb-row-a-bg: rgba(31, 39, 47, .96);
+    --corebb-row-b-bg: rgba(35, 44, 53, .96);
+    --corebb-row-text: #dbe5ee;
+    --corebb-link: #8fc2ef;
+    --corebb-link-visited: #c4afd9;
+    --corebb-username-link: #98d2f0;
+    --corebb-muted-text: #a4b2c0;
+    --corebb-note-text: #efd078;
+    --corebb-signature-text: #b0bdca;
+    --corebb-input-bg: #172029;
+    --corebb-input-text: #e7edf4;
+    --corebb-button-bg: #347dbf;
+    --corebb-button-hover-bg: #4591d5;
+    --corebb-button-border-light: #5ea0d8;
+    --corebb-button-border-dark: #1d5f98;
+    --corebb-debug-label-bg: #3a3321;
+    --corebb-debug-value-bg: #203246;
+    --corebb-divider: #34485b;
+    --corebb-code-bg: #172029;
+    --corebb-code-text: #e7edf4;
+    --corebb-shadow-soft: 0 12px 34px rgba(0, 0, 0, .26);
+    --corebb-shadow-hover: 0 16px 40px rgba(0, 0, 0, .34);
+    --corebb-focus-ring: 0 0 0 3px rgba(143, 194, 239, .18);
+}
+
+body.wb-vn-eol {
+    background:
+        linear-gradient(180deg, #edf3f9 0, #f5f7fb 360px),
+        var(--corebb-page-bg);
+    font-family: Inter, "Segoe UI", Arial, Helvetica, sans-serif;
+}
+
+body.wb-vn-eol::before {
+    background-image:
+        linear-gradient(rgba(168, 185, 204, .18) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(168, 185, 204, .18) 1px, transparent 1px);
+    background-size: 32px 32px;
+    opacity: .55;
+}
+
+html.corebb-dark-mode body.wb-vn-eol::before {
+    background-image:
+        linear-gradient(rgba(126, 149, 174, .14) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(126, 149, 174, .14) 1px, transparent 1px);
+    opacity: .25;
+}
+
+body.wb-vn-eol #Container {
+    max-width: 1240px;
+    width: min(calc(100% - 28px), 1240px) !important;
+}
+
+body.wb-vn-eol #Container .wb-h-114 {
+    background-color: #203244;
+    border: 0;
+    border-radius: 12px 12px 0 0;
+    box-shadow: var(--corebb-shadow-soft);
+}
+
+body.wb-vn-eol .wb-vn-header-nav {
+    background: #ffffff;
+    border: 1px solid var(--corebb-divider);
+    border-radius: 0 0 12px 12px;
+    box-shadow: var(--corebb-shadow-soft);
+    padding: 8px 12px;
+}
+
+html.corebb-dark-mode body.wb-vn-eol .wb-vn-header-nav {
+    background: #1f2830;
+}
+
+body.wb-vn-eol .wb-vn-header-content-spacer {
+    height: 16px;
+}
+
+body.wb-vn-eol .wb-table.wb-cellspace-1 {
+    border-spacing: 0 3px;
+}
+
+body.wb-vn-eol .MainMenuRow {
+    background: var(--corebb-menu-bg);
+    border: 1px solid var(--corebb-divider);
+    border-radius: 8px;
+    box-shadow: var(--corebb-shadow-soft);
+    color: var(--corebb-menu-text);
+    padding: 7px 10px;
+}
+
+body.wb-vn-eol .MainMenuRow + .MainMenuRow {
+    border-top: 1px solid var(--corebb-divider);
+}
+
+body.wb-vn-eol .MainMenuLink {
+    border-radius: 4px;
+    color: var(--corebb-menu-link);
+    padding: 1px 2px;
+}
+
+body.wb-vn-eol .MainMenuLink:hover,
+body.wb-vn-eol .MainMenuLink:focus-visible {
+    background: rgba(47, 111, 174, .1);
+    color: var(--corebb-link);
+    outline: 0;
+    text-decoration: none;
+}
+
+body.wb-vn-eol .BoardColumn,
+body.wb-vn-eol .BoardColumnStat {
+    background: linear-gradient(180deg, #26394d 0%, #203244 100%);
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow:
+        inset 0 1px rgba(255, 255, 255, .08),
+        inset 0 -1px rgba(0, 0, 0, .18);
+    color: var(--corebb-column-text);
+    font-size: 13px;
+    letter-spacing: 0;
+    padding: 7px 10px;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, .24);
+}
+
+html.corebb-dark-mode body.wb-vn-eol .BoardColumn,
+html.corebb-dark-mode body.wb-vn-eol .BoardColumnStat {
+    background: linear-gradient(180deg, #2b3b4c 0%, #1f2b36 100%);
+}
+
+body.wb-vn-eol tr > .BoardColumn:first-child,
+body.wb-vn-eol tr > .BoardColumnStat:first-child {
+    border-radius: 8px 0 0 8px !important;
+}
+
+body.wb-vn-eol tr > .BoardColumn:last-child,
+body.wb-vn-eol tr > .BoardColumnStat:last-child {
+    border-radius: 0 8px 8px 0 !important;
+}
+
+body.wb-vn-eol .BoardColumn + .BoardColumn,
+body.wb-vn-eol .BoardColumn + .BoardColumnStat,
+body.wb-vn-eol .BoardColumnStat + .BoardColumn,
+body.wb-vn-eol .BoardColumnStat + .BoardColumnStat {
+    box-shadow:
+        inset 1px 0 rgba(255, 255, 255, .08),
+        inset 0 1px rgba(255, 255, 255, .08),
+        inset 0 -1px rgba(0, 0, 0, .18);
+}
+
+body.wb-vn-eol .BoardColumnLink,
+body.wb-vn-eol .BoardColumnLink:link,
+body.wb-vn-eol .BoardColumnLink:visited {
+    color: var(--corebb-column-link);
+    text-decoration: none;
+}
+
+body.wb-vn-eol .BoardColumn .BoardColumnStat,
+body.wb-vn-eol .BoardColumn a.BoardColumnStat,
+body.wb-vn-eol .BoardColumn a.BoardColumnStat:link,
+body.wb-vn-eol .BoardColumn a.BoardColumnStat:visited {
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none;
+    color: var(--corebb-column-text);
+    display: inline;
+    padding: 0;
+    text-shadow: inherit;
+}
+
+body.wb-vn-eol .BoardCategoryLink,
+body.wb-vn-eol .BoardCategoryLink:link,
+body.wb-vn-eol .BoardCategoryLink:visited,
+body.wb-vn-eol .BoardCategoryToggle {
+    color: var(--corebb-category-link);
+    font-weight: 900;
+}
+
+body.wb-vn-eol .BoardRowA,
+body.wb-vn-eol .BoardRowB,
+body.wb-vn-eol .PrivMsgListRowA {
+    border: 1px solid var(--corebb-divider);
+    box-shadow: none;
+    padding: 7px 10px;
+    transition:
+        background-color .16s ease,
+        border-color .16s ease,
+        box-shadow .16s ease,
+        transform .16s ease;
+}
+
+body.wb-vn-eol tr.BoardRowB > td {
+    background-color: var(--corebb-row-b-bg);
+    border-bottom: 1px solid var(--corebb-divider);
+    border-top: 1px solid var(--corebb-divider);
+    padding: 7px 10px;
+    transition:
+        background-color .16s ease,
+        border-color .16s ease,
+        box-shadow .16s ease;
+}
+
+body.wb-vn-eol tr.BoardRowB > td:first-child {
+    border-left: 1px solid var(--corebb-divider);
+    border-radius: 8px 0 0 8px;
+}
+
+body.wb-vn-eol tr.BoardRowB > td:last-child {
+    border-radius: 0 8px 8px 0;
+    border-right: 1px solid var(--corebb-divider);
+}
+
+body.wb-vn-eol tr:hover > .BoardRowA,
+body.wb-vn-eol tr:hover > .BoardRowB,
+body.wb-vn-eol tr:hover > .PrivMsgListRowA {
+    border-color: #b9cbe0;
+    box-shadow: var(--corebb-shadow-hover);
+    transform: translateY(-1px);
+}
+
+body.wb-vn-eol tr.BoardRowB:hover > td {
+    background-color: #ffffff;
+    border-color: #b9cbe0;
+    box-shadow: 0 10px 24px rgba(30, 48, 70, .1);
+}
+
+html.corebb-dark-mode body.wb-vn-eol tr:hover > .BoardRowA,
+html.corebb-dark-mode body.wb-vn-eol tr:hover > .BoardRowB,
+html.corebb-dark-mode body.wb-vn-eol tr:hover > .PrivMsgListRowA {
+    border-color: #496174;
+}
+
+html.corebb-dark-mode body.wb-vn-eol tr.BoardRowB:hover > td {
+    background-color: #25313b;
+    border-color: #496174;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, .25);
+}
+
+body.wb-vn-eol tr > .BoardRowA:first-child,
+body.wb-vn-eol tr > .BoardRowB:first-child,
+body.wb-vn-eol tr > .PrivMsgListRowA:first-child {
+    border-radius: 8px 0 0 8px;
+}
+
+body.wb-vn-eol tr > .BoardRowA:last-child,
+body.wb-vn-eol tr > .BoardRowB:last-child,
+body.wb-vn-eol tr > .PrivMsgListRowA:last-child {
+    border-radius: 0 8px 8px 0;
+}
+
+body.wb-vn-eol .SubjectLink,
+body.wb-vn-eol a.SubjectLink,
+body.wb-vn-eol .BoardRowBLinkB {
+    color: var(--corebb-link);
+    font-weight: 850;
+}
+
+body.wb-vn-eol .BoardRowALink,
+body.wb-vn-eol .BoardRowBLink,
+body.wb-vn-eol .ModLinks,
+body.wb-vn-eol .MultiPages,
+body.wb-vn-eol .MediumTextLink {
+    color: var(--corebb-link);
+    font-weight: 650;
+}
+
+body.wb-vn-eol .VersionText,
+body.wb-vn-eol .SmallText,
+body.wb-vn-eol .BoardUserStats {
+    color: var(--corebb-muted-text);
+}
+
+body.wb-vn-eol .LargeText {
+    color: var(--corebb-page-text);
+    font-size: 17px;
+    font-weight: 850;
+}
+
+body.wb-vn-eol .MediumText {
+    color: var(--corebb-signature-text);
+}
+
+body.wb-vn-eol .AuthorLink:not([style]),
+body.wb-vn-eol a.AuthorLink:not([style]):link,
+body.wb-vn-eol a.AuthorLink:not([style]):visited {
+    color: var(--corebb-username-link);
+}
+
+body.wb-vn-eol input,
+body.wb-vn-eol select,
+body.wb-vn-eol textarea,
+body.wb-vn-eol .formtext,
+body.wb-vn-eol input.formtext,
+body.wb-vn-eol select.formtext,
+body.wb-vn-eol textarea.formtext {
+    border-color: #bdcde0 !important;
+    border-radius: 7px;
+    box-shadow: inset 0 1px 1px rgba(32, 50, 68, .04);
+    min-height: 28px;
+}
+
+body.wb-vn-eol input:focus,
+body.wb-vn-eol select:focus,
+body.wb-vn-eol textarea:focus {
+    border-color: #2f6fae !important;
+    box-shadow: var(--corebb-focus-ring);
+    outline: 0;
+}
+
+body.wb-vn-eol input[type="submit"],
+body.wb-vn-eol input[type="button"],
+body.wb-vn-eol button,
+body.wb-vn-eol .formsubmit,
+body.wb-vn-eol .markupButton {
+    border-radius: 7px;
+    box-shadow: 0 6px 14px rgba(33, 89, 137, .18);
+    min-height: 28px;
+    transition:
+        background-color .14s ease,
+        box-shadow .14s ease,
+        transform .14s ease;
+}
+
+body.wb-vn-eol input[type="submit"]:hover,
+body.wb-vn-eol input[type="button"]:hover,
+body.wb-vn-eol button:hover,
+body.wb-vn-eol .formsubmit:hover,
+body.wb-vn-eol .markupButton:hover {
+    box-shadow: 0 8px 18px rgba(33, 89, 137, .24);
+    transform: translateY(-1px);
+}
+
+body.wb-vn-eol input[type="submit"]:active,
+body.wb-vn-eol input[type="button"]:active,
+body.wb-vn-eol button:active,
+body.wb-vn-eol .formsubmit:active,
+body.wb-vn-eol .markupButton:active {
+    box-shadow: 0 3px 8px rgba(33, 89, 137, .18);
+    transform: translateY(0);
+}
+
+body.wb-vn-eol button.wb-link-submit {
+    box-shadow: none;
+    transform: none;
+}
+
+body.wb-vn-eol .pagination,
+body.wb-vn-eol .currentpage {
+    border-radius: 999px;
+    padding: 3px 8px;
+}
+
+body.wb-vn-eol .currentpage {
+    background: #dcecff;
+    border-color: #b9d4ef;
+    color: #214f82;
+}
+
+html.corebb-dark-mode body.wb-vn-eol .currentpage {
+    background: #24384e;
+    border-color: #3d5873;
+    color: #dcecff;
+}
+
+body.wb-vn-eol .code,
+body.wb-vn-eol .QuotedText,
+body.wb-vn-eol .bbcode-markdown-block pre {
+    border-radius: 8px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .45);
+}
+
+html.corebb-dark-mode body.wb-vn-eol .code,
+html.corebb-dark-mode body.wb-vn-eol .QuotedText,
+html.corebb-dark-mode body.wb-vn-eol .bbcode-markdown-block pre {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .05);
+}
+
+body.wb-vn-eol .wb-user-icon-frame {
+    border-radius: 9px;
+    box-shadow: 0 6px 16px rgba(30, 48, 70, .08);
+}
+
+body.wb-vn-eol .BoardPollTable {
+    border-radius: 9px;
+    box-shadow: var(--corebb-shadow-soft);
+}
+
+body.wb-vn-eol #footerWrapper {
+    margin-top: 12px;
+}
+
+body.wb-vn-eol #footerNetwork *,
+body.wb-vn-eol .footerTextCell,
+body.wb-vn-eol .VersionText {
+    color: var(--corebb-muted-text) !important;
+}
+
+body.wb-vn-eol .wb-stage-banner {
+    background: #203244;
+    color: #f7fbff;
+}
+
+@media (max-width: 760px) {
+    body.wb-vn-eol #Container {
+        width: min(calc(100% - 10px), 1240px) !important;
+    }
+
+    body.wb-vn-eol .wb-table.wb-cellspace-1 {
+        border-spacing: 0 2px;
+    }
+
+    body.wb-vn-eol .MainMenuRow,
+    body.wb-vn-eol .BoardColumn,
+    body.wb-vn-eol .BoardColumnStat,
+    body.wb-vn-eol .BoardRowA,
+    body.wb-vn-eol .BoardRowB {
+        padding: 6px;
+    }
+}

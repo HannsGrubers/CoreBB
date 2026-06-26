@@ -1,0 +1,18 @@
+{% if google.enabled|default(false) %}
+    <div class="corebb-google-signin">
+        <div id="g_id_onload"
+             data-client_id="{{ google.client_id }}"
+             data-login_uri="{{ google.login_url }}"
+             data-auto_prompt="false"
+             data-use_fedcm_for_prompt="true">
+        </div>
+        <div class="g_id_signin"
+             data-type="standard"
+             data-shape="rectangular"
+             data-theme="outline"
+             data-text="{{ text|default('signin_with') }}"
+             data-size="large"
+             data-logo_alignment="left">
+        </div>
+    </div>
+{% endif %}

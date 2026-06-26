@@ -6,7 +6,7 @@
 {% set posts = forum.post_count|default(0) %}
 {% set lastPost = forum.last_post_display|default('No Posts') %}
 {% set secureArchive = forum.secure_archive|default(false) %}
-<tr class="BoardRowB">
+<tr class="BoardRowB wb-board-index-row">
     <td style="width: 10px;"><div class="wb-text-center"><b>{{ newMark }}</b></div></td>
     <td style="height: 20px;">&nbsp;&nbsp;<a class="BoardRowBLink" href="{{ boardUrl }}">{{ name }}</a>{% if secureArchive %} <span class="SmallText">(Secure Archive)</span>{% endif %}&nbsp;- {{ description }}</td>
     <td>&nbsp;&nbsp;{{ topics }}</td>

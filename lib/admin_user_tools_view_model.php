@@ -103,6 +103,62 @@ function corebb_admin_level_options(): array
 }
 
 /**
+ * Usage: Explain what each access level means on rights-management forms.
+ * Referenced by: corebb_admin_level_details().
+ *
+ * @param int $level Access level value.
+ * @return string Human-readable access description.
+ */
+function corebb_admin_level_description(int $level): string
+{
+    switch ($level) {
+        case 5:
+            return 'Full system administration, including settings, authentication, user rights, logs, and every lower-level tool.';
+        case 4:
+            return 'Board and user management access, including profile administration, titles, and all moderation tools.';
+        case 3:
+            return 'Moderation access for bans, reports, user lookups, post requests, deleted posts, and action logs.';
+        case 2:
+            return 'Limited control-panel access for VIP self-service tools such as appearance settings.';
+        case 1:
+            return 'Standard forum account. Admin tools are unavailable unless specific extra grants are assigned.';
+        default:
+            return 'Custom access level. Review inherited and extra tool access before saving.';
+    }
+}
+
+/**
+ * Usage: Attach descriptions and inherited-tool counts to access levels.
+ * Referenced by: edit-rights and add-user style admin forms.
+ *
+ * @param array<int, string> $levels Access level labels keyed by level.
+ * @return array<int, array{value: int, label: string, description: string, inherited_tool_count: int}>
+ */
+function corebb_admin_level_details(array $levels): array
+{
+    $catalog = corebb_admin_tool_catalog();
+    $details = [];
+    foreach ($levels as $level => $label) {
+        $level = (int)$level;
+        $inheritedToolCount = 0;
+        foreach ($catalog as $items) {
+            foreach ($items as $item) {
+                if ($level >= (int)($item['min_level'] ?? 0)) {
+                    $inheritedToolCount++;
+                }
+            }
+        }
+        $details[$level] = [
+            'value' => $level,
+            'label' => (string)$label,
+            'description' => corebb_admin_level_description($level),
+            'inherited_tool_count' => $inheritedToolCount,
+        ];
+    }
+    return $details;
+}
+
+/**
  * Usage: Define every admin/sidebar tool and the minimum level that receives it.
  * Referenced by: route permission checks, sidebar rendering, and grant forms.
  *
@@ -117,9 +173,11 @@ function corebb_admin_tool_catalog(): array
         ],
         'Administrator' => [
             'edit_settings' => ['label' => 'Edit System Settings', 'min_level' => 5],
+            'auth_settings' => ['label' => 'Authentication Settings', 'min_level' => 5],
             'mail_services' => ['label' => 'Mail Services', 'min_level' => 5],
             'database_tools' => ['label' => 'Database Tools', 'min_level' => 5],
             'db_schema_deploy' => ['label' => 'DB Schema Deploy', 'min_level' => 5],
+            'updates' => ['label' => 'Updates', 'min_level' => 5],
             'api_explorer' => ['label' => 'API Explorer', 'min_level' => 5],
             'forum_sim' => ['label' => 'Forum Sim-Test', 'min_level' => 5],
             'edit_tos' => ['label' => 'Edit System TOS', 'min_level' => 5],
@@ -384,16 +442,54 @@ function corebb_admin_tool_groups_for_user(array $user, ?array $selectedKeys = n
     $groups = [];
     foreach (corebb_admin_tool_catalog() as $group => $items) {
         foreach ($items as $key => $item) {
+            $minLevel = (int)$item['min_level'];
             $groups[$group][] = [
                 'key' => $key,
                 'label' => (string)$item['label'],
-                'min_level' => (int)$item['min_level'],
+                'min_level' => $minLevel,
+                'min_level_label' => function_exists('LoadUserLevel') ? LoadUserLevel($minLevel) : (string)$minLevel,
                 'selected' => isset($explicit[$key]),
-                'inherited' => $level >= (int)$item['min_level'],
+                'inherited' => $level >= $minLevel,
             ];
         }
     }
     return $groups;
+}
+
+/**
+ * Usage: Summarize tool access groups for the edit-rights page.
+ * Referenced by: corebb_admin_edit_rights_model().
+ *
+ * @param array<string, array<int, array<string, mixed>>> $groups Tool groups from corebb_admin_tool_groups_for_user().
+ * @return array{total: int, inherited: int, explicit: int, groups: array<string, array{total: int, inherited: int, explicit: int}>}
+ */
+function corebb_admin_tool_group_summary(array $groups): array
+{
+    $summary = [
+        'total' => 0,
+        'inherited' => 0,
+        'explicit' => 0,
+        'groups' => [],
+    ];
+
+    foreach ($groups as $group => $tools) {
+        $groupSummary = ['total' => 0, 'inherited' => 0, 'explicit' => 0];
+        foreach ($tools as $tool) {
+            $groupSummary['total']++;
+            $summary['total']++;
+            if (!empty($tool['inherited'])) {
+                $groupSummary['inherited']++;
+                $summary['inherited']++;
+            }
+            if (!empty($tool['selected']) && empty($tool['inherited'])) {
+                $groupSummary['explicit']++;
+                $summary['explicit']++;
+            }
+        }
+        $summary['groups'][(string)$group] = $groupSummary;
+    }
+
+    return $summary;
 }
 
 /**
@@ -626,8 +722,13 @@ function corebb_admin_edit_rights_model(array $viewer, array $request, array $po
 {
     $model = corebb_admin_require_model_base($viewer, 'Edit User Rights', $request);
     $model['levels'] = corebb_admin_assignable_level_options($viewer);
+    $model['role_details'] = corebb_admin_level_details($model['levels']);
     $model['can_manage_tool_grants'] = corebb_admin_can_manage_tool_grants($viewer);
     $model['tool_groups'] = corebb_admin_tool_catalog();
+    $model['tool_summary'] = corebb_admin_tool_group_summary([]);
+    $model['search_value'] = trim((string)($request['user'] ?? ''));
+    $model['current_level'] = null;
+    $model['target_level'] = null;
     $model['mode'] = 'search';
 
     $method = (string)($request['method'] ?? '');
@@ -665,6 +766,17 @@ function corebb_admin_edit_rights_model(array $viewer, array $request, array $po
                         $model['errors'][] = 'Error updating admin tool access: ' . db_error();
                     }
                 }
+                $updatedTarget = corebb_admin_find_user((string)$userId);
+                if ($updatedTarget) {
+                    $model['mode'] = 'view';
+                    $model['user'] = corebb_admin_user_summary($updatedTarget);
+                    $model['tool_groups'] = corebb_admin_tool_groups_for_user($updatedTarget);
+                    $model['tool_summary'] = corebb_admin_tool_group_summary($model['tool_groups']);
+                    $model['current_level'] = [
+                        'value' => (int)($updatedTarget['accesslevel'] ?? 0),
+                        'label' => function_exists('LoadUserLevel') ? LoadUserLevel((int)($updatedTarget['accesslevel'] ?? 0)) : (string)($updatedTarget['accesslevel'] ?? 0),
+                    ];
+                }
             } else {
                 $model['errors'][] = 'Error updating user level: ' . db_error();
             }
@@ -687,13 +799,23 @@ function corebb_admin_edit_rights_model(array $viewer, array $request, array $po
             $model['user'] = corebb_admin_user_summary($target);
             $model['new_level'] = $newLevel;
             $model['new_level_name'] = $model['levels'][$newLevel];
+            $model['current_level'] = [
+                'value' => (int)($target['accesslevel'] ?? 0),
+                'label' => function_exists('LoadUserLevel') ? LoadUserLevel((int)($target['accesslevel'] ?? 0)) : (string)($target['accesslevel'] ?? 0),
+            ];
+            $model['target_level'] = [
+                'value' => $newLevel,
+                'label' => $model['levels'][$newLevel],
+            ];
             $selectedTools = $model['can_manage_tool_grants'] ? corebb_admin_normalize_tool_keys($post['admin_tools'] ?? []) : corebb_admin_user_granted_tool_keys($userId);
             $confirmTarget = $target;
             $confirmTarget['accesslevel'] = $newLevel;
             $model['tool_groups'] = corebb_admin_tool_groups_for_user($confirmTarget, $selectedTools);
+            $model['tool_summary'] = corebb_admin_tool_group_summary($model['tool_groups']);
         }
     } elseif ($isPost && $method === 'view') {
         $identifier = (string)($post['username'] ?? '');
+        $model['search_value'] = trim($identifier);
         $target = corebb_admin_find_user($identifier);
         $targetError = corebb_admin_target_rights_error($viewer, $target);
         if ($targetError !== '') {
@@ -702,9 +824,15 @@ function corebb_admin_edit_rights_model(array $viewer, array $request, array $po
             $model['mode'] = 'view';
             $model['user'] = corebb_admin_user_summary($target);
             $model['tool_groups'] = corebb_admin_tool_groups_for_user($target);
+            $model['tool_summary'] = corebb_admin_tool_group_summary($model['tool_groups']);
+            $model['current_level'] = [
+                'value' => (int)($target['accesslevel'] ?? 0),
+                'label' => function_exists('LoadUserLevel') ? LoadUserLevel((int)($target['accesslevel'] ?? 0)) : (string)($target['accesslevel'] ?? 0),
+            ];
         }
     } elseif (!$isPost && isset($request['user'])) {
         $identifier = (string)($request['user'] ?? '');
+        $model['search_value'] = trim($identifier);
         $target = corebb_admin_find_user($identifier);
         $targetError = corebb_admin_target_rights_error($viewer, $target);
         if ($targetError !== '') {
@@ -713,6 +841,11 @@ function corebb_admin_edit_rights_model(array $viewer, array $request, array $po
             $model['mode'] = 'view';
             $model['user'] = corebb_admin_user_summary($target);
             $model['tool_groups'] = corebb_admin_tool_groups_for_user($target);
+            $model['tool_summary'] = corebb_admin_tool_group_summary($model['tool_groups']);
+            $model['current_level'] = [
+                'value' => (int)($target['accesslevel'] ?? 0),
+                'label' => function_exists('LoadUserLevel') ? LoadUserLevel((int)($target['accesslevel'] ?? 0)) : (string)($target['accesslevel'] ?? 0),
+            ];
         }
     }
 

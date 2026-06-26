@@ -1,0 +1,6 @@
+Contact: mailto:security@corebb.net
+Contact: https://github.com/HannsGrubers/CoreBB-Forum/security/advisories/new
+Policy: https://corebb.net/security/
+Canonical: https://corebb.net/.well-known/security.txt
+Preferred-Languages: en
+Expires: 2027-06-25T00:00:00Z

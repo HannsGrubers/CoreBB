@@ -1,0 +1,109 @@
+{% set status = model.status|default({}) %}
+{% set releases = model.releases|default([]) %}
+
+<div class="corebb-admin-modern-page">
+    {% include 'partials/admin_messages.twig' with {messages: model.messages|default([]), errors: model.errors|default([])} only %}
+
+    <div class="corebb-admin-modern-header">
+        <div>
+            <div class="corebb-admin-modern-eyebrow">System</div>
+            <h2>CoreBB Updates</h2>
+            <div class="corebb-admin-modern-meta">
+                <span>Installed {{ status.installed_version|default('Unknown') }}</span>
+                <span>Schema {{ status.schema_version|default('Unknown') }}</span>
+                <span>Manifest {{ status.signature_status|default('unsigned') }}</span>
+            </div>
+        </div>
+        <div class="corebb-admin-modern-actions">
+            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
+        </div>
+    </div>
+
+    <div class="corebb-admin-modern-note{% if status.severity|default('') == 'danger' %} is-danger{% elseif status.severity|default('') == 'info' %} is-muted{% endif %}">
+        <span>Update Status</span>
+        <strong>{{ status.headline|default('Update status has not been checked.') }}</strong>
+        <span>{{ status.detail|default('') }}</span>
+    </div>
+
+    <div class="corebb-admin-modern-panel">
+        <div class="corebb-admin-section-title">Check for Updates</div>
+        <form class="corebb-admin-modern-form" method="post" action="/admin/?act=updates">
+            {% include 'partials/csrf_field.twig' %}
+            <input type="hidden" name="action" value="check_updates">
+            <div class="corebb-admin-modern-grid">
+                <label>Manifest</label>
+                <span>{{ model.manifest_url|default('') }}</span>
+
+                <label>Last Checked</label>
+                <span>{{ status.last_checked|default('Never') }}</span>
+
+                <label>Last Successful Check</label>
+                <span>{{ status.last_successful_check|default('Never') }}</span>
+
+                <label>Check Result</label>
+                <span>{{ status.check_status|default('never') }}</span>
+
+                {% if status.error|default('') != '' %}
+                    <label>Last Error</label>
+                    <span>{{ status.error }}</span>
+                {% endif %}
+
+                <div class="corebb-admin-modern-submit corebb-admin-modern-full">
+                    <button class="corebb-board-action-link" type="submit">Check Now</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="corebb-admin-modern-panel">
+        <div class="corebb-admin-section-title">Version Summary</div>
+        <table class="corebb-admin-modern-table wb-table">
+            <tbody>
+                <tr><th>Installed</th><td>{{ status.installed_version|default('Unknown') }}</td></tr>
+                <tr><th>Latest Stable</th><td>{{ status.latest_stable|default('Unknown') ?: 'Unknown' }}</td></tr>
+                <tr><th>Latest Security</th><td>{{ status.latest_security|default('Unknown') ?: 'Unknown' }}</td></tr>
+                <tr><th>Minimum Safe</th><td>{{ status.minimum_safe_version|default('Unknown') ?: 'Unknown' }}</td></tr>
+                {% if status.advisory|default({}).severity|default('') != '' %}
+                    <tr>
+                        <th>Advisory</th>
+                        <td>
+                            {{ status.advisory.severity }}{% if status.advisory.title|default('') != '' %}: {{ status.advisory.title }}{% endif %}
+                            {% if status.advisory.url|default('') != '' %}<a class="corebb-admin-text-link" href="{{ status.advisory.url }}">Details</a>{% endif %}
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="corebb-admin-modern-panel">
+        <div class="corebb-admin-section-title">Recent Manifest Releases</div>
+        {% if releases is empty %}
+            <span class="corebb-admin-modern-help">No release entries are cached yet.</span>
+        {% else %}
+            <table class="corebb-admin-modern-table wb-table">
+                <thead>
+                    <tr>
+                        <th>Version</th>
+                        <th>Type</th>
+                        <th>Date</th>
+                        <th>Links</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for release in releases %}
+                        <tr>
+                            <td>{{ release.version }}</td>
+                            <td>{{ release.type }}</td>
+                            <td>{{ release.date }}</td>
+                            <td>
+                                {% if release.changelog_url != '' %}<a class="corebb-admin-text-link" href="{{ release.changelog_url }}">Changelog</a>{% endif %}
+                                {% if release.download_url != '' %}<a class="corebb-admin-text-link" href="{{ release.download_url }}">Download</a>{% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </div>
+</div>

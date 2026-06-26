@@ -15,6 +15,8 @@ if (!defined('COREBB_INSTALL_HELPERS_LOADED')) {
     define('COREBB_INSTALL_HELPERS_LOADED', true);
 }
 
+require_once __DIR__ . '/../core/version.php';
+
 /**
  * Usage: Find the application root from this helper file.
  * Referenced by: installer path helpers.
@@ -504,6 +506,14 @@ function corebb_install_seed_settings(PDO $pdo): void
         [null, 'maintenancesubject', 'Boards Offline'],
         [null, 'maintenancemessage', 'The boards are temporarily unavailable.'],
         [null, 'terms_of_service', 'Be excellent to each other. Update these rules from the admin panel before launch.'],
+        [null, 'installed_version', COREBB_VERSION],
+        [null, 'schema_version', (string)COREBB_SCHEMA_VERSION],
+        [null, 'last_update_check_at', ''],
+        [null, 'last_update_check_status', 'never'],
+        [null, 'last_update_manifest', ''],
+        [null, 'last_successful_update_check_at', ''],
+        [null, 'last_update_check_error', ''],
+        [null, 'update_manifest_signature_status', 'unsigned'],
         [null, 'rate_limit_login_enabled', '1'],
         [null, 'rate_limit_login_ip_10m_max', '8'],
         [null, 'rate_limit_login_ip_10m_window', '600'],
@@ -631,7 +641,9 @@ function corebb_install_seed_database(PDO $pdo, array $form, string $adminPasswo
         $pdo->prepare('INSERT INTO systemstyles (id, name, file) VALUES (?, ?, ?)')
             ->execute([1, 'CoreBB VN EOL', 'style_vn_eol.css']);
         $pdo->prepare('INSERT INTO systemstyles (id, name, file) VALUES (?, ?, ?)')
-            ->execute([2, 'CoreBB Classic', 'style.css']);
+            ->execute([2, 'CoreBB Modern 1', 'style_modern.css']);
+        $pdo->prepare('INSERT INTO systemstyles (id, name, file) VALUES (?, ?, ?)')
+            ->execute([3, 'CoreBB Modern 2', 'style_modern_2.css']);
 
         $pdo->prepare('INSERT INTO boards (name, private, secure_archive, position, default_open) VALUES (?, 0, 0, 1, 1)')
             ->execute(['Community']);
@@ -695,6 +707,7 @@ function corebb_install_config_contents(array $form, string $dbPassword, array $
         '$SQLPrefix = ' . var_export('', true) . ';',
         '$BoardLockdown = ' . var_export('0', true) . ';',
         '$ShortPHP = ' . var_export('.php', true) . ';',
+        '$GoogleClientID = ' . var_export('', true) . ';',
         '',
     ];
     return implode("\n", $lines);

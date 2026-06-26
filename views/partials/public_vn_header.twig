@@ -1,12 +1,39 @@
 <table id="Container" class="wb-table wb-cellpad-0 wb-cellspace-0 wb-w-full">
     <tr><td style="padding:0px 10px 0px 10px;">
-        <table class="wb-table wb-cellpad-0 wb-cellspace-0 wb-w-full wb-h-114" style="background-image:url({{ layout.chrome.assets.header_bg }}); background-repeat:repeat-x; background-position:center top;"><tr>
-            <td class="wb-text-left wb-valign-top"><a href="{{ layout.chrome.site_url }}"><img class="wb-img-borderless" src="{{ layout.chrome.assets.header_left }}" width="240" height="114" alt="{{ layout.chrome.site_name }}"></a></td>
-            <td class="wb-w-half"><img src="{{ layout.chrome.assets.spacer }}" width="5" height="114" alt=""></td>
-            <td class="wb-text-center wb-valign-top"><a href="{{ layout.chrome.board_url }}"><img class="wb-img-borderless" src="{{ layout.chrome.assets.header_site }}" width="500" height="114" alt="{{ layout.chrome.board_name }}"></a></td>
-            <td class="wb-w-half"><img src="{{ layout.chrome.assets.spacer }}" width="5" height="114" alt=""></td>
-            <td class="wb-text-right wb-valign-top"><img src="{{ layout.chrome.assets.header_right }}" width="240" height="114" alt=""></td>
-        </tr></table>
+        {% if layout.chrome.assets.header_mode|default('split') == 'compact' %}
+            <table class="wb-table wb-cellpad-0 wb-cellspace-0 wb-w-full wb-modern-compact-header"><tr>
+                <td class="wb-modern-compact-header-cell">
+                    <div class="wb-modern-compact-header-inner">
+                        <div class="wb-modern-compact-brand-block">
+                            <a class="wb-modern-compact-brand" href="{{ layout.chrome.board_url }}">{{ layout.chrome.board_name }}</a>
+                            <span class="wb-modern-compact-context">By CoreBB</span>
+                        </div>
+                        <div class="wb-modern-compact-account">
+                            {% if layout.viewer.logged_in|default(false) %}
+                                <span class="wb-modern-compact-account-label">Hello</span>
+                                <a class="wb-modern-compact-user" href="{{ layout.viewer.profile_url }}">{{ layout.viewer.username }}</a>
+                            {% else %}
+                                <a class="wb-modern-compact-user" href="{{ layout.menu.login_url }}">Log in</a>
+                                <span class="wb-modern-compact-account-label">or</span>
+                                <a class="wb-modern-compact-user" href="{{ layout.menu.register_url }}">Register</a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </td>
+            </tr></table>
+        {% elseif layout.chrome.assets.header_mode|default('split') == 'single' %}
+            <table class="wb-table wb-cellpad-0 wb-cellspace-0 wb-w-full wb-h-114 wb-modern-single-banner-table"><tr>
+                <td class="wb-text-center wb-valign-top"><a href="{{ layout.chrome.board_url }}"><img class="wb-img-borderless wb-modern-single-banner" src="{{ layout.chrome.assets.header_single }}" width="1280" height="114" alt="{{ layout.chrome.board_name }}"></a></td>
+            </tr></table>
+        {% else %}
+            <table class="wb-table wb-cellpad-0 wb-cellspace-0 wb-w-full wb-h-114" style="background-image:url({{ layout.chrome.assets.header_bg }}); background-repeat:repeat-x; background-position:center top;"><tr>
+                <td class="wb-text-left wb-valign-top"><a href="{{ layout.chrome.site_url }}"><img class="wb-img-borderless" src="{{ layout.chrome.assets.header_left }}" width="240" height="114" alt="{{ layout.chrome.site_name }}"></a></td>
+                <td class="wb-w-half"><img src="{{ layout.chrome.assets.spacer }}" width="5" height="114" alt=""></td>
+                <td class="wb-text-center wb-valign-top"><a href="{{ layout.chrome.board_url }}"><img class="wb-img-borderless" src="{{ layout.chrome.assets.header_site }}" width="500" height="114" alt="{{ layout.chrome.board_name }}"></a></td>
+                <td class="wb-w-half"><img src="{{ layout.chrome.assets.spacer }}" width="5" height="114" alt=""></td>
+                <td class="wb-text-right wb-valign-top"><img src="{{ layout.chrome.assets.header_right }}" width="240" height="114" alt=""></td>
+            </tr></table>
+        {% endif %}
     </td></tr>
     <tr><td class="wb-vn-header-nav-spacer">
         <table class="wb-table wb-cellspace-0 wb-cellpad-0 wb-w-full">

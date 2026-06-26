@@ -49,7 +49,8 @@ function corebb_admin_settings_model(array $viewer, array $request, array $post)
         'messages' => $messages,
         'saved' => $saved,
         'message' => (string)($request['msg'] ?? ''),
-        'bool_settings' => array_merge(['theme_vn_eol','encaseboards','showbasicstats','allowguests','customtitles','quickreply','markupcode','maintenancemode'], corebb_admin_rate_limit_boolean_settings()),
+        'bool_settings' => array_merge(['theme_vn_eol','encaseboards','showbasicstats','allowguests','customtitles','quickreply','markupcode','maintenancemode','auth_google_enabled','auth_google_allow_auto_create'], corebb_admin_rate_limit_boolean_settings()),
         'number_settings' => corebb_admin_rate_limit_numeric_settings(),
+        'style_options' => corebb_admin_public_style_options(),
     ];
 }

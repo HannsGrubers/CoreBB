@@ -48,6 +48,12 @@
                         <td>&nbsp;</td>
                         <td><input class="formsubmit" type="submit" value=" Login " name="cmdSubmit" id="cmdSubmit"></td>
                     </tr>
+                    {% if model.google.enabled|default(false) %}
+                    <tr class="BoardRowA">
+                        <td class="InputSection">Google:</td>
+                        <td>{% include 'partials/google_signin_button.twig' with {google: model.google, text: 'signin_with'} only %}</td>
+                    </tr>
+                    {% endif %}
                 </table>
             </form>
         </td>

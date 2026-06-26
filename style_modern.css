@@ -1,0 +1,496 @@
+/* CoreBB Modern public theme.
+   Loaded after the VN EOL base and shared CoreBB theme layer. */
+
+body.wb-vn-eol {
+    --corebb-page-bg: #f4f6f9;
+    --corebb-page-text: #172334;
+    --corebb-menu-bg: #ffffff;
+    --corebb-menu-text: #26364a;
+    --corebb-menu-link: #172334;
+    --corebb-menu-alt: #214f82;
+    --corebb-column-bg: #1f2e3d;
+    --corebb-column-text: #ffffff;
+    --corebb-column-link: #dcecff;
+    --corebb-category-link: #f2c65c;
+    --corebb-category-toggle: #f2c65c;
+    --corebb-row-a-bg: #ffffff;
+    --corebb-row-b-bg: #f8fafc;
+    --corebb-row-text: #172334;
+    --corebb-link: #2f6fae;
+    --corebb-link-visited: #214f82;
+    --corebb-username-link: #2f6fae;
+    --corebb-muted-text: #53677f;
+    --corebb-note-text: #a66b00;
+    --corebb-signature-text: #53677f;
+    --corebb-input-bg: #ffffff;
+    --corebb-input-text: #172334;
+    --corebb-button-bg: #2f6fae;
+    --corebb-button-hover-bg: #214f82;
+    --corebb-button-border-light: #4f8cca;
+    --corebb-button-border-dark: #214f82;
+    --corebb-debug-label-bg: #fff4d6;
+    --corebb-debug-value-bg: #e7f0fa;
+    --corebb-divider: #d7e0ea;
+    --corebb-code-bg: #ffffff;
+    --corebb-code-text: #172334;
+    --corebb-radius-subtle: 6px;
+    background:
+        linear-gradient(180deg, #eef3f8 0, #f4f6f9 320px),
+        #f4f6f9;
+    color: var(--corebb-page-text);
+    font-family: Inter, "Segoe UI", Arial, Helvetica, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+body.wb-vn-eol::before {
+    background-image:
+        linear-gradient(#dce5ee 1px, transparent 1px),
+        linear-gradient(90deg, #dce5ee 1px, transparent 1px);
+    background-size: 28px 28px;
+    content: "";
+    inset: 0;
+    opacity: .28;
+    pointer-events: none;
+    position: fixed;
+    z-index: -1;
+}
+
+html.corebb-dark-mode body.wb-vn-eol {
+    --corebb-page-bg: #171d23;
+    --corebb-page-text: #d5dee8;
+    --corebb-menu-bg: #20272e;
+    --corebb-menu-text: #d5dee8;
+    --corebb-menu-link: #dcecff;
+    --corebb-menu-alt: #8fb8e5;
+    --corebb-column-bg: #1f2e3d;
+    --corebb-column-text: #f3f7fb;
+    --corebb-column-link: #dcecff;
+    --corebb-category-link: #f2c65c;
+    --corebb-category-toggle: #f2c65c;
+    --corebb-row-a-bg: #20272e;
+    --corebb-row-b-bg: #242c34;
+    --corebb-row-text: #d5dee8;
+    --corebb-link: #8fb8e5;
+    --corebb-link-visited: #b9a2d4;
+    --corebb-username-link: #9fc8ee;
+    --corebb-muted-text: #9aa8b7;
+    --corebb-note-text: #f2c65c;
+    --corebb-signature-text: #aeb9c5;
+    --corebb-input-bg: #171d23;
+    --corebb-input-text: #e7edf4;
+    --corebb-button-bg: #2f6fae;
+    --corebb-button-hover-bg: #3f86cb;
+    --corebb-button-border-light: #5a96d1;
+    --corebb-button-border-dark: #17456f;
+    --corebb-debug-label-bg: #3a3321;
+    --corebb-debug-value-bg: #203246;
+    --corebb-divider: #344252;
+    --corebb-code-bg: #171d23;
+    --corebb-code-text: #e7edf4;
+    background: #171d23 !important;
+    background-image: none !important;
+    color-scheme: dark;
+}
+
+html.corebb-dark-mode body.wb-vn-eol::before {
+    opacity: .08;
+}
+
+body.wb-vn-eol a {
+    color: var(--corebb-link);
+}
+
+body.wb-vn-eol a:hover,
+body.wb-vn-eol a:focus-visible {
+    color: var(--corebb-link-visited);
+}
+
+body.wb-vn-eol #Container {
+    margin: 0 auto 24px auto;
+    max-width: 1160px;
+    width: min(calc(100% - 32px), 1160px) !important;
+}
+
+body.wb-vn-eol #Container > tbody > tr > td,
+body.wb-vn-eol #Container > tr > td {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+
+body.wb-vn-eol #Container .wb-h-114 {
+    background-color: #1f2e3d;
+    border: 1px solid #162333;
+    border-bottom: 0;
+    border-radius: 8px 8px 0 0;
+    overflow: hidden;
+}
+
+body.wb-vn-eol .wb-vn-header-nav-spacer {
+    padding-top: 0;
+}
+
+body.wb-vn-eol .wb-vn-header-content-spacer {
+    height: 12px;
+}
+
+body.wb-vn-eol .wb-vn-chrome-bg,
+body.wb-vn-eol .wb-bg-vn-chrome {
+    background: transparent !important;
+}
+
+body.wb-vn-eol .wb-vn-header-nav {
+    border-radius: 0 0 8px 8px;
+    min-height: 28px;
+    padding: 6px 10px;
+}
+
+body.wb-vn-eol .MainTable,
+body.wb-vn-eol .MainMenuRow,
+body.wb-vn-eol .BoardRowA,
+body.wb-vn-eol .BoardRowB {
+    color: var(--corebb-row-text);
+}
+
+body.wb-vn-eol .MainMenuRow {
+    background-color: var(--corebb-menu-bg);
+    border: 1px solid var(--corebb-divider);
+    box-shadow: 0 8px 22px rgba(43, 58, 76, .06);
+}
+
+body.wb-vn-eol .MainMenuRow + .MainMenuRow {
+    border-top: 0;
+}
+
+body.wb-vn-eol .MainMenuLink,
+body.wb-vn-eol .MainMenuLink:link,
+body.wb-vn-eol .MainMenuLink:visited,
+body.wb-vn-eol .MainMenuFont {
+    color: var(--corebb-menu-link);
+}
+
+body.wb-vn-eol .MainMenuLink {
+    font-weight: 700;
+    text-decoration: none;
+}
+
+body.wb-vn-eol .MainMenuLink:hover,
+body.wb-vn-eol .MainMenuLink:focus-visible {
+    color: var(--corebb-link);
+    text-decoration: underline;
+}
+
+body.wb-vn-eol .MainMenuRowAlt {
+    color: var(--corebb-note-text);
+}
+
+body.wb-vn-eol .BoardColumn,
+body.wb-vn-eol .BoardColumnStat {
+    background-color: var(--corebb-column-bg);
+    border: 1px solid #162333;
+    color: var(--corebb-column-text);
+    font-weight: 800;
+    padding: 5px 8px;
+}
+
+body.wb-vn-eol .BoardColumnLink,
+body.wb-vn-eol .BoardColumnLink:link,
+body.wb-vn-eol .BoardColumnLink:visited {
+    color: var(--corebb-column-link);
+}
+
+body.wb-vn-eol .BoardCategoryLink,
+body.wb-vn-eol .BoardCategoryLink:link,
+body.wb-vn-eol .BoardCategoryLink:visited,
+body.wb-vn-eol .BoardCategoryToggle {
+    color: var(--corebb-category-link);
+}
+
+body.wb-vn-eol .BoardRowA,
+body.wb-vn-eol .BoardRowB,
+body.wb-vn-eol .PrivMsgListRowA {
+    border: 1px solid var(--corebb-divider);
+    padding: 6px 8px;
+}
+
+body.wb-vn-eol .BoardRowA {
+    background-color: var(--corebb-row-a-bg);
+}
+
+body.wb-vn-eol .BoardRowB,
+body.wb-vn-eol .PrivMsgListRowA {
+    background-color: var(--corebb-row-b-bg);
+}
+
+body.wb-vn-eol .BoardRowALink,
+body.wb-vn-eol .BoardRowBLink,
+body.wb-vn-eol .BoardRowBLinkB,
+body.wb-vn-eol .ModLinks,
+body.wb-vn-eol .SubjectLink,
+body.wb-vn-eol a.SubjectLink,
+body.wb-vn-eol .MultiPages,
+body.wb-vn-eol .MediumTextLink {
+    color: var(--corebb-link);
+    text-decoration: none;
+}
+
+body.wb-vn-eol .BoardRowALink:hover,
+body.wb-vn-eol .BoardRowBLink:hover,
+body.wb-vn-eol .BoardRowBLinkB:hover,
+body.wb-vn-eol .SubjectLink:hover,
+body.wb-vn-eol .MultiPages:hover {
+    color: var(--corebb-link-visited);
+    text-decoration: underline;
+}
+
+body.wb-vn-eol .AuthorLink:not([style]),
+body.wb-vn-eol a.AuthorLink:not([style]):link,
+body.wb-vn-eol a.AuthorLink:not([style]):visited {
+    color: var(--corebb-username-link);
+    font-weight: 800;
+}
+
+body.wb-vn-eol .VersionText,
+body.wb-vn-eol .SmallText,
+body.wb-vn-eol .BoardUserStats {
+    color: var(--corebb-muted-text);
+}
+
+body.wb-vn-eol .InputSection,
+body.wb-vn-eol .RegisterMain,
+body.wb-vn-eol .BoldText,
+body.wb-vn-eol .LargeText {
+    color: var(--corebb-page-text);
+}
+
+body.wb-vn-eol .InputNotes,
+body.wb-vn-eol .SignatureTitle {
+    color: var(--corebb-note-text);
+}
+
+body.wb-vn-eol .SignatureText,
+body.wb-vn-eol .MediumText {
+    color: var(--corebb-signature-text);
+}
+
+body.wb-vn-eol input,
+body.wb-vn-eol select,
+body.wb-vn-eol textarea,
+body.wb-vn-eol .formtext,
+body.wb-vn-eol input.formtext,
+body.wb-vn-eol select.formtext,
+body.wb-vn-eol textarea.formtext,
+body.wb-vn-eol input[type="text"],
+body.wb-vn-eol input[type="password"],
+body.wb-vn-eol input[type="email"],
+body.wb-vn-eol input[type="search"],
+body.wb-vn-eol input[type="url"],
+body.wb-vn-eol input[type="number"] {
+    background-color: var(--corebb-input-bg) !important;
+    background-image: none !important;
+    border: 1px solid #b8c8d9 !important;
+    border-radius: 5px;
+    box-sizing: border-box;
+    color: var(--corebb-input-text) !important;
+    font-family: Inter, "Segoe UI", Arial, Helvetica, sans-serif;
+    font-size: 13px;
+    line-height: 1.35;
+    padding: 4px 6px;
+}
+
+html.corebb-dark-mode body.wb-vn-eol input,
+html.corebb-dark-mode body.wb-vn-eol select,
+html.corebb-dark-mode body.wb-vn-eol textarea,
+html.corebb-dark-mode body.wb-vn-eol .formtext {
+    border-color: #46576a !important;
+}
+
+body.wb-vn-eol textarea {
+    min-height: 120px;
+}
+
+body.wb-vn-eol input[type="submit"],
+body.wb-vn-eol input[type="button"],
+body.wb-vn-eol button,
+body.wb-vn-eol .formsubmit,
+body.wb-vn-eol .markupButton {
+    background-color: var(--corebb-button-bg) !important;
+    border: 1px solid var(--corebb-button-border-dark) !important;
+    border-radius: 5px;
+    box-shadow: none;
+    color: #ffffff !important;
+    cursor: pointer !important;
+    font-family: Inter, "Segoe UI", Arial, Helvetica, sans-serif !important;
+    font-size: 12px !important;
+    font-weight: 800 !important;
+    line-height: 1.25;
+    min-height: 24px;
+    padding: 4px 9px !important;
+    text-decoration: none;
+}
+
+body.wb-vn-eol input[type="submit"]:hover,
+body.wb-vn-eol input[type="button"]:hover,
+body.wb-vn-eol button:hover,
+body.wb-vn-eol .formsubmit:hover,
+body.wb-vn-eol .markupButton:hover {
+    background-color: var(--corebb-button-hover-bg) !important;
+}
+
+body.wb-vn-eol button.wb-link-submit {
+    background: transparent !important;
+    border: 0 !important;
+    color: inherit !important;
+    min-height: 0;
+    padding: 0 !important;
+}
+
+body.wb-vn-eol .pagination,
+body.wb-vn-eol .currentpage {
+    background: var(--corebb-row-b-bg);
+    border: 1px solid var(--corebb-divider);
+    border-radius: 5px;
+    color: var(--corebb-row-text);
+    padding: 3px 6px;
+}
+
+body.wb-vn-eol .currentpage {
+    background: #e7f0fa;
+    color: #214f82;
+    font-weight: 800;
+}
+
+html.corebb-dark-mode body.wb-vn-eol .currentpage {
+    background: #203246;
+    color: #dcecff;
+}
+
+body.wb-vn-eol .code,
+body.wb-vn-eol .QuotedText,
+body.wb-vn-eol .bbcode-markdown-block pre {
+    background-color: var(--corebb-code-bg);
+    border: 1px solid var(--corebb-divider);
+    border-radius: 6px;
+    color: var(--corebb-code-text);
+    padding: 8px 10px;
+}
+
+body.wb-vn-eol .quoteheader,
+body.wb-vn-eol .codeheader {
+    color: var(--corebb-page-text);
+    font-size: 12px;
+}
+
+body.wb-vn-eol .bbcode-rule,
+body.wb-vn-eol .QuotedText hr {
+    border-top-color: var(--corebb-divider);
+}
+
+body.wb-vn-eol .bbcode-code-content .token.comment,
+body.wb-vn-eol .bbcode-code-content .token.prolog,
+body.wb-vn-eol .bbcode-code-content .token.doctype,
+body.wb-vn-eol .bbcode-code-content .token.cdata {
+    color: #718196;
+}
+
+body.wb-vn-eol .bbcode-code-content .token.property,
+body.wb-vn-eol .bbcode-code-content .token.tag,
+body.wb-vn-eol .bbcode-code-content .token.boolean,
+body.wb-vn-eol .bbcode-code-content .token.number,
+body.wb-vn-eol .bbcode-code-content .token.constant,
+body.wb-vn-eol .bbcode-code-content .token.symbol {
+    color: #a66b00;
+}
+
+body.wb-vn-eol .bbcode-code-content .token.selector,
+body.wb-vn-eol .bbcode-code-content .token.attr-name,
+body.wb-vn-eol .bbcode-code-content .token.string,
+body.wb-vn-eol .bbcode-code-content .token.char,
+body.wb-vn-eol .bbcode-code-content .token.builtin {
+    color: #24724f;
+}
+
+body.wb-vn-eol .bbcode-code-content .token.atrule,
+body.wb-vn-eol .bbcode-code-content .token.attr-value,
+body.wb-vn-eol .bbcode-code-content .token.function,
+body.wb-vn-eol .bbcode-code-content .token.class-name {
+    color: #2f6fae;
+}
+
+body.wb-vn-eol .bbcode-code-content .token.keyword,
+body.wb-vn-eol .bbcode-code-content .token.regex,
+body.wb-vn-eol .bbcode-code-content .token.important {
+    color: #8a4f9f;
+}
+
+body.wb-vn-eol .wb-post-avatar-slot {
+    margin: 6px auto;
+}
+
+body.wb-vn-eol .wb-user-icon-frame {
+    background: #ffffff;
+    border: 1px solid var(--corebb-divider);
+    border-radius: 6px;
+}
+
+html.corebb-dark-mode body.wb-vn-eol .wb-user-icon-frame {
+    background: #20272e;
+}
+
+body.wb-vn-eol .wb-control-box,
+body.wb-vn-eol .wb-public-form-workspace,
+body.wb-vn-eol .wb-usercp-workspace,
+body.wb-vn-eol .wb-profile-content-workspace,
+body.wb-vn-eol .wb-pm-page table {
+    border-radius: 8px;
+}
+
+body.wb-vn-eol .BoardPollTable {
+    background: var(--corebb-row-b-bg);
+    border: 1px solid var(--corebb-divider);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+body.wb-vn-eol #footerWrapper,
+body.wb-vn-eol #footerNetwork,
+body.wb-vn-eol .footerLogo {
+    background-color: transparent !important;
+}
+
+body.wb-vn-eol #footerWrapper {
+    border: 0;
+    margin-bottom: 0;
+}
+
+body.wb-vn-eol #footerNetwork *,
+body.wb-vn-eol .footerTextCell {
+    color: var(--corebb-muted-text) !important;
+}
+
+body.wb-vn-eol #footerNetwork a {
+    color: var(--corebb-link) !important;
+}
+
+body.wb-vn-eol .wb-stage-banner {
+    background: #1f2e3d;
+    border-bottom: 1px solid #31455b;
+    color: #dcecff;
+}
+
+@media (max-width: 760px) {
+    body.wb-vn-eol #Container {
+        width: min(calc(100% - 12px), 1160px) !important;
+    }
+
+    body.wb-vn-eol .wb-vn-header-content-spacer {
+        height: 8px;
+    }
+
+    body.wb-vn-eol .MainMenuRow,
+    body.wb-vn-eol .BoardColumn,
+    body.wb-vn-eol .BoardRowA,
+    body.wb-vn-eol .BoardRowB {
+        padding: 5px;
+    }
+}

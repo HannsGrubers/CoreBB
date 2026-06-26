@@ -3,13 +3,13 @@
  | support.php - Public support and system pages.
  |
  | Keeps small public support routes out of the web root:
- | banned, denied, FAQ/rules, contact moderators, report
- | message, and the standalone legacy error helper.
+ | banned, denied, FAQ/rules, security, contact moderators,
+ | report message, and the standalone legacy error helper.
  +-------------------------------------------------------*/
 
 $root = dirname(__DIR__);
 $action = strtolower(trim((string)($_GET['action'] ?? 'denied')));
-$allowedActions = ['banned', 'denied', 'faq', 'contact', 'report', 'error'];
+$allowedActions = ['banned', 'denied', 'faq', 'security', 'contact', 'report', 'error'];
 if (!in_array($action, $allowedActions, true)) {
     $action = 'denied';
 }
@@ -38,6 +38,12 @@ switch ($action) {
         require_once $root . '/lib/board_rules_faq_view_model.php';
         $GLOBALS['corebb_layout_script'] = 'support:faq';
         corebb_render_public('pages/board_rules_faq.twig', ['model' => corebb_board_rules_faq_model()]);
+        break;
+
+    case 'security':
+        require_once $root . '/lib/security_page_view_model.php';
+        $GLOBALS['corebb_layout_script'] = 'support:security';
+        corebb_render_public('pages/security_overview.twig', ['model' => corebb_security_page_model()]);
         break;
 
     case 'contact':

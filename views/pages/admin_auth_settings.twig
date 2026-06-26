@@ -1,0 +1,60 @@
+{% set values = model.values|default({}) %}
+{% set effective = model.effective|default({}) %}
+
+<div class="corebb-admin-modern-page">
+    {% include 'partials/admin_messages.twig' with {messages: model.messages|default([]), errors: model.errors|default([])} only %}
+
+    <div class="corebb-admin-modern-header">
+        <div>
+            <div class="corebb-admin-modern-eyebrow">System</div>
+            <h2>Authentication Settings</h2>
+            <div class="corebb-admin-modern-meta">
+                <span>Google: {{ effective.google_enabled|default(false) ? 'enabled' : 'disabled' }}</span>
+                <span>Client ID: {{ effective.google_configured|default(false) ? effective.client_id_source|default('configured') : 'missing' }}</span>
+            </div>
+        </div>
+        <div class="corebb-admin-modern-actions">
+            <a class="corebb-board-action-link" href="{{ url('admin.php') }}">Admin Home</a>
+        </div>
+    </div>
+
+    <div class="corebb-admin-modern-note">
+        Authentication settings are stored in <strong>systemsettings</strong>. Existing Google client IDs from private config or environment variables still work as a fallback when this page's client ID field is blank.
+    </div>
+
+    <form class="corebb-admin-modern-form" method="post" action="{{ url('admin.php?act=auth_settings') }}">
+        {% include 'partials/csrf_field.twig' %}
+        <input type="hidden" name="action" value="save_auth">
+
+        <div class="corebb-admin-modern-panel">
+            <div class="corebb-admin-section-title">Google Sign-In</div>
+            <div class="corebb-admin-modern-grid">
+                <label for="googleEnabled">Enabled</label>
+                <label><input id="googleEnabled" type="checkbox" name="google_enabled" value="1"{% if values.google_enabled|default(false) %} checked{% endif %}> Show and accept Google sign-in</label>
+
+                <label for="googleClientId">Client ID</label>
+                <span>
+                    <input id="googleClientId" type="text" name="google_client_id" value="{{ values.google_client_id|default('') }}" size="80" autocomplete="off">
+                    <span class="corebb-admin-modern-help">Use the Web client ID from Google Cloud. Leave blank to use the existing private config or environment value.</span>
+                </span>
+
+                <label for="googleHostedDomain">Hosted Domain</label>
+                <span>
+                    <input id="googleHostedDomain" type="text" name="google_hosted_domain" value="{{ values.google_hosted_domain|default('') }}" size="45" placeholder="example.com">
+                    <span class="corebb-admin-modern-help">Optional. Only users from this Google Workspace domain will be accepted.</span>
+                </span>
+
+                <label for="googleAutoCreate">Account Creation</label>
+                <label><input id="googleAutoCreate" type="checkbox" name="google_allow_auto_create" value="1"{% if values.google_allow_auto_create|default(true) %} checked{% endif %}> Allow verified Google users to complete a new CoreBB account</label>
+
+                <label>Callback URL</label>
+                <span class="corebb-admin-modern-help">{{ effective.login_url|default('/login/google/') }}</span>
+
+                <div class="corebb-admin-modern-submit corebb-admin-modern-full">
+                    <button class="corebb-board-action-link" type="submit">Save Authentication Settings</button>
+                    <a class="corebb-board-action-link" href="{{ url('admin.php') }}">Admin Home</a>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>

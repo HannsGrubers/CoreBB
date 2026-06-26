@@ -26,7 +26,9 @@ require_once __DIR__ . '/admin_version_history_view_model.php';
 require_once __DIR__ . '/admin_api_explorer_view_model.php';
 require_once __DIR__ . '/admin_settings_view_model.php';
 require_once __DIR__ . '/admin_mail_view_model.php';
+require_once __DIR__ . '/admin_auth_settings_view_model.php';
 require_once __DIR__ . '/admin_db_schema_deploy_view_model.php';
+require_once __DIR__ . '/admin_updates_view_model.php';
 require_once __DIR__ . '/admin_user_tools_view_model.php';
 require_once __DIR__ . '/admin_global_messages_view_model.php';
 require_once __DIR__ . '/admin_boards_view_model.php';
@@ -76,6 +78,11 @@ function corebb_admin_route_definitions(): array
             'view' => 'pages/admin_mail_services.twig',
             'handler' => static fn(array $viewer): array => corebb_admin_mail_model($viewer, $_GET, $_POST),
         ],
+        'auth_settings' => [
+            'label' => 'Authentication Settings',
+            'view' => 'pages/admin_auth_settings.twig',
+            'handler' => static fn(array $viewer): array => corebb_admin_auth_settings_model($viewer, $_GET, $_POST),
+        ],
         'administrator_tools' => [
             'label' => 'Database Tools',
             'view' => 'pages/admin_maintenance.twig',
@@ -90,6 +97,11 @@ function corebb_admin_route_definitions(): array
             'label' => 'DB Schema Deploy',
             'view' => 'pages/admin_db_schema_deploy.twig',
             'handler' => static fn(array $viewer): array => corebb_admin_db_schema_deploy_model($viewer, $_GET, $_POST, $_FILES),
+        ],
+        'updates' => [
+            'label' => 'Updates',
+            'view' => 'pages/admin_updates.twig',
+            'handler' => static fn(array $viewer): array => corebb_admin_updates_model($viewer, $_GET, $_POST),
         ],
         'api_explorer' => [
             'label' => 'API Explorer',

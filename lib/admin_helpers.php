@@ -23,6 +23,7 @@ if (!defined('COREBB_ADMIN_HELPERS_LOADED')) {
 
 include_once __DIR__ . '/rate_limit_helpers.php';
 require_once __DIR__ . '/private_board_helpers.php';
+require_once __DIR__ . '/public_style_helpers.php';
 
 /**
  * Usage: Escape a value for legacy admin HTML fallbacks.
@@ -146,6 +147,14 @@ function corebb_admin_rate_limit_numeric_settings(): array
  */
 function corebb_admin_normalize_system_setting(string $name, string $value): string
 {
+    if ($name === 'defaultstyle') {
+        $value = corebb_public_style_normalize_file(trim(str_replace('\\', '/', $value)));
+        if (isset(corebb_admin_public_style_options()[$value])) {
+            return $value;
+        }
+        return 'style_vn_eol.css';
+    }
+
     if (in_array($name, corebb_admin_rate_limit_boolean_settings(), true)) {
         return $value === '1' ? '1' : '0';
     }
@@ -175,7 +184,7 @@ function corebb_admin_normalize_system_setting(string $name, string $value): str
 function corebb_admin_system_settings(): array
 {
     $known = [
-        'defaultstyle' => ['Default stylesheet', 'style.css'],
+        'defaultstyle' => ['Default stylesheet', 'style_vn_eol.css'],
         'theme_vn_eol' => ['Use VNBoards end-of-life public theme', '1'],
         'encaseboards' => ['Use wrapped board chrome', '1'],
         'showbasicstats' => ['Show basic board/message stats', '1'],
@@ -187,6 +196,14 @@ function corebb_admin_system_settings(): array
         'maintenancesubject' => ['Maintenance message subject', 'Boards Offline'],
         'maintenancemessage' => ['Maintenance message body', 'The boards are temporarily unavailable.'],
         'terms_of_service' => ['Terms of Service body', ''],
+        'installed_version' => ['Installed CoreBB version', defined('COREBB_VERSION') ? COREBB_VERSION : '1.0.0'],
+        'schema_version' => ['Installed CoreBB schema version', defined('COREBB_SCHEMA_VERSION') ? (string)COREBB_SCHEMA_VERSION : '1'],
+        'last_update_check_at' => ['Last update check time', ''],
+        'last_update_check_status' => ['Last update check status', 'never'],
+        'last_update_manifest' => ['Cached update manifest', ''],
+        'last_successful_update_check_at' => ['Last successful update check time', ''],
+        'last_update_check_error' => ['Last update check error', ''],
+        'update_manifest_signature_status' => ['Update manifest signature status', 'unsigned'],
     ];
     $known += corebb_admin_rate_limit_setting_labels();
 
@@ -213,6 +230,19 @@ function corebb_admin_system_settings(): array
     }
 
     return $settings;
+}
+
+/**
+ * Build the known public stylesheet options for settings forms.
+ *
+ * Usage: give admins the curated safe dropdown for the defaultstyle setting.
+ * Referenced by: corebb_admin_settings_model().
+ *
+ * @return array<string, string> Style filename to display label.
+ */
+function corebb_admin_public_style_options(): array
+{
+    return corebb_public_style_options();
 }
 
 /**

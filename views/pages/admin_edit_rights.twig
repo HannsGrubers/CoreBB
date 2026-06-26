@@ -1,23 +1,62 @@
-{% macro tool_groups(toolGroups, interactive) %}
-    <div class="corebb-admin-action-stack">
+{% macro tool_groups(toolGroups, summaryGroups, interactive) %}
+    <div class="corebb-admin-rights-tool-groups">
         {% for group, tools in toolGroups %}
-            <div>
-                <div class="corebb-admin-modern-label">{{ group }} Tools</div>
-                <div class="corebb-admin-tool-options">
-                    {% for tool in tools %}
-                        {% set key = tool.key|default('') %}
-                        {% set selected = tool.selected|default(false) %}
-                        {% set inherited = tool.inherited|default(false) %}
-                        <label class="corebb-admin-tool-option">
-                            <input type="checkbox" name="admin_tools[]" value="{{ key }}"{% if selected or inherited %} checked{% endif %}{% if not interactive or inherited %} disabled{% endif %}>
-                            <span>{{ tool.label|default(key) }}{% if inherited %} <span class="corebb-admin-modern-help">(rank)</span>{% endif %}</span>
-                        </label>
-                        {% if not interactive and selected and not inherited %}
-                            <input type="hidden" name="admin_tools[]" value="{{ key }}">
-                        {% endif %}
-                    {% endfor %}
+            {% set groupSummary = summaryGroups[group]|default({total: tools|length, inherited: 0, explicit: 0}) %}
+            {% set groupId = 'corebbRightsGroup' ~ loop.index %}
+            <details class="corebb-admin-rights-tool-group">
+                <summary class="corebb-admin-rights-tool-group-header">
+                    <span class="corebb-admin-rights-tool-group-title" id="{{ groupId }}Title">{{ group }} Tools</span>
+                    <span class="corebb-admin-rights-tool-group-meta">
+                        {{ groupSummary.inherited|default(0) }} inherited from role,
+                        {{ groupSummary.explicit|default(0) }} extra grant{{ groupSummary.explicit|default(0) == 1 ? '' : 's' }}.
+                    </span>
+                </summary>
+                <div class="corebb-admin-rights-table-wrap">
+                    <table class="corebb-admin-modern-table corebb-admin-rights-permission-table">
+                        <caption class="corebb-sr-only">{{ group }} admin tool permissions</caption>
+                        <thead>
+                            <tr>
+                                <th scope="col">{{ interactive ? 'Grant' : 'Status' }}</th>
+                                <th scope="col">Tool</th>
+                                <th scope="col">Access Source</th>
+                                <th scope="col">Included Role</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for tool in tools %}
+                                {% set key = tool.key|default('') %}
+                                {% set selected = tool.selected|default(false) %}
+                                {% set inherited = tool.inherited|default(false) %}
+                                {% set toolId = groupId ~ 'Tool' ~ loop.index %}
+                                <tr class="{% if inherited %}is-inherited{% elseif selected %}is-explicit{% endif %}" data-rights-tool-row data-min-level="{{ tool.min_level|default(0) }}">
+                                    <td>
+                                        {% if interactive %}
+                                            <label class="corebb-sr-only" for="{{ toolId }}">Grant {{ tool.label|default(key) }} to this user</label>
+                                            <input id="{{ toolId }}" type="checkbox" name="admin_tools[]" value="{{ key }}" data-explicit="{{ selected ? '1' : '0' }}"{% if selected or inherited %} checked{% endif %}{% if inherited %} disabled{% endif %} aria-describedby="{{ toolId }}Source">
+                                        {% else %}
+                                            <span class="corebb-admin-rights-status">{{ inherited or selected ? 'Granted' : 'Not granted' }}</span>
+                                            {% if selected and not inherited %}
+                                                <input type="hidden" name="admin_tools[]" value="{{ key }}">
+                                            {% endif %}
+                                        {% endif %}
+                                    </td>
+                                    <th scope="row">{{ tool.label|default(key) }}</th>
+                                    <td id="{{ toolId }}Source">
+                                        {% if inherited %}
+                                            <span class="corebb-admin-rights-source" data-rights-source>Included by role</span>
+                                        {% elseif selected %}
+                                            <span class="corebb-admin-rights-source" data-rights-source>Extra grant to this user</span>
+                                        {% else %}
+                                            <span class="corebb-admin-rights-source is-muted" data-rights-source>No direct grant</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>Level {{ tool.min_level|default(0) }} - {{ tool.min_level_label|default('') }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
-            </div>
+            </details>
         {% endfor %}
     </div>
 {% endmacro %}
@@ -26,15 +65,19 @@
 {% include 'partials/admin_messages.twig' with {messages: model.messages|default([]), errors: model.errors|default([])} only %}
 {% set mode = model.mode|default('search') %}
 {% set levels = model.levels|default({}) %}
+{% set roleDetails = model.role_details|default({}) %}
 {% set toolGroups = model.tool_groups|default({}) %}
+{% set toolSummary = model.tool_summary|default({total: 0, inherited: 0, explicit: 0, groups: {}}) %}
 {% set canManageToolGrants = model.can_manage_tool_grants|default(false) %}
+{% set user = model.user|default(null) %}
+{% set currentLevel = model.current_level|default(null) %}
+{% set targetLevel = model.target_level|default(null) %}
 
-<div class="corebb-admin-modern-page">
+<div class="corebb-admin-modern-page corebb-admin-rights-page">
     {% if model.message|default('') != '' %}
         <div class="corebb-admin-modern-note">{{ model.message|replace({'+': ' '}) }}</div>
     {% endif %}
 
-    {% set user = model.user|default(null) %}
     <div class="corebb-admin-modern-header">
         <div>
             <div class="corebb-admin-modern-eyebrow">People</div>
@@ -43,7 +86,7 @@
                 {% if user %}
                     <span>{{ user.username|default('') }}</span>
                     <span>#{{ user.id|default(0) }}</span>
-                    <span>{{ user.accesslevel|default(0) }} - {{ user.level_name|default('') }}</span>
+                    <span>Level {{ user.accesslevel|default(0) }} - {{ user.level_name|default('') }}</span>
                 {% else %}
                     <span>Search by username or user ID.</span>
                 {% endif %}
@@ -52,74 +95,132 @@
         <div class="corebb-admin-modern-actions">
             {% if user %}
                 <a class="corebb-board-action-link" href="{{ user.profile_url|default('#') }}">Public Profile</a>
+                <a class="corebb-board-action-link" href="/admin/?act=user_pages&amp;userid={{ user.id|default(0) }}">User Portal</a>
+                <a class="corebb-board-action-link" href="/admin/?act=edit_rights">Find Another User</a>
             {% endif %}
             <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
         </div>
     </div>
 
+    {% if user %}
+        <div class="corebb-admin-modern-panel">
+            <div class="corebb-admin-section-title">Selected User</div>
+            <table class="corebb-admin-modern-table corebb-admin-rights-summary-table">
+                <caption class="corebb-sr-only">Selected user rights summary</caption>
+                <tbody>
+                    <tr>
+                        <th scope="row">User</th>
+                        <td><strong>{{ user.username|default('Unknown User') }}</strong> <span class="corebb-admin-modern-help">UID #{{ user.id|default(0) }}</span></td>
+                        <th scope="row">Current Role</th>
+                        <td>Level {{ currentLevel.value|default(user.accesslevel|default(0)) }} - {{ currentLevel.label|default(user.level_name|default('Current Role')) }}</td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Registered</th>
+                        <td>{{ user.registered|default('Unknown') }}</td>
+                        <th scope="row">Admin Tools</th>
+                        <td>{{ toolSummary.inherited|default(0) }} role, {{ toolSummary.explicit|default(0) }} extra</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+
     {% if mode == 'confirm' %}
         {% set user = model.user|default({}) %}
-        <table class="corebb-admin-modern-table corebb-admin-profile-summary-table wb-table">
-            <tbody>
-                <tr><th>User Name</th><td>{{ user.username|default('') }}</td></tr>
-                <tr><th>Public Profile</th><td><a class="corebb-board-action-link" href="{{ user.profile_url|default('#') }}">Open Profile</a></td></tr>
-                <tr><th>UID</th><td>{{ user.id|default(0) }}</td></tr>
-                <tr><th>Current Level</th><td>{{ user.accesslevel|default(0) }} <span class="corebb-admin-modern-help">{{ user.level_name|default('') }}</span></td></tr>
-                <tr><th>New Level</th><td>{{ model.new_level|default(0) }} <span class="corebb-admin-modern-help">{{ model.new_level_name|default('') }}</span></td></tr>
-            </tbody>
-        </table>
-
-        <div class="corebb-admin-modern-panel">
-            <form class="corebb-admin-modern-form" method="post" action="/admin/?act=edit_rights&amp;method=save">
-                {% include 'partials/csrf_field.twig' %}
-                {% if canManageToolGrants and toolGroups %}
-                    <div class="corebb-admin-section-title">Additional Tool Access</div>
-                    {{ rights.tool_groups(toolGroups, false) }}
-                {% endif %}
-                <div class="corebb-admin-modern-submit">
-                    <input type="hidden" name="userid" value="{{ user.id|default(0) }}">
-                    <input type="hidden" name="userslevel" value="{{ model.new_level|default(0) }}">
-                    <button class="corebb-board-action-link" type="submit">Confirm Changes</button>
-                    <button class="corebb-board-action-link" type="button" onclick="window.location.href='/admin/';">Admin Home</button>
-                </div>
-            </form>
+        <div class="corebb-admin-modern-note">
+            Review the role and extra tool grants below. Saving applies the selected role first; tools marked as extra grants remain directly assigned to this user.
         </div>
+
+        <form class="corebb-admin-modern-form" method="post" action="/admin/?act=edit_rights&amp;method=save">
+            {% include 'partials/csrf_field.twig' %}
+            <input type="hidden" name="userid" value="{{ user.id|default(0) }}">
+            <input type="hidden" name="userslevel" value="{{ model.new_level|default(0) }}">
+
+            <div class="corebb-admin-modern-panel">
+                <div class="corebb-admin-section-title">Pending Role Change</div>
+                <table class="corebb-admin-modern-table corebb-admin-rights-summary-table">
+                    <caption class="corebb-sr-only">Pending user role change</caption>
+                    <tbody>
+                        <tr>
+                            <th scope="row">Current Role</th>
+                            <td>Level {{ currentLevel.value|default(user.accesslevel|default(0)) }} - {{ currentLevel.label|default(user.level_name|default('')) }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">New Role</th>
+                            <td>Level {{ targetLevel.value|default(model.new_level|default(0)) }} - {{ targetLevel.label|default(model.new_level_name|default('')) }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Extra Grants</th>
+                            <td>{{ toolSummary.explicit|default(0) }} direct tool grant{{ toolSummary.explicit|default(0) == 1 ? '' : 's' }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            {% if canManageToolGrants and toolGroups %}
+                <div class="corebb-admin-modern-panel">
+                    <div class="corebb-admin-section-title">Admin Tool Access After Save</div>
+                    {{ rights.tool_groups(toolGroups, toolSummary.groups|default({}), false) }}
+                </div>
+            {% endif %}
+
+            <div class="corebb-admin-modern-panel">
+                <div class="corebb-admin-modern-submit">
+                    <button class="corebb-board-action-link" type="submit">Confirm Changes</button>
+                    <a class="corebb-board-action-link" href="/admin/?act=edit_rights&amp;user={{ user.id|default(0) }}">Go Back</a>
+                    <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
+                </div>
+            </div>
+        </form>
     {% elseif mode == 'view' %}
         {% set user = model.user|default({}) %}
-        <table class="corebb-admin-modern-table corebb-admin-profile-summary-table wb-table">
-            <tbody>
-                <tr><th>User Name</th><td>{{ user.username|default('') }}</td></tr>
-                <tr><th>Public Profile</th><td><a class="corebb-board-action-link" href="{{ user.profile_url|default('#') }}">Open Profile</a></td></tr>
-                <tr><th>UID</th><td>{{ user.id|default(0) }}</td></tr>
-                <tr><th>User Level</th><td>{{ user.accesslevel|default(0) }} <span class="corebb-admin-modern-help">{{ user.level_name|default('') }}</span></td></tr>
-            </tbody>
-        </table>
+        <form class="corebb-admin-modern-form" method="post" action="/admin/?act=edit_rights&amp;method=confirm">
+            {% include 'partials/csrf_field.twig' %}
+            <input type="hidden" name="userid" value="{{ user.id|default(0) }}">
 
-        <div class="corebb-admin-modern-panel">
-            <form class="corebb-admin-modern-form" method="post" action="/admin/?act=edit_rights&amp;method=confirm">
-                {% include 'partials/csrf_field.twig' %}
-                <div class="corebb-admin-modern-grid">
-                    <label for="corebbUserLevel">Set User's Level To</label>
-                    <select id="corebbUserLevel" name="userlevel">
-                        {% for value, label in levels %}<option value="{{ value }}"{% if value == user.accesslevel|default(0) %} selected{% endif %}>{{ label }}</option>{% endfor %}
-                    </select>
-
-                    {% if canManageToolGrants and toolGroups %}
-                        <div class="corebb-admin-modern-full">
-                            <div class="corebb-admin-section-title">Additional Tool Access</div>
-                            <div class="corebb-admin-modern-note is-muted">Checked tools grant access beyond the user's normal rank. Tools marked (rank) are already included by their selected level.</div>
-                            {{ rights.tool_groups(toolGroups, true) }}
-                        </div>
-                    {% endif %}
-
-                    <div class="corebb-admin-modern-submit corebb-admin-modern-full">
-                        <input type="hidden" name="userid" value="{{ user.id|default(0) }}">
-                        <button class="corebb-board-action-link" type="submit">Apply Changes</button>
-                        <button class="corebb-board-action-link" type="button" onclick="window.location.href='/admin/';">Admin Home</button>
+            <div class="corebb-admin-modern-panel">
+                <fieldset class="corebb-admin-rights-fieldset">
+                    <legend>Role</legend>
+                    <p id="corebbRoleHelp" class="corebb-admin-modern-note is-muted">
+                        Choose the user's base role. Role tools are inherited automatically; use extra grants only for exceptions.
+                    </p>
+                    <div class="corebb-admin-rights-role-list" aria-describedby="corebbRoleHelp">
+                        {% for value, label in levels %}
+                            {% set role = roleDetails[value]|default({value: value, label: label, description: '', inherited_tool_count: 0}) %}
+                            <label class="corebb-admin-rights-role-option{% if value == user.accesslevel|default(0) %} is-current{% endif %}" for="corebbRole{{ value }}">
+                                <input id="corebbRole{{ value }}" type="radio" name="userlevel" value="{{ value }}"{% if value == user.accesslevel|default(0) %} checked{% endif %}>
+                                <span class="corebb-admin-rights-role-copy">
+                                    <strong>Level {{ value }} - {{ label }}</strong>
+                                    <span>{{ role.description|default('') }}</span>
+                                </span>
+                                <span class="corebb-admin-rights-role-meta">
+                                    {{ role.inherited_tool_count|default(0) }} inherited tool{{ role.inherited_tool_count|default(0) == 1 ? '' : 's' }}
+                                    {% if value == user.accesslevel|default(0) %}<em>Current</em>{% endif %}
+                                </span>
+                            </label>
+                        {% endfor %}
                     </div>
+                </fieldset>
+            </div>
+
+            {% if canManageToolGrants and toolGroups %}
+                <div class="corebb-admin-modern-panel">
+                    <div class="corebb-admin-section-title">Extra Admin Tool Grants</div>
+                    <div class="corebb-admin-modern-note is-muted">
+                        Checked disabled tools are included by the selected role. Editable checkboxes are direct exceptions for this user.
+                    </div>
+                    {{ rights.tool_groups(toolGroups, toolSummary.groups|default({}), true) }}
                 </div>
-            </form>
-        </div>
+            {% endif %}
+
+            <div class="corebb-admin-modern-panel">
+                <div class="corebb-admin-modern-submit">
+                    <button class="corebb-board-action-link" type="submit">Review Changes</button>
+                    <a class="corebb-board-action-link" href="/admin/?act=edit_rights">Find Another User</a>
+                    <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
+                </div>
+            </div>
+        </form>
     {% else %}
         <div class="corebb-admin-modern-panel">
             <form class="corebb-admin-modern-form" method="post" action="/admin/?act=edit_rights&amp;method=view">
@@ -127,12 +228,57 @@
                 <div class="corebb-admin-modern-grid">
                     <label for="corebbEditRightsUser">User</label>
                     <span>
-                        <input id="corebbEditRightsUser" type="text" name="username">
-                        <button class="corebb-board-action-link" type="submit">Submit</button>
-                        <span class="corebb-admin-modern-help">Username or user ID.</span>
+                        <input id="corebbEditRightsUser" type="text" name="username" value="{{ model.search_value|default('') }}" autocomplete="off" aria-describedby="corebbEditRightsUserHelp">
+                        <button class="corebb-board-action-link" type="submit">Find User</button>
+                        <span id="corebbEditRightsUserHelp" class="corebb-admin-modern-help">Enter a username or user ID.</span>
                     </span>
                 </div>
             </form>
         </div>
     {% endif %}
 </div>
+
+{% if mode == 'view' and canManageToolGrants %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    function selectedLevel() {
+        var checked = document.querySelector('input[name="userlevel"]:checked');
+        return checked ? parseInt(checked.value, 10) : 0;
+    }
+
+    function refreshToolRows() {
+        var level = selectedLevel();
+        document.querySelectorAll('[data-rights-tool-row]').forEach(function (row) {
+            var minLevel = parseInt(row.getAttribute('data-min-level'), 10) || 0;
+            var checkbox = row.querySelector('input[type="checkbox"][name="admin_tools[]"]');
+            var source = row.querySelector('[data-rights-source]');
+            if (!checkbox || !source) {
+                return;
+            }
+
+            var inherited = level >= minLevel;
+            var explicit = checkbox.getAttribute('data-explicit') === '1';
+            checkbox.disabled = inherited;
+            checkbox.checked = inherited || explicit;
+            row.classList.toggle('is-inherited', inherited);
+            row.classList.toggle('is-explicit', !inherited && explicit);
+            source.className = 'corebb-admin-rights-source' + (!inherited && !explicit ? ' is-muted' : '');
+            source.textContent = inherited ? 'Included by selected role' : (explicit ? 'Extra grant to this user' : 'No direct grant');
+        });
+    }
+
+    document.querySelectorAll('input[name="userlevel"]').forEach(function (input) {
+        input.addEventListener('change', refreshToolRows);
+    });
+    document.querySelectorAll('[data-rights-tool-row] input[type="checkbox"][name="admin_tools[]"]').forEach(function (input) {
+        input.addEventListener('change', function () {
+            if (!input.disabled) {
+                input.setAttribute('data-explicit', input.checked ? '1' : '0');
+                refreshToolRows();
+            }
+        });
+    });
+    refreshToolRows();
+});
+</script>
+{% endif %}

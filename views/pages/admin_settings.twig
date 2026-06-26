@@ -2,6 +2,7 @@
 {% set messages = model.messages|default([]) %}
 {% set boolSettings = model.bool_settings|default([]) %}
 {% set numberSettings = model.number_settings|default([]) %}
+{% set styleOptions = model.style_options|default({}) %}
 
 <div class="corebb-admin-modern-page">
     <div class="corebb-admin-modern-header">
@@ -45,7 +46,13 @@
                         <td><strong>{{ name }}</strong></td>
                         <td><span class="corebb-admin-modern-help">{{ row.label|default(name) }}</span></td>
                         <td>
-                            {% if name in boolSettings %}
+                            {% if name == 'defaultstyle' and styleOptions %}
+                                <select name="settings[{{ name }}]">
+                                    {% for file, label in styleOptions %}
+                                        <option value="{{ file }}"{% if value == file %} selected{% endif %}>{{ label }} ({{ file }})</option>
+                                    {% endfor %}
+                                </select>
+                            {% elseif name in boolSettings %}
                                 <select name="settings[{{ name }}]">
                                     <option value="1"{% if value == '1' %} selected{% endif %}>1 / Yes</option>
                                     <option value="0"{% if value == '0' %} selected{% endif %}>0 / No</option>

@@ -374,7 +374,10 @@ function corebb_markup_user_title(string $text): string
 /**
  * Usage: Render compact page links for migrated templates and legacy fallbacks.
  * Referenced by: pagination helpers and older view models.
- */
+ *
+ *
+ *DEPRECATED, removal pending 6/7/26
+ *
 function corebb_page_links(string $urlPattern, int $currentPage, int $totalPages, string $class = 'MainMenuFont'): string
 {
     if (function_exists('corebb_compact_pagination_html')) {
@@ -395,3 +398,4 @@ function corebb_page_links(string $urlPattern, int $currentPage, int $totalPages
     }
     return 'Pages: ' . implode(' | ', $links);
 }
+*/

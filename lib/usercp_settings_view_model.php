@@ -20,6 +20,7 @@
 require_once __DIR__ . '/../functions.php';
 require_once __DIR__ . '/pm_helpers.php';
 require_once __DIR__ . '/notification_helpers.php';
+require_once __DIR__ . '/public_style_helpers.php';
 require_once __DIR__ . '/vip_style_helpers.php';
 
 /**
@@ -316,6 +317,17 @@ function corebb_options_allowed_page_sizes(): array
 }
 
 /**
+ * Usage: Build the User CP board-theme dropdown choices.
+ * Referenced by: corebb_usercp_load_options().
+ *
+ * @return array<string, string> Option value to display label.
+ */
+function corebb_usercp_public_style_options(): array
+{
+    return ['' => 'Use forum default'] + corebb_public_style_options();
+}
+
+/**
  * Usage: Load current paging options for the User CP options form.
  * Referenced by: controllers/usercp.php action=options.
  *
@@ -329,14 +341,17 @@ function corebb_usercp_load_options(int $uid): array
             'ThreadPages' => 25,
             'BoardPages' => 25,
             'allowedPageSizes' => corebb_options_allowed_page_sizes(),
+            'userstyle' => '',
+            'styleOptions' => corebb_usercp_public_style_options(),
         ];
     }
     corebb_user_ensure_profile_columns();
-    $row = db_one('SELECT ThreadPages, BoardPages FROM users WHERE id = ? LIMIT 1', [$uid]);
+    $row = db_one('SELECT ThreadPages, BoardPages, userstyle FROM users WHERE id = ? LIMIT 1', [$uid]);
     $row = is_array($row) ? $row : [];
     $allowed = corebb_options_allowed_page_sizes();
     $threadPages = (int)($row['ThreadPages'] ?? 25);
     $boardPages = (int)($row['BoardPages'] ?? 25);
+    $userStyle = corebb_public_style_resolve_user_value((string)($row['userstyle'] ?? ''));
     if (!in_array($threadPages, $allowed, true)) {
         $threadPages = 25;
     }
@@ -347,11 +362,13 @@ function corebb_usercp_load_options(int $uid): array
         'ThreadPages' => $threadPages,
         'BoardPages' => $boardPages,
         'allowedPageSizes' => $allowed,
+        'userstyle' => $userStyle,
+        'styleOptions' => corebb_usercp_public_style_options(),
     ];
 }
 
 /**
- * Usage: Save posted User CP paging options after validating allowed sizes.
+ * Usage: Save posted User CP display options after validating allowed choices.
  * Referenced by: controllers/usercp.php action=options.
  *
  * @param int $uid Current logged-in user id.
@@ -369,5 +386,6 @@ function corebb_usercp_save_options(int $uid): bool
     if (!in_array($threadPages, $allowed, true) || !in_array($boardPages, $allowed, true)) {
         return false;
     }
-    return db_run('UPDATE users SET ThreadPages = ?, BoardPages = ? WHERE id = ?', [$threadPages, $boardPages, $uid]);
+    $userStyle = corebb_public_style_normalize_user_choice((string)($_POST['userstyle'] ?? ''));
+    return db_run('UPDATE users SET ThreadPages = ?, BoardPages = ?, userstyle = ? WHERE id = ?', [$threadPages, $boardPages, $userStyle, $uid]);
 }

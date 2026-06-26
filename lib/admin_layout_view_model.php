@@ -73,8 +73,10 @@ function corebb_admin_tool_url(string $toolKey): string
         'version_history' => '/admin/?act=version_history',
         'edit_settings' => '/admin/?act=edit_settings',
         'mail_services' => '/admin/?act=mail_services',
+        'auth_settings' => '/admin/?act=auth_settings',
         'database_tools' => '/admin/?act=database_tools',
         'db_schema_deploy' => '/admin/?act=db_schema_deploy',
+        'updates' => '/admin/?act=updates',
         'api_explorer' => '/admin/?act=api_explorer',
         'forum_sim' => '/admin/?act=forum_sim',
         'edit_tos' => '/admin/?act=edit_tos',
@@ -139,9 +141,9 @@ function corebb_admin_nav_group_definitions(): array
     return [
         'Overview' => ['admin_home', 'version_history'],
         'System' => [
-            'edit_settings', 'mail_services', 'edit_tos', 'edit_style', 'global_message',
+            'edit_settings', 'auth_settings', 'mail_services', 'edit_tos', 'edit_style', 'global_message',
             'edit_global_message', 'remove_global_message', 'database_tools',
-            'db_schema_deploy', 'api_explorer', 'forum_sim',
+            'db_schema_deploy', 'updates', 'api_explorer', 'forum_sim',
         ],
         'People' => [
             'user_pages', 'latest_users', 'edit_rights', 'add_user',
@@ -312,7 +314,7 @@ function corebb_admin_layout_model(array $viewer, array $pageModel = [], array $
         'special_access_notice' => (string)($pageModel['special_access_notice'] ?? ''),
         'footer' => [
             'stats' => corebb_admin_footer_stats(),
-            'version_label' => 'CoreBB Initial Release v1.0.0',
+            'version_label' => function_exists('corebb_version_label') ? corebb_version_label() : 'CoreBB Initial Release v1.0.0',
             'copyright_start' => 2005,
             'copyright_year' => date('Y'),
             'copyright_name' => 'CoreBB',

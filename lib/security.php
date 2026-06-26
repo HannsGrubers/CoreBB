@@ -190,7 +190,12 @@ function corebb_security_current_script(): string
  */
 function corebb_security_post_exempt(): bool
 {
-    return false;
+    $script = corebb_security_current_script();
+    $action = strtolower(trim((string)($_GET['action'] ?? '')));
+
+    // Google Identity Services posts its own double-submit CSRF token to this
+    // callback. Route code validates g_csrf_token before accepting the ID token.
+    return $script === 'auth.php' && $action === 'google';
 }
 
 /**
@@ -259,7 +264,7 @@ function corebb_security_admin_pretty_href_url(string $script, array $params, st
     }
 
     $knownActs = [
-        'version_history', 'edit_settings', 'mail_services', 'administrator_tools', 'database_tools',
+        'version_history', 'edit_settings', 'auth_settings', 'mail_services', 'administrator_tools', 'database_tools',
         'api_explorer', 'forum_sim', 'edit_tos', 'edit_style', 'edit_rights',
         'change_user_password', 'add_user', 'view_message', 'global_message',
         'edit_global_message', 'remove_global_message', 'manageboards', 'movebrd',
@@ -364,6 +369,9 @@ function corebb_security_pretty_href_url(string $url): string
             } elseif ($action === 'faq') {
                 $pretty = '/board-rules-faq/';
                 $query = ltrim(corebb_security_query_without($params, ['action']), '?');
+            } elseif ($action === 'security') {
+                $pretty = '/security/';
+                $query = ltrim(corebb_security_query_without($params, ['action']), '?');
             } elseif ($action === 'contact') {
                 $pretty = '/contact-mods/';
                 $query = ltrim(corebb_security_query_without($params, ['action']), '?');
@@ -391,6 +399,8 @@ function corebb_security_pretty_href_url(string $url): string
                 $pretty = '/user-cp/signature/';
             } elseif ($action === 'options') {
                 $pretty = '/user-cp/options/';
+            } elseif ($action === 'favorites') {
+                $pretty = '/user-cp/favorites/';
             } elseif ($action === 'appearance') {
                 $pretty = '/user-cp/appearance/';
             } else {

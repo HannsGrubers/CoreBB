@@ -1,5 +1,5 @@
 {% set title = category.title|default(category.name|default('Board Category')) %}
 {% set expandUrl = category.expand_url|default('/') %}
-<tr>
+<tr class="wb-board-category-row wb-board-category-closed-row">
     <td colspan="5" class="BoardColumn" style="height: 20px;">&nbsp;<a class="BoardColumnLink BoardCategoryLink" href="{{ expandUrl }}"><span class="BoardCategoryToggle" title="Expand">[+]</span>&nbsp;&nbsp;{{ title }}</a></td>
 </tr>

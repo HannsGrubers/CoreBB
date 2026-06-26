@@ -44,7 +44,7 @@ if ($uid <= 0) {
 }
 
 $action = strtolower(trim((string)($_GET['action'] ?? 'index')));
-$allowedActions = ['index', 'profile', 'avatar', 'signature', 'options', 'appearance', 'notifications'];
+$allowedActions = ['index', 'profile', 'avatar', 'signature', 'options', 'appearance', 'notifications', 'favorites'];
 if (!in_array($action, $allowedActions, true)) {
     $action = 'index';
 }
@@ -95,10 +95,11 @@ switch ($action) {
         break;
 
     case 'options':
-        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && (isset($_POST['ThreadPages']) || isset($_POST['BoardPages']))) {
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && (isset($_POST['ThreadPages']) || isset($_POST['BoardPages']) || isset($_POST['userstyle']))) {
             if (corebb_usercp_save_options($uid)) {
                 $userlogindata_a['ThreadPages'] = (int)($_POST['ThreadPages'] ?? 25);
                 $userlogindata_a['BoardPages'] = (int)($_POST['BoardPages'] ?? 25);
+                $userlogindata_a['userstyle'] = corebb_public_style_normalize_user_choice((string)($_POST['userstyle'] ?? ''));
                 corebb_usercp_controller_redirect('/user-cp/options/?msg=Successfully+updated+settings.');
             }
             corebb_usercp_controller_redirect('/user-cp/options/?msg=' . urlencode('Error updating settings.'));
@@ -130,6 +131,21 @@ switch ($action) {
         $GLOBALS['corebb_layout_script'] = 'usercp:notifications';
         $model = corebb_notifications_model($userlogindata_a, $_POST);
         corebb_render_public('pages/notifications.twig', ['model' => $model]);
+        break;
+
+    case 'favorites':
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && (string)($_POST['action'] ?? '') === 'remove_favorite') {
+            $favoriteId = (int)($_POST['favorite_id'] ?? 0);
+            $boardId = (int)($_POST['board_id'] ?? 0);
+            $message = corebb_usercp_remove_favorite_board($uid, $favoriteId, $boardId)
+                ? 'Board removed from your favorites.'
+                : 'Unable to remove that favorite board.';
+            corebb_usercp_controller_redirect('/user-cp/favorites/?msg=' . urlencode($message));
+        }
+
+        $GLOBALS['corebb_layout_script'] = 'usercp:favorites';
+        $model = corebb_usercp_favorites_model($uid, $userlogindata_a);
+        corebb_render_public('pages/usercp_favorites.twig', ['model' => $model]);
         break;
 
     case 'index':

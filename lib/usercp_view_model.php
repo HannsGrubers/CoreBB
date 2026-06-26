@@ -24,6 +24,7 @@ require_once __DIR__ . '/moderation_helpers.php';
 require_once __DIR__ . '/pm_helpers.php';
 require_once __DIR__ . '/notification_helpers.php';
 require_once __DIR__ . '/private_board_helpers.php';
+require_once __DIR__ . '/usercp_settings_view_model.php';
 require_once __DIR__ . '/vip_style_helpers.php';
 
 /**
@@ -63,6 +64,98 @@ function corebb_usercp_board_url(int $boardId, string $boardName = ''): string
     return function_exists('corebb_board_url')
         ? corebb_board_url($boardId, 1, $boardName)
         : '/board/' . $boardId . '/';
+}
+
+/**
+ * Usage: Load favorite boards for the User CP favorite-board manager.
+ * Referenced by: controllers/usercp.php action=favorites.
+ *
+ * @param int $userId Current logged-in user id.
+ * @param array<string, mixed> $viewer Current logged-in user row.
+ * @return array<string, mixed> Common User CP chrome plus favorite board rows.
+ */
+function corebb_usercp_favorites_model(int $userId, array $viewer = []): array
+{
+    $model = corebb_usercp_base_model($userId);
+    $model['favoriteBoards'] = [];
+    $model['favoriteBoardCount'] = 0;
+
+    if ($userId <= 0) {
+        return $model;
+    }
+
+    corebb_private_ensure_schema();
+    $accessLevel = (int)($viewer['accesslevel'] ?? 0);
+    $rows = db_all(
+        'SELECT fb.id AS favorite_id, fb.boardid, fb.adddate,
+                f.id AS id, f.id AS forum_id, f.name, f.description, f.topiccount, f.postcount, f.lastpstdate,
+                f.private, b.private AS category_private, b.secure_archive AS category_secure_archive,
+                b.name AS category_name
+           FROM favoriteboards fb
+           LEFT JOIN forums f ON f.id = fb.boardid
+           LEFT JOIN boards b ON b.id = f.categoryid
+          WHERE fb.ownerid = ?
+          ORDER BY fb.id ASC',
+        [$userId]
+    );
+
+    foreach ($rows as $row) {
+        $boardId = (int)($row['boardid'] ?? 0);
+        $forumId = (int)($row['forum_id'] ?? 0);
+        $visible = $forumId > 0 && corebb_private_user_can_view_board_row($row, $userId, $accessLevel);
+        $addDate = (string)($row['adddate'] ?? '');
+        $lastPost = (string)($row['lastpstdate'] ?? '');
+        $name = $visible ? (string)($row['name'] ?? 'Untitled Board') : 'Unavailable Board';
+
+        $model['favoriteBoards'][] = [
+            'favoriteId' => (int)($row['favorite_id'] ?? 0),
+            'boardId' => $boardId,
+            'name' => $name,
+            'categoryName' => $visible ? (string)($row['category_name'] ?? '') : '',
+            'description' => $visible ? (string)($row['description'] ?? '') : '',
+            'topicCount' => $visible ? (int)($row['topiccount'] ?? 0) : 0,
+            'postCount' => $visible ? (int)($row['postcount'] ?? 0) : 0,
+            'addedDisplay' => $addDate !== '' ? convert_to_vndate($addDate) : '-',
+            'lastPostDisplay' => ($visible && $lastPost !== '') ? convert_to_vndate($lastPost) : '-',
+            'boardUrl' => $visible ? corebb_usercp_board_url($boardId, $name) : '',
+            'isVisible' => $visible,
+        ];
+    }
+
+    $model['favoriteBoardCount'] = count($model['favoriteBoards']);
+    return $model;
+}
+
+/**
+ * Usage: Remove one favorite-board row owned by the current User CP user.
+ * Referenced by: controllers/usercp.php action=favorites.
+ *
+ * @param int $userId Current logged-in user id.
+ * @param int $favoriteId favoriteboards.id submitted by the manager form.
+ * @param int $boardId Board id fallback for older or malformed rows.
+ * @return bool True when an owned favorite row was found and deleted.
+ */
+function corebb_usercp_remove_favorite_board(int $userId, int $favoriteId, int $boardId = 0): bool
+{
+    if ($userId <= 0) {
+        return false;
+    }
+
+    if ($favoriteId > 0) {
+        if (!db_exists('SELECT 1 FROM favoriteboards WHERE id = ? AND ownerid = ? LIMIT 1', [$favoriteId, $userId])) {
+            return false;
+        }
+        return db_run('DELETE FROM favoriteboards WHERE id = ? AND ownerid = ? LIMIT 1', [$favoriteId, $userId]);
+    }
+
+    if ($boardId > 0) {
+        if (!db_exists('SELECT 1 FROM favoriteboards WHERE boardid = ? AND ownerid = ? LIMIT 1', [$boardId, $userId])) {
+            return false;
+        }
+        return db_run('DELETE FROM favoriteboards WHERE boardid = ? AND ownerid = ?', [$boardId, $userId]);
+    }
+
+    return false;
 }
 
 /**

@@ -52,6 +52,9 @@
     } catch (e) {}
 }());
 </script>
+{% if layout.auth.google.enabled|default(false) %}
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+{% endif %}
 {% for stylesheet in layout.head.stylesheets|default([]) %}
 <link rel="stylesheet" href="{{ stylesheet }}" media="screen">
 {% endfor %}

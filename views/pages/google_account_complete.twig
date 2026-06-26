@@ -1,0 +1,82 @@
+{% if not model.available|default(false) %}
+<table class="wb-cellspace-1 wb-cellpad-3 BoardRowB wb-public-form-workspace wb-table" style="width: 100%;">
+    <tr><td class="BoardColumn"><b>Google Sign-In Expired</b></td></tr>
+    <tr class="BoardRowB">
+        <td style="padding: 6px;">
+            Your Google sign-in session expired or was not found. Please return to the
+            <a class="BoardRowBLink" href="{{ url('auth.php?action=login') }}">login page</a> and try again.
+        </td>
+    </tr>
+</table>
+{% else %}
+<table class="wb-cellspace-1 wb-cellpad-3 BoardRowB wb-public-form-workspace wb-table" style="width: 100%;">
+    <tr>
+        <td colspan="2" class="BoardColumn"><b>Complete Google Sign-In</b></td>
+    </tr>
+
+    {% if model.errors|default([]) is not empty %}
+        <tr class="BoardRowA">
+            <td colspan="2" style="padding: 6px;">
+                <span class="ErrorFont"><b>Account could not be completed:</b></span><br>
+                {% for error in model.errors %}
+                    <span class="ErrorFont">&bull; {{ error }}</span><br>
+                {% endfor %}
+            </td>
+        </tr>
+    {% endif %}
+
+    <tr class="BoardRowB">
+        <td class="wb-valign-top" style="width: 70%; padding-right: 6px;">
+            <form method="post" action="{{ url('/login/google/complete/') }}">
+                {% include 'partials/csrf_field.twig' %}
+                <table class="wb-cellspace-1 wb-cellpad-3 wb-table" style="width: 100%;">
+                    <tr>
+                        <td colspan="2" class="BoardColumn"><b>Choose Your CoreBB Identity</b></td>
+                    </tr>
+                    <tr class="BoardRowB">
+                        <td class="RegisterMain" style="width: 155px;">Google email:</td>
+                        <td>{{ model.identity.email }}</td>
+                    </tr>
+                    <tr class="BoardRowA">
+                        <td class="RegisterMain">Desired screen name:</td>
+                        <td><input class="formtext" name="username" type="text" size="34" maxlength="20" autocomplete="username" value="{{ model.old.username|default('') }}"></td>
+                    </tr>
+                    <tr class="BoardRowB">
+                        <td class="RegisterMain wb-valign-top">Forum Terms of Service:</td>
+                        <td>
+                            <div tabindex="0" class="RegistrationTOSBlock" style="padding: 6px; border: 1px solid #777; background: #c9c9d1; max-width: 650px; max-height: 220px; overflow-y: auto; overflow-x: hidden; line-height: 1.35;">
+                                {% include 'partials/formatted_content.twig' with {content: stored_page_body_model(model.tos|default({}))} only %}
+                            </div>
+                        </td>
+                    </tr>
+                    <tr class="BoardRowA">
+                        <td class="RegisterMain">Age confirmation:</td>
+                        <td><label><input type="checkbox" name="confirm_age_13" value="1"> <b>I am at least 13 years old.</b></label></td>
+                    </tr>
+                    <tr class="BoardRowB">
+                        <td class="RegisterMain">Do you agree?</td>
+                        <td><label><input type="checkbox" name="agree_tos" value="1"> <b>Yes, I agree to the Terms of Service.</b></label></td>
+                    </tr>
+                    <tr style="display: none;">
+                        <td>Website</td><td><input type="text" name="website" value="" autocomplete="off"></td>
+                    </tr>
+                    <tr class="BoardRowB">
+                        <td>&nbsp;</td>
+                        <td><input class="formsubmit" type="submit" value=" Complete Sign-In "></td>
+                    </tr>
+                </table>
+            </form>
+        </td>
+        <td class="wb-valign-top" style="width: 30%;">
+            <table class="wb-cellspace-1 wb-cellpad-3 wb-table" style="width: 100%;">
+                <tr><td class="BoardColumn"><b>Already Registered?</b></td></tr>
+                <tr class="BoardRowB">
+                    <td>
+                        If this email belongs to an existing account that was not auto-linked, log in with your CoreBB password first.
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
+{% endif %}

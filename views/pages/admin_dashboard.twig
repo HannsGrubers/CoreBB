@@ -21,6 +21,17 @@
         </div>
     </div>
 
+    {% if model.update_status|default(null) %}
+        {% set update = model.update_status %}
+        <div class="corebb-admin-modern-note{% if update.severity|default('') == 'danger' %} is-danger{% elseif update.severity|default('') == 'info' %} is-muted{% endif %}">
+            <span>CoreBB Updates</span>
+            <strong>{{ update.headline }}</strong>
+            <span>Installed: {{ update.installed_version|default('Unknown') }}</span>
+            <span>Latest: {{ update.latest_version|default('Unknown') }}</span>
+            <a class="corebb-board-action-link" href="/admin/?act=updates">View Updates</a>
+        </div>
+    {% endif %}
+
     <div class="corebb-admin-modern-panel">
         <div class="corebb-admin-section-title">Forum Snapshot</div>
         <table class="corebb-admin-modern-table corebb-admin-snapshot-table wb-table">

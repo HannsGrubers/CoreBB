@@ -18,6 +18,7 @@
  +-------------------------------------------------------+*/
 
 require_once __DIR__ . '/admin_user_tools_view_model.php';
+require_once __DIR__ . '/corebb_update_helpers.php';
 
 /**
  * Usage: Count rows in a table for dashboard totals.
@@ -313,6 +314,7 @@ function corebb_admin_dashboard_model(array $viewer): array
         'body' => $title['body'],
         'admins' => corebb_admin_dashboard_admins(),
         'stats' => $stats,
+        'update_status' => $accessLevel >= 5 ? corebb_update_status() : null,
         'log_sections' => $logSections,
         'message' => '',
     ];

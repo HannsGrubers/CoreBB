@@ -10,7 +10,7 @@
 {% set hasPoll = topic.has_poll|default(false) %}
 {% set isLocked = topic.is_locked|default(false) %}
 {% set threadUrl = topic.thread_url|default('/topic/' ~ topicId ~ '/') %}
-<tr class="wb-text-left wb-valign-top">
+<tr class="wb-text-left wb-valign-top wb-topic-list-row">
     <td class="BoardRowB">
         {% if isSticky %}
             <img src="{{ asset('images/sticky.gif') }}" alt="Sticky" class="wb-img-middle">&nbsp;

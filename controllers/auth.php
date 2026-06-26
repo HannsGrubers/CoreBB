@@ -4,7 +4,7 @@
  |
  | Pretty public routes stay in .htaccess.  This file is
  | the internal dispatcher for login, logout, registration,
- | email verification, and password recovery.
+ | email verification, password recovery, and Google sign-in.
  +-------------------------------------------------------*/
 
 $root = dirname(__DIR__);
@@ -12,9 +12,10 @@ $root = dirname(__DIR__);
 include $root . '/CookieEngine.php';
 include_once $root . '/functions.php';
 require_once $root . '/lib/auth_flow_helpers.php';
+require_once $root . '/lib/google_auth_helpers.php';
 
 $action = strtolower(trim((string)($_GET['action'] ?? 'login')));
-$allowedActions = ['login', 'login_submit', 'logout', 'register', 'recover', 'reset', 'verify', 'resend'];
+$allowedActions = ['login', 'login_submit', 'logout', 'register', 'recover', 'reset', 'verify', 'resend', 'google', 'google_complete'];
 if (!in_array($action, $allowedActions, true)) {
     $action = 'login';
 }
@@ -30,6 +31,13 @@ if ($action === 'logout') {
     corebb_auth_redirect(corebb_auth_logout_redirect());
 }
 
+if ($action === 'google') {
+    if (strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET')) !== 'POST') {
+        corebb_auth_redirect('/login/');
+    }
+    corebb_auth_redirect(corebb_google_handle_callback($_POST));
+}
+
 require_once $root . '/lib/view.php';
 require_once $root . '/lib/layout_view_model.php';
 require_once $root . '/lib/auth_view_model.php';
@@ -40,7 +48,17 @@ switch ($action) {
         $GLOBALS['corebb_layout_script'] = 'auth:register';
         corebb_mobile_redirect('register');
         $model = corebb_registration_model($_POST, $_SERVER['REQUEST_METHOD'] ?? 'GET');
+        $model['google'] = corebb_google_button_model();
         corebb_render_public('pages/register.twig', ['model' => $model]);
+        break;
+
+    case 'google_complete':
+        $GLOBALS['corebb_layout_script'] = 'auth:google_complete';
+        $model = corebb_google_complete_model($_POST, $_SERVER['REQUEST_METHOD'] ?? 'GET');
+        if (!empty($model['redirect'])) {
+            corebb_auth_redirect((string)$model['redirect']);
+        }
+        corebb_render_public('pages/google_account_complete.twig', ['model' => $model]);
         break;
 
     case 'recover':
@@ -71,6 +89,7 @@ switch ($action) {
         $GLOBALS['corebb_layout_script'] = 'auth:login';
         corebb_mobile_redirect('login');
         $model = corebb_login_model($_GET);
+        $model['google'] = corebb_google_button_model();
         corebb_render_public('pages/login.twig', ['model' => $model]);
         break;
 }

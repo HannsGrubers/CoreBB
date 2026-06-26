@@ -1,0 +1,68 @@
+{% set favorites = model.favoriteBoards|default([]) %}
+<table class="wb-cellspace-1 wb-cellpad-3 BoardRowB wb-usercp-workspace wb-table" style="width: 100%;">
+    <tr class="wb-text-left wb-valign-top">
+        <td class="wb-valign-top wb-usercp-nav-cell" style="width: 250px; width: 250px; min-width: 250px; max-width: 250px; padding-right: 6px;">
+            {% include 'partials/usercp_menu.twig' with {model: model} only %}
+        </td>
+        <td class="wb-usercp-content wb-valign-top">
+            <table class="wb-cellpad-0 wb-cellspace-1 wb-table" style="width: 100%;">
+                <tr>
+                    <td colspan="5" class="BoardColumn" style="height: 15px;">Favorited Boards</td>
+                </tr>
+                {% if model.message|default('') %}
+                    <tr><td colspan="5" class="BoardRowA"><div class="wb-text-center"><b>{{ model.message }}</b></div></td></tr>
+                {% endif %}
+                {% if favorites is empty %}
+                    <tr>
+                        <td colspan="5" class="BoardRowB" style="height: 35px;"><div class="wb-text-center">You have no favorite boards.</div></td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td class="BoardColumn">Board</td>
+                        <td class="wb-text-center BoardColumn" style="width: 85px;">Topics</td>
+                        <td class="wb-text-center BoardColumn" style="width: 85px;">Posts</td>
+                        <td class="wb-text-center BoardColumn" style="width: 145px;">Added</td>
+                        <td class="wb-text-center BoardColumn" style="width: 115px;">Options</td>
+                    </tr>
+                    {% for board in favorites %}
+                        {% set rowClass = loop.index0 is even ? 'BoardRowB' : 'BoardRowA' %}
+                        <tr class="wb-valign-top">
+                            <td class="{{ rowClass }}" style="height: 28px;">
+                                {% if board.isVisible|default(false) and board.boardUrl|default('') != '' %}
+                                    &raquo; <a class="SubjectLink" href="{{ board.boardUrl }}">{{ board.name|default('Untitled Board') }}</a>
+                                    {% if board.categoryName|default('') != '' %}
+                                        <br><span class="SmallText">Category: {{ board.categoryName }}</span>
+                                    {% endif %}
+                                    {% if board.description|default('') != '' %}
+                                        <br><span class="SmallText">{{ board.description }}</span>
+                                    {% endif %}
+                                    <br><span class="SmallText">Last Post: {{ board.lastPostDisplay|default('-') }}</span>
+                                {% else %}
+                                    &raquo; <strong>{{ board.name|default('Unavailable Board') }}</strong>
+                                    <br><span class="SmallText">This board is no longer available to your account.</span>
+                                {% endif %}
+                            </td>
+                            <td class="{{ rowClass }} wb-text-center">{{ board.topicCount|default(0) }}</td>
+                            <td class="{{ rowClass }} wb-text-center">{{ board.postCount|default(0) }}</td>
+                            <td class="{{ rowClass }} wb-text-center wb-nowrap"><span class="SmallText">{{ board.addedDisplay|default('-') }}</span></td>
+                            <td class="{{ rowClass }} wb-text-center wb-nowrap">
+                                <form method="post" action="/user-cp/favorites/" style="margin:0; padding:0;">
+                                    {% include 'partials/csrf_field.twig' %}
+                                    <input type="hidden" name="action" value="remove_favorite">
+                                    <input type="hidden" name="favorite_id" value="{{ board.favoriteId|default(0) }}">
+                                    <input type="hidden" name="board_id" value="{{ board.boardId|default(0) }}">
+                                    <input class="formsubmit" type="submit" value="Remove" onclick="return confirm('Remove this board from your favorites?');">
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% endif %}
+                <tr>
+                    <td colspan="5" class="MainMenuRow wb-text-right" style="height: 15px;">
+                        <input type="button" onclick="window.location.href='/';" value="Forum Index &raquo;" class="formsubmit" /> &nbsp;
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>

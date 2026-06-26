@@ -16,6 +16,7 @@
  |  functions.php  - Shared CoreBB function helpers.     |
  +-------------------------------------------------------+*/
 
+require_once __DIR__ . '/core/version.php';
 require_once __DIR__ . '/lib/vip_style_helpers.php';
 require_once __DIR__ . '/lib/auth_password_helpers.php';
 require_once __DIR__ . '/lib/corebb_url_helpers.php';
@@ -82,6 +83,10 @@ function corebb_public_pretty_url_impl(string $path): string {
             $action = strtolower((string)($params['action'] ?? 'login'));
             if ($action === 'login_submit') {
                 $url = '/login/submit/';
+            } elseif ($action === 'google') {
+                $url = '/login/google/';
+            } elseif ($action === 'google_complete') {
+                $url = '/login/google/complete/';
             } elseif ($action === 'register') {
                 $url = '/register/';
             } elseif ($action === 'recover') {
@@ -106,6 +111,9 @@ function corebb_public_pretty_url_impl(string $path): string {
                 $query = ltrim($remainingQuery($params, ['action']), '?');
             } elseif ($action === 'faq') {
                 $url = '/board-rules-faq/';
+                $query = ltrim($remainingQuery($params, ['action']), '?');
+            } elseif ($action === 'security') {
+                $url = '/security/';
                 $query = ltrim($remainingQuery($params, ['action']), '?');
             } elseif ($action === 'contact') {
                 $url = '/contact-mods/';
@@ -134,6 +142,8 @@ function corebb_public_pretty_url_impl(string $path): string {
                 $url = '/user-cp/signature/';
             } elseif ($action === 'options') {
                 $url = '/user-cp/options/';
+            } elseif ($action === 'favorites') {
+                $url = '/user-cp/favorites/';
             } elseif ($action === 'appearance') {
                 $url = '/user-cp/appearance/';
             } else {

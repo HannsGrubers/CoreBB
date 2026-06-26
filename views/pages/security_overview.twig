@@ -1,0 +1,154 @@
+<table class="wb-cellspace-1 wb-cellpad-3 BoardRowB wb-usercp-workspace wb-security-page wb-table" style="width: 100%;">
+    <tr class="wb-valign-top wb-text-left">
+        <td class="wb-valign-top wb-usercp-nav-cell" style="width: 250px; min-width: 250px; max-width: 250px; padding-right: 6px;">
+            <table class="wb-table-center wb-cellpad-3 wb-cellspace-1 wb-control-box wb-table" style="width: 100%;">
+                <tr><td class="BoardColumn"><strong>Security</strong></td></tr>
+                <tr>
+                    <td class="BoardRowB wb-control-links" style="line-height: 1.45; padding: 5px;">
+                        <b>&middot;</b>&nbsp;<a class="MultiPages" href="/">Forum Index</a><br>
+                        <b>&middot;</b>&nbsp;<a class="MultiPages" href="#reporting">Vulnerability Reporting</a><br>
+                        <b>&middot;</b>&nbsp;<a class="MultiPages" href="#scope">Scope</a><br>
+                        <b>&middot;</b>&nbsp;<a class="MultiPages" href="#protections">Built-in Protections</a><br>
+                        <b>&middot;</b>&nbsp;<a class="MultiPages" href="#admin-hardening">Admin Hardening</a><br>
+                        <b>&middot;</b>&nbsp;<a class="MultiPages" href="#versions">Supported Versions</a><br>
+                        <b>&middot;</b>&nbsp;<a class="MultiPages" href="#disclosure">Disclosure Policy</a><br>
+                        <b>&middot;</b>&nbsp;<a class="MultiPages" href="#supply-chain">Open Source Hygiene</a><br>
+                    </td>
+                </tr>
+            </table>
+        </td>
+        <td class="wb-usercp-content wb-security-content wb-valign-top">
+            <table class="wb-cellspace-1 wb-cellpad-3 wb-security-section wb-table" style="width: 100%;">
+                <tr><td class="BoardColumn"><strong>CoreBB Security Overview</strong></td></tr>
+                <tr>
+                    <td class="BoardRowB">
+                        <p>CoreBB is open-source forum software intended to run on standard PHP hosting, including shared-hosting environments. Security depends on both the application code and the way each forum is installed, configured, and maintained.</p>
+                        <p>This page summarizes the built-in protections, what kinds of vulnerabilities should be reported privately, and the operating practices forum administrators should follow.</p>
+                    </td>
+                </tr>
+            </table>
+
+            <a name="reporting" id="reporting"></a>
+            <table class="wb-cellspace-1 wb-cellpad-3 wb-security-section wb-table" style="width: 100%;">
+                <tr><td class="BoardColumn"><strong>Vulnerability Reporting</strong></td></tr>
+                <tr><td class="BoardRowB">
+                    <p><strong>Please do not report suspected security vulnerabilities in public GitHub issues.</strong></p>
+                    <p>
+                        Email security reports to <a class="BoardRowBLink" href="mailto:{{ model.security_email|default('security@corebb.net') }}">{{ model.security_email|default('security@corebb.net') }}</a>
+                        or use <a class="BoardRowBLink" href="{{ model.github_private_reporting_url|default('#') }}">GitHub private vulnerability reporting</a>.
+                    </p>
+                    <p>Please include as much of the following as you can:</p>
+                    <ul>
+                        <li>Affected CoreBB version or commit.</li>
+                        <li>Steps to reproduce the issue.</li>
+                        <li>Proof-of-concept details, if available.</li>
+                        <li>Security impact and who can trigger it.</li>
+                        <li>Whether the issue appears to be actively exploited.</li>
+                        <li>Your preferred credit name, if you want credit.</li>
+                    </ul>
+                    <p>CoreBB does not currently operate a paid bug bounty program. Responsible vulnerability reports are appreciated, and reporter credit may be included in release notes when requested.</p>
+                </td></tr>
+            </table>
+
+            <a name="scope" id="scope"></a>
+            <table class="wb-cellspace-1 wb-cellpad-3 wb-security-section wb-table" style="width: 100%;">
+                <tr><td class="BoardColumn"><strong>Scope</strong></td></tr>
+                <tr><td class="BoardRowB">
+                    <p><strong>Examples of security issues:</strong></p>
+                    <ul>
+                        <li>Authentication bypass.</li>
+                        <li>Privilege escalation.</li>
+                        <li>Private board access bypass.</li>
+                        <li>Stored or reflected cross-site scripting.</li>
+                        <li>CSRF that changes account, admin, or forum state.</li>
+                        <li>SQL injection.</li>
+                        <li>Arbitrary file upload.</li>
+                        <li>Password reset or token flaws.</li>
+                        <li>Sensitive data exposure.</li>
+                        <li>Moderator or administrator permission bugs.</li>
+                        <li>Unsafe archive or private content exposure.</li>
+                    </ul>
+
+                    <p><strong>Usually not in scope:</strong></p>
+                    <ul>
+                        <li>Spam or abuse that requires normal user permissions.</li>
+                        <li>Social engineering.</li>
+                        <li>Self-XSS that only affects the reporter's own browser/session.</li>
+                        <li>Outdated browser behavior.</li>
+                        <li>Vulnerabilities caused by modified third-party installs.</li>
+                        <li>Issues caused by deliberately weakened server configuration.</li>
+                    </ul>
+                </td></tr>
+            </table>
+
+            <a name="protections" id="protections"></a>
+            <table class="wb-cellspace-1 wb-cellpad-3 wb-security-section wb-table" style="width: 100%;">
+                <tr><td class="BoardColumn"><strong>Built-in Protections</strong></td></tr>
+                <tr><td class="BoardRowB">
+                    <p>CoreBB includes several application-level protections:</p>
+                    <ul>
+                        <li>CSRF tokens are enforced on state-changing form requests unless a route has an explicit, reviewed exemption.</li>
+                        <li>Restricted boards, Secure Archive areas, moderator tools, and administrator tools use server-side permission checks.</li>
+                        <li>Actively maintained database access paths are expected to use shared database helpers with prepared statements and bound parameters. Legacy paths should be reviewed during modernization work.</li>
+                        <li>Passwords are hashed with PHP's <code>password_hash()</code> / <code>password_verify()</code> APIs.</li>
+                        <li>Persistent login tokens use random selectors and hashed verifier tokens.</li>
+                        <li>Session cookies are configured with <code>HttpOnly</code>, <code>SameSite=Lax</code>, and <code>Secure</code> when HTTPS is detected.</li>
+                        <li>Core security headers include same-origin framing, MIME sniffing protection, same-origin referrer policy, and a restrictive permissions policy.</li>
+                        <li>Twig templates escape ordinary variables by default, while formatted forum content is routed through the forum markup renderer.</li>
+                    </ul>
+                    <p>No forum software can make an unsafe hosting environment safe by itself. Keep the application and server configuration current.</p>
+                </td></tr>
+            </table>
+
+            <a name="admin-hardening" id="admin-hardening"></a>
+            <table class="wb-cellspace-1 wb-cellpad-3 wb-security-section wb-table" style="width: 100%;">
+                <tr><td class="BoardColumn"><strong>Admin Hardening Guidance</strong></td></tr>
+                <tr><td class="BoardRowB">
+                    <p>Forum administrators should:</p>
+                    <ul>
+                        <li>Keep CoreBB updated.</li>
+                        <li>Use HTTPS for the forum and admin panel.</li>
+                        <li>Run a current supported PHP version.</li>
+                        <li>Protect private config files outside the public web root where possible.</li>
+                        <li>Use strong, unique administrator passwords.</li>
+                        <li>Restrict administrator and moderator accounts to people who need that access.</li>
+                        <li>Keep tested backups of the database, uploads, and private configuration.</li>
+                        <li>Disable unused plugins, modifications, and old custom code.</li>
+                        <li>Review file and directory permissions after installation or migration.</li>
+                        <li>Rotate secrets if configuration files, database backups, or admin sessions may have been exposed.</li>
+                        <li>Publish a working security contact before making the site public.</li>
+                        <li>Keep security-sensitive configuration values out of the public repository and publicly accessible web directories.</li>
+                    </ul>
+                </td></tr>
+            </table>
+
+            <a name="versions" id="versions"></a>
+            <table class="wb-cellspace-1 wb-cellpad-3 wb-security-section wb-table" style="width: 100%;">
+                <tr><td class="BoardColumn"><strong>Supported Versions</strong></td></tr>
+                <tr><td class="BoardRowB">
+                    <p>Security fixes are provided for the {{ model.latest_supported_version|default('latest stable release') }}. Older releases may not receive backported fixes unless the vulnerability is severe.</p>
+                    <p>Installers should plan to update promptly when a security release is published.</p>
+                </td></tr>
+            </table>
+
+            <a name="disclosure" id="disclosure"></a>
+            <table class="wb-cellspace-1 wb-cellpad-3 wb-security-section wb-table" style="width: 100%;">
+                <tr><td class="BoardColumn"><strong>Disclosure Policy</strong></td></tr>
+                <tr><td class="BoardRowB">
+                    <p>We aim to acknowledge valid security reports, investigate them privately, prepare a fix, and publish release notes once a patched version is available.</p>
+                    <p>Please give maintainers a reasonable chance to investigate and patch before public disclosure. Reports involving active exploitation may be handled with more urgent public guidance.</p>
+                </td></tr>
+            </table>
+
+            <a name="supply-chain" id="supply-chain"></a>
+            <table class="wb-cellspace-1 wb-cellpad-3 wb-security-section wb-table" style="width: 100%;">
+                <tr><td class="BoardColumn"><strong>Supply Chain and Open Source Hygiene</strong></td></tr>
+                <tr><td class="BoardRowB">
+                    <p>CoreBB is open source, so repository hygiene matters. Maintainers should review dependency updates, protect release branches, test release builds, and keep security-sensitive changes reviewable.</p>
+                    <p>Release packages should be built from reviewed source and should not include development-only files, test artifacts, private configuration, or local environment secrets.</p>
+                    <p>Tools such as <a class="BoardRowBLink" href="https://github.com/ossf/scorecard">OpenSSF Scorecard</a> can help evaluate public maintainership and supply-chain signals over time.</p>
+                </td></tr>
+            </table>
+        </td>
+    </tr>
+</table>

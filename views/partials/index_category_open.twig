@@ -6,14 +6,14 @@
 {% set collapseUrl = category.collapse_url|default('/') %}
 {% set hideEmptyUrl = category.hide_empty_url|default('/') %}
 {% set showEmptyUrl = category.show_empty_url|default('/?show_empty=1') %}
-<tr>
+<tr class="wb-board-category-row">
     <td colspan="2" class="BoardColumn" style="height: 20px;">&nbsp;<a class="BoardColumnLink BoardCategoryLink" href="{{ collapseUrl }}"><span class="BoardCategoryToggle" title="Collapse">[-]</span>&nbsp;&nbsp;{{ title }}</a></td>
     <td class="BoardColumn" style="width: 10%;"><a class="BoardColumnStat">&nbsp;&nbsp;Topics</a></td>
     <td class="BoardColumn" style="width: 10%;"><a class="BoardColumnStat">&nbsp;&nbsp;Messages</a></td>
     <td class="BoardColumn" style="width: 10%;"><a class="BoardColumnStat">&nbsp;&nbsp;Last Post</a></td>
 </tr>
 {% if forums is empty %}
-<tr class="BoardRowB">
+<tr class="BoardRowB wb-board-index-row wb-board-empty-row">
     <td style="width: 10px;"><div class="wb-text-center">&nbsp;</div></td>
     <td colspan="4" style="height: 20px;">&nbsp;&nbsp;No boards are available in this category.</td>
 </tr>
@@ -22,12 +22,12 @@
         {% include 'partials/index_forum_row.twig' with {forum: forum} only %}
     {% endfor %}
     {% if not showEmptyArchiveBoards and hiddenEmptyArchiveBoards > 0 %}
-        <tr class="BoardRowB">
+        <tr class="BoardRowB wb-board-index-row wb-board-note-row">
             <td style="width: 10px;"><div class="wb-text-center">&nbsp;</div></td>
             <td colspan="4" style="height: 20px;">&nbsp;&nbsp;<span class="SmallText">{{ hiddenEmptyArchiveBoards }} empty Secure Archive board{{ hiddenEmptyArchiveBoards == 1 ? '' : 's' }} hidden.</span>&nbsp;<a class="BoardRowBLink" href="{{ showEmptyUrl }}">Show empty boards</a></td>
         </tr>
     {% elseif showEmptyArchiveBoards and emptySecureArchiveBoards > 0 %}
-        <tr class="BoardRowB">
+        <tr class="BoardRowB wb-board-index-row wb-board-note-row">
             <td style="width: 10px;"><div class="wb-text-center">&nbsp;</div></td>
             <td colspan="4" style="height: 20px;">&nbsp;&nbsp;<span class="SmallText">Empty Secure Archive boards are visible.</span>&nbsp;<a class="BoardRowBLink" href="{{ hideEmptyUrl }}">Hide empty boards</a></td>
         </tr>
