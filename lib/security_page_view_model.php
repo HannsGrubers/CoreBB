@@ -37,7 +37,7 @@ function corebb_security_page_model(): array
 {
     return [
         'security_email' => corebb_security_page_email(),
-        'github_private_reporting_url' => 'https://github.com/HannsGrubers/CoreBB-Forum/security/advisories/new',
+        'github_private_reporting_url' => 'https://github.com/HannsGrubers/CoreBB/security/advisories/new',
         'latest_supported_version' => 'latest stable release',
     ];
 }

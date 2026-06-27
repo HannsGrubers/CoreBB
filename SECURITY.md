@@ -7,7 +7,7 @@ Please do not report suspected security vulnerabilities in public GitHub issues.
 Email security reports to security@corebb.net or use GitHub private
 vulnerability reporting:
 
-<https://github.com/HannsGrubers/CoreBB-Forum/security/advisories/new>
+<https://github.com/HannsGrubers/CoreBB/security/advisories/new>
 
 Please include:
 
