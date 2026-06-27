@@ -305,20 +305,39 @@ function corebb_update_validate_hash_manifest(string $root): array
 /**
  * @return array<string, mixed>|null
  */
-function corebb_update_manifest_release_for_version(string $version): ?array
+function corebb_update_manifest_release_for_version(string $version, bool $refresh = false): ?array
 {
-    $manifest = corebb_update_cached_manifest();
+    $manifest = null;
+    if ($refresh) {
+        $fetched = corebb_update_fetch_manifest();
+        if (!empty($fetched['ok']) && is_array($fetched['manifest'] ?? null)) {
+            $manifest = $fetched['manifest'];
+        }
+    }
+    $manifest = $manifest ?? corebb_update_cached_manifest();
     foreach (($manifest['releases'] ?? []) as $release) {
         if (is_array($release) && (string)($release['version'] ?? '') === $version) {
             return $release;
         }
     }
+
+    if (!$refresh) {
+        $fetched = corebb_update_fetch_manifest();
+        if (!empty($fetched['ok']) && is_array($fetched['manifest'] ?? null)) {
+            foreach (($fetched['manifest']['releases'] ?? []) as $release) {
+                if (is_array($release) && (string)($release['version'] ?? '') === $version) {
+                    return $release;
+                }
+            }
+        }
+    }
+
     return null;
 }
 
 function corebb_update_validate_official_zip_hash(string $zipPath, string $version): array
 {
-    $release = corebb_update_manifest_release_for_version($version);
+    $release = corebb_update_manifest_release_for_version($version, true);
     if (!$release) {
         throw new RuntimeException('Official update manifest does not list package version ' . $version . '. Check for updates before uploading the package.');
     }
