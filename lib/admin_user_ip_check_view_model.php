@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/admin_log_helpers.php';
 /*                        ''~``
                          ( o o )
  +------------------.oooO--(_)--Oooo.--------------------+
@@ -288,7 +289,7 @@ function corebb_admin_user_ip_check_model(array $viewer, array $request, array $
 
     if ($ip !== '') {
         $model['rows'] = corebb_user_ip_check_fetch_users($ip);
-        if ((int)($viewer['accesslevel'] ?? 0) >= 3 && function_exists('corebb_adminlog_viewer') && empty($model['errors'])) {
+        if ((int)($viewer['accesslevel'] ?? 0) >= 3  && empty($model['errors'])) {
             $target = $selectedUser ? (' for user #' . (int)($selectedUser['id'] ?? 0) . ' (' . (string)($selectedUser['username'] ?? 'Unknown') . ')') : '';
             corebb_adminlog_viewer($viewer, 'User IP Check: ' . $ip . $target, 'user_ip_check');
         }

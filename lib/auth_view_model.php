@@ -263,9 +263,9 @@ function corebb_registration_model(array $post = [], string $method = 'GET'): ar
         }
 
         if (!$errors) {
-            if (CreateUser($old['username'], $old['email'], $pass1)) {
-                global $CreateUserID;
-                $userid = (int)($CreateUserID ?? 0);
+            $create = corebb_create_user($old['username'], $old['email'], $pass1);
+            if ($create['ok']) {
+                $userid = (int)$create['id'];
                 $mailResult = corebb_email_verification_send($userid, $old['username'], $old['email']);
                 $success = true;
                 if (empty($mailResult['sent'])) {
@@ -273,8 +273,7 @@ function corebb_registration_model(array $post = [], string $method = 'GET'): ar
                 }
                 $old = ['username' => '', 'email' => ''];
             } else {
-                global $CreateUserOut;
-                $errors[] = $CreateUserOut ?: 'Unable to create account.';
+                $errors[] = $create['error'] !== '' ? $create['error'] : 'Unable to create account.';
             }
         }
     }

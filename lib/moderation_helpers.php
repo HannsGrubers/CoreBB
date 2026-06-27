@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/admin_log_helpers.php';
 /*                        ''~``
                          ( o o )
  +------------------.oooO--(_)--Oooo.--------------------+
@@ -17,8 +18,11 @@
  |  for CoreBB.                                          |
  +-------------------------------------------------------+*/
 
+require_once __DIR__ . '/corebb_url_helpers.php';
+require_once __DIR__ . '/corebb_route_helpers.php';
 require_once __DIR__ . '/private_board_helpers.php';
 require_once __DIR__ . '/notification_helpers.php';
+require_once __DIR__ . '/security.php';
 
 /**
  * Escape a scalar for plain moderator output.
@@ -55,7 +59,7 @@ function corebb_mod_identifier(string $identifier): string
 }
 
 /**
- * Resolve the current client IP using the shared security helper when present.
+ * Resolve the current client IP using the shared security helper.
  *
  * Usage: store moderator/reporting IP metadata without duplicating request
  * parsing rules.
@@ -65,9 +69,7 @@ function corebb_mod_identifier(string $identifier): string
  */
 function corebb_mod_current_ip(): string
 {
-    $ip = function_exists('corebb_security_client_ip')
-        ? corebb_security_client_ip()
-        : trim((string)($_SERVER['REMOTE_ADDR'] ?? ''));
+    $ip = corebb_security_client_ip();
     return substr($ip, 0, 255);
 }
 
@@ -95,21 +97,16 @@ function corebb_mod_can_moderate(): bool
  * @param int $topicId Topic id to display.
  * @param int $postId Optional post anchor id.
  * @param int $page Topic page number.
- * @return string Public topic URL or index.php for invalid topics.
+ * @return string Public topic URL or the forum root for invalid topics.
  */
 function corebb_mod_thread_redirect(int $topicId, int $postId = 0, int $page = 1): string
 {
     if ($topicId <= 0) {
-        return 'index.php';
+        return corebb_public_join_base_path('/');
     }
 
     $page = max(1, $page);
-    $path = 'controllers/forum.php?action=thread&id=' . $topicId . '&p=' . $page;
-    if ($postId > 0) {
-        $path .= '#post' . $postId;
-    }
-
-    return function_exists('corebb_public_url') ? corebb_public_url($path) : '/topic/' . $topicId . '/p' . $page . '/' . ($postId > 0 ? '#post' . $postId : '');
+    return corebb_thread_url($topicId, 0, $page, '', $postId);
 }
 
 /**
@@ -119,16 +116,15 @@ function corebb_mod_thread_redirect(int $topicId, int $postId = 0, int $page = 1
  * Referenced by: moderation mutation helpers in this file.
  *
  * @param int $boardId Board id to display.
- * @return string Public board URL or index.php for invalid boards.
+ * @return string Public board URL or the forum root for invalid boards.
  */
 function corebb_mod_board_redirect(int $boardId): string
 {
     if ($boardId <= 0) {
-        return 'index.php';
+        return corebb_public_join_base_path('/');
     }
 
-    $path = 'controllers/forum.php?action=board&id=' . $boardId;
-    return function_exists('corebb_public_url') ? corebb_public_url($path) : '/board/' . $boardId . '/';
+    return corebb_board_url($boardId);
 }
 
 /**
@@ -602,8 +598,8 @@ function corebb_mod_topic_is_locked(int $topicId): bool
 function corebb_mod_log(string $action): void
 {
     global $userlogindata_a;
-    if (function_exists('addlogentry')) {
-        addlogentry((string)($userlogindata_a['username'] ?? $userlogindata_a['id'] ?? 'unknown'), (int)($userlogindata_a['accesslevel'] ?? 0), $action);
+    {
+        corebb_adminlog_entry((string)($userlogindata_a['username'] ?? $userlogindata_a['id'] ?? 'unknown'), (int)($userlogindata_a['accesslevel'] ?? 0), $action);
     }
 }
 
@@ -922,7 +918,7 @@ function corebb_mod_remove_post(int $postId, string $reason = ''): array
     corebb_mod_ensure_schema();
     $post = corebb_mod_get_post($postId, true);
     if (!$post) {
-        return ['ok' => false, 'message' => 'Unknown post ID.', 'redirect' => 'index.php'];
+        return ['ok' => false, 'message' => 'Unknown post ID.', 'redirect' => corebb_public_join_base_path('/')];
     }
     if ((int)($post['is_deleted'] ?? 0) === 1) {
         return ['ok' => true, 'message' => 'Post is already in the deleted-posts bin.', 'redirect' => '/admin/?act=deleted_posts'];
@@ -1003,7 +999,7 @@ function corebb_mod_remove_topic(int $topicId, string $reason = ''): array
     corebb_mod_ensure_schema();
     $topic = corebb_mod_get_topic($topicId, true);
     if (!$topic) {
-        return ['ok' => false, 'message' => 'Unknown topic ID.', 'redirect' => 'index.php'];
+        return ['ok' => false, 'message' => 'Unknown topic ID.', 'redirect' => corebb_public_join_base_path('/')];
     }
 
     $boardId = (int)($topic['boardid'] ?? 0);
@@ -1198,7 +1194,7 @@ function corebb_mod_set_topic_locked(int $topicId, int $locked): array
     corebb_mod_ensure_schema();
     $topic = corebb_mod_get_topic($topicId, true);
     if (!$topic) {
-        return ['ok' => false, 'message' => 'Unknown topic ID.', 'redirect' => 'index.php'];
+        return ['ok' => false, 'message' => 'Unknown topic ID.', 'redirect' => corebb_public_join_base_path('/')];
     }
     if (!corebb_secure_archive_user_can_write_board_id((int)($topic['boardid'] ?? 0), corebb_mod_actor_level())) {
         return ['ok' => false, 'message' => corebb_secure_archive_denied_message(), 'redirect' => corebb_mod_thread_redirect($topicId)];
@@ -1223,7 +1219,7 @@ function corebb_mod_set_topic_sticky(int $topicId, int $sticky): array
     corebb_mod_ensure_schema();
     $topic = corebb_mod_get_topic($topicId, true);
     if (!$topic) {
-        return ['ok' => false, 'message' => 'Unknown topic ID.', 'redirect' => 'index.php'];
+        return ['ok' => false, 'message' => 'Unknown topic ID.', 'redirect' => corebb_public_join_base_path('/')];
     }
     if (!corebb_secure_archive_user_can_write_board_id((int)($topic['boardid'] ?? 0), corebb_mod_actor_level())) {
         return ['ok' => false, 'message' => corebb_secure_archive_denied_message(), 'redirect' => corebb_mod_thread_redirect($topicId)];
@@ -1263,19 +1259,19 @@ function corebb_mod_ban_user(int $userId, string $reason = ''): array
     global $userlogindata_a;
     $target = corebb_mod_get_user($userId);
     if (!$target) {
-        return ['ok' => false, 'message' => 'Unknown user ID.', 'redirect' => 'index.php'];
+        return ['ok' => false, 'message' => 'Unknown user ID.', 'redirect' => corebb_public_join_base_path('/')];
     }
     $currentId = (int)($userlogindata_a['id'] ?? 0);
     $currentLevel = (int)($userlogindata_a['accesslevel'] ?? 0);
     $targetLevel = (int)($target['accesslevel'] ?? 0);
     if ($userId === $currentId) {
-        return ['ok' => false, 'message' => 'You cannot ban yourself.', 'redirect' => "content.php?action=profile&id={$userId}"];
+        return ['ok' => false, 'message' => 'You cannot ban yourself.', 'redirect' => corebb_public_join_base_path('/profile/' . $userId . '/')];
     }
     if ($targetLevel >= $currentLevel) {
-        return ['ok' => false, 'message' => 'You cannot ban a user with equal or higher rights.', 'redirect' => "content.php?action=profile&id={$userId}"];
+        return ['ok' => false, 'message' => 'You cannot ban a user with equal or higher rights.', 'redirect' => corebb_public_join_base_path('/profile/' . $userId . '/')];
     }
     if ((string)($target['status'] ?? '') === '2') {
-        return ['ok' => true, 'message' => 'That user is already banned.', 'redirect' => "content.php?action=profile&id={$userId}"];
+        return ['ok' => true, 'message' => 'That user is already banned.', 'redirect' => corebb_public_join_base_path('/profile/' . $userId . '/')];
     }
 
     $sets = ['status = 2', 'accesslevel = 1'];
@@ -1302,7 +1298,7 @@ function corebb_mod_ban_user(int $userId, string $reason = ''): array
     $params[] = $userId;
 
     if (!db_run('UPDATE users SET ' . implode(', ', $sets) . ' WHERE id = ?', $params)) {
-        return ['ok' => false, 'message' => 'Error banning user: ' . db_error(), 'redirect' => "content.php?action=profile&id={$userId}"];
+        return ['ok' => false, 'message' => 'Error banning user: ' . db_error(), 'redirect' => corebb_public_join_base_path('/profile/' . $userId . '/')];
     }
 
     $log = 'Banned user ' . (string)($target['username'] ?? $userId) . " ({$userId}) and demoted to User";
@@ -1310,7 +1306,7 @@ function corebb_mod_ban_user(int $userId, string $reason = ''): array
         $log .= ': ' . $reason;
     }
     corebb_mod_log($log);
-    return ['ok' => true, 'message' => 'User banned and demoted to User.', 'redirect' => "content.php?action=profile&id={$userId}"];
+    return ['ok' => true, 'message' => 'User banned and demoted to User.', 'redirect' => corebb_public_join_base_path('/profile/' . $userId . '/')];
 }
 
 /**
@@ -1328,16 +1324,16 @@ function corebb_mod_unban_user(int $userId, string $note = ''): array
     global $userlogindata_a;
     $target = corebb_mod_get_user($userId);
     if (!$target) {
-        return ['ok' => false, 'message' => 'Unknown user ID.', 'redirect' => 'index.php'];
+        return ['ok' => false, 'message' => 'Unknown user ID.', 'redirect' => corebb_public_join_base_path('/')];
     }
 
     $currentLevel = (int)($userlogindata_a['accesslevel'] ?? 0);
     $targetLevel = (int)($target['accesslevel'] ?? 0);
     if ($targetLevel >= $currentLevel) {
-        return ['ok' => false, 'message' => 'You cannot moderate a user with equal or higher rights.', 'redirect' => "content.php?action=profile&id={$userId}"];
+        return ['ok' => false, 'message' => 'You cannot moderate a user with equal or higher rights.', 'redirect' => corebb_public_join_base_path('/profile/' . $userId . '/')];
     }
     if ((string)($target['status'] ?? '') !== '2') {
-        return ['ok' => true, 'message' => 'That user is not currently banned.', 'redirect' => "content.php?action=profile&id={$userId}"];
+        return ['ok' => true, 'message' => 'That user is not currently banned.', 'redirect' => corebb_public_join_base_path('/profile/' . $userId . '/')];
     }
 
     $sets = ['status = 0'];
@@ -1353,7 +1349,7 @@ function corebb_mod_unban_user(int $userId, string $note = ''): array
     $params[] = $userId;
 
     if (!db_run('UPDATE users SET ' . implode(', ', $sets) . ' WHERE id = ?', $params)) {
-        return ['ok' => false, 'message' => 'Error unbanning user: ' . db_error(), 'redirect' => "content.php?action=profile&id={$userId}"];
+        return ['ok' => false, 'message' => 'Error unbanning user: ' . db_error(), 'redirect' => corebb_public_join_base_path('/profile/' . $userId . '/')];
     }
 
     $note = corebb_mod_limit_reason($note);
@@ -1362,6 +1358,6 @@ function corebb_mod_unban_user(int $userId, string $note = ''): array
         $log .= ': ' . $note;
     }
     corebb_mod_log($log);
-    return ['ok' => true, 'message' => 'User unbanned.', 'redirect' => "content.php?action=profile&id={$userId}"];
+    return ['ok' => true, 'message' => 'User unbanned.', 'redirect' => corebb_public_join_base_path('/profile/' . $userId . '/')];
 }
 ?>

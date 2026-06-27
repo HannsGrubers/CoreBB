@@ -17,7 +17,7 @@
  |  helpers.                                             |
  +-------------------------------------------------------+*/
 
-require_once __DIR__ . '/../functions.php';
+require_once __DIR__ . '/corebb_browser_helpers.php';
 
 const COREBB_POST_IMAGE_UPLOAD_DIR = 'images/post_uploads';
 const COREBB_POST_IMAGE_MAX_BYTES = 6291456; // 6 MB before resize

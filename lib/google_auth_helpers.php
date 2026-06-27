@@ -6,6 +6,7 @@
 require_once __DIR__ . '/auth_password_helpers.php';
 require_once __DIR__ . '/email_verification_helpers.php';
 require_once __DIR__ . '/tos_helpers.php';
+require_once __DIR__ . '/corebb_url_helpers.php';
 
 /**
  * Usage: Read one authentication setting from systemsettings.
@@ -102,7 +103,7 @@ function corebb_google_login_url(): string
     $https = strtolower((string)($_SERVER['HTTPS'] ?? ''));
     $scheme = ($https !== '' && $https !== 'off') ? 'https' : 'http';
     $host = preg_replace('/[^A-Za-z0-9.\-:\[\]]/', '', (string)($_SERVER['HTTP_HOST'] ?? '')) ?: 'localhost';
-    return $scheme . '://' . $host . (function_exists('corebb_public_url') ? corebb_public_url('/login/google/') : '/login/google/');
+    return $scheme . '://' . $host . corebb_public_join_base_path('/login/google/');
 }
 /**
  * Usage: Build Twig-facing Google button configuration for auth pages.
@@ -414,10 +415,11 @@ function corebb_google_create_user(string $username, array $identity): array
     if (db_exists('SELECT id FROM users WHERE LOWER(privemail) = LOWER(?) LIMIT 1', [$email])) {
         return ['ok' => false, 'error' => 'A CoreBB account already uses this email address. Log in with your password first, then use Google after the account is linked.'];
     }
-    if (!CreateUser($username, $email, corebb_auth_random_token(32))) {
-        return ['ok' => false, 'error' => (string)($GLOBALS['CreateUserOut'] ?? 'Unable to create account.')];
+    $create = corebb_create_user($username, $email, corebb_auth_random_token(32));
+    if (!$create['ok']) {
+        return ['ok' => false, 'error' => $create['error'] !== '' ? $create['error'] : 'Unable to create account.'];
     }
-    $userId = (int)($GLOBALS['CreateUserID'] ?? 0);
+    $userId = (int)$create['id'];
     $user = $userId > 0 ? db_one('SELECT * FROM users WHERE id = ? LIMIT 1', [$userId]) : false;
     if (!$user) {
         return ['ok' => false, 'error' => 'Account was created, but CoreBB could not load it.'];

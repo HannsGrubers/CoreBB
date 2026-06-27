@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/security.php';
 /*                        ''~``
                          ( o o )
  +------------------.oooO--(_)--Oooo.--------------------+
@@ -279,9 +280,7 @@ function corebb_poll_topic_flags(array $topicIds): array
  */
 function corebb_poll_current_ip(): string
 {
-    $ip = function_exists('corebb_security_client_ip')
-        ? corebb_security_client_ip()
-        : trim((string)($_SERVER['REMOTE_ADDR'] ?? ''));
+    $ip = corebb_security_client_ip();
     return substr($ip, 0, 64);
 }
 

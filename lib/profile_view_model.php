@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/corebb_date_helpers.php';
 if (!defined('COREBB_VIEW_LOADED')) {
     require_once __DIR__ . '/view.php';
 }
@@ -98,10 +99,7 @@ function corebb_profile_date($value): string
     if ($value === '' || $value === '0') {
         return 'Never';
     }
-    if (function_exists('convert_to_vndate')) {
-        return convert_to_vndate($value);
-    }
-    return str_replace('-', '/', $value);
+    return convert_to_vndate($value);
 }
 
 /**
@@ -180,8 +178,8 @@ function corebb_profile_model(int $userId): array
     }
 
     $usernamePlain = (string)($row['username'] ?? 'Unknown');
-    $level = function_exists('LoadUserLevel') ? LoadUserLevel((int)($row['accesslevel'] ?? 0)) : (string)($row['accesslevel'] ?? 0);
-    $postCount = function_exists('CreateUserPostcount') ? CreateUserPostcount((int)$row['id']) : number_format((int)($row['posts'] ?? 0));
+    $level = corebb_user_level_label((int)($row['accesslevel'] ?? 0));
+    $postCount = corebb_user_post_count_display((int)$row['id']);
 
     $displayTitle = trim((string)($row['profiletitle'] ?? ''));
 
@@ -200,8 +198,8 @@ function corebb_profile_model(int $userId): array
         'last_post' => corebb_profile_date($row['lastpstdate'] ?? ''),
         'bio' => trim((string)($row['bio'] ?? '')),
         'profile_picture' => trim((string)($row['profpic'] ?? '')),
-        'can_edit_self' => function_exists('loggedin') && loggedin() && (int)(($GLOBALS['userlogindata_a']['id'] ?? 0)) === (int)$row['id'],
-        'can_view_content_links' => function_exists('loggedin') && loggedin(),
+        'can_edit_self' => corebb_load_logged_in_user() && (int)(($GLOBALS['userlogindata_a']['id'] ?? 0)) === (int)$row['id'],
+        'can_view_content_links' => corebb_load_logged_in_user(),
         'all_topics_url' => '/profile/' . (int)$row['id'] . '/topics/',
         'all_posts_url' => '/profile/' . (int)$row['id'] . '/posts/',
     ];

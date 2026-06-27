@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/corebb_date_helpers.php';
 /*                        ''~``
                          ( o o )
  +------------------.oooO--(_)--Oooo.--------------------+
@@ -28,7 +29,7 @@ require_once __DIR__ . '/pm_helpers.php';
  */
 function corebb_pm_markup(string $text): string
 {
-    return nl2br(MarkUp($text, 'B-I-Q-U-O-BQ-S-HR-UL-OL-LI-ST-SP-BL-CT-F-LL-FC-FG-FH-FB-FD-FL-FT-FBB-FS-CB-MD-IMG'));
+    return nl2br(corebb_render_markup($text, 'B-I-Q-U-O-BQ-S-HR-UL-OL-LI-ST-SP-BL-CT-F-LL-FC-FG-FH-FB-FD-FL-FT-FBB-FS-CB-MD-IMG'));
 }
 
 /**
@@ -122,7 +123,7 @@ function corebb_pm_folder_model(array $user, string $folder): array
                 'other_user_id' => $otherUserId,
                 'other_user_name' => corebb_pm_username($otherUserId),
                 'date_sent' => $sendDate,
-                'date_sent_display' => $sendDate !== '' && function_exists('convert_to_vndate') ? convert_to_vndate($sendDate) : $sendDate,
+                'date_sent_display' => $sendDate !== '' ? convert_to_vndate($sendDate) : $sendDate,
             ];
         }
     }
@@ -191,7 +192,7 @@ function corebb_pm_view_model(array $user, int $pmId, string $method): array
         'messages' => $messages,
         'errors' => $errors,
         'date_sent' => $dateSent,
-        'date_sent_display' => $dateSent !== '' && function_exists('convert_to_vndate') ? convert_to_vndate($dateSent) : $dateSent,
+        'date_sent_display' => $dateSent !== '' ? convert_to_vndate($dateSent) : $dateSent,
         'name_label' => $isSent ? 'To:' : 'From:',
         'other_user_id' => $otherUserId,
         'other_user_name' => corebb_pm_username($otherUserId),

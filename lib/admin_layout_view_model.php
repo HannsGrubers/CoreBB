@@ -16,26 +16,16 @@
  |  admin_layout_view_model.php  - Admin chrome model.   |
  +-------------------------------------------------------+*/
 
-require_once __DIR__ . '/../functions.php';
+require_once __DIR__ . '/corebb_browser_helpers.php';
 require_once __DIR__ . '/admin_user_tools_view_model.php';
+require_once __DIR__ . '/admin_mod_requests_view_model.php';
+require_once __DIR__ . '/admin_pm_moderation_view_model.php';
 require_once __DIR__ . '/contact_mods_helpers.php';
 require_once __DIR__ . '/notification_helpers.php';
 require_once __DIR__ . '/performance_helpers.php';
 require_once __DIR__ . '/pm_helpers.php';
 require_once __DIR__ . '/theme_helpers.php';
 require_once __DIR__ . '/vn_eol_chrome_helpers.php';
-
-/**
- * Usage: Convert an admin route path into a browser URL.
- * Referenced by: admin layout links and navigation items.
- *
- * @param string $path Filesystem path.
- * @return string Public URL.
- */
-function corebb_admin_layout_url(string $path): string
-{
-    return function_exists('corebb_public_url') ? corebb_public_url($path) : '/' . ltrim($path, '/');
-}
 
 /**
  * Usage: Return the display model for the active admin user.
@@ -54,8 +44,8 @@ function corebb_admin_layout_viewer(array $viewer): array
         'id' => $userId,
         'username' => $username,
         'access_level' => $level,
-        'level_label' => function_exists('LoadUserLevel') ? LoadUserLevel($level) : 'Level ' . $level,
-        'profile_url' => $userId > 0 ? corebb_admin_layout_url('content.php?action=profile&id=' . $userId) : '',
+        'level_label' => corebb_user_level_label($level),
+        'profile_url' => $userId > 0 ? corebb_public_join_base_path('/profile/' . $userId . '/') : '',
     ];
 }
 
@@ -111,7 +101,7 @@ function corebb_admin_tool_url(string $toolKey): string
         'vip_appearance_self' => '/user-cp/appearance/',
     ];
 
-    return corebb_admin_layout_url($urls[$toolKey] ?? '/admin/');
+    return corebb_public_join_base_path($urls[$toolKey] ?? '/admin/');
 }
 
 /**
@@ -124,9 +114,9 @@ function corebb_admin_tool_url(string $toolKey): string
 function corebb_admin_nav_badges(array $viewer): array
 {
     return [
-        'mod_requests' => function_exists('corebb_mod_requests_new_count') ? corebb_mod_requests_new_count($viewer) : 0,
-        'contact_mods' => function_exists('corebb_contact_mods_new_count') ? corebb_contact_mods_new_count(false) : 0,
-        'pm_reports' => function_exists('corebb_pm_reports_new_count') ? corebb_pm_reports_new_count() : 0,
+        'mod_requests' => corebb_mod_requests_new_count($viewer),
+        'contact_mods' => corebb_contact_mods_new_count(false),
+        'pm_reports' => corebb_pm_reports_new_count(),
     ];
 }
 
@@ -210,7 +200,7 @@ function corebb_admin_layout_alerts(array $viewer): array
         $alerts[] = ['label' => 'System Message', 'message' => $msg, 'type' => 'info'];
     }
 
-    $flash = function_exists('corebb_contact_mods_flash_pull') ? corebb_contact_mods_flash_pull() : ['messages' => [], 'errors' => []];
+    $flash = corebb_contact_mods_flash_pull();
     foreach (($flash['messages'] ?? []) as $message) {
         $alerts[] = ['label' => 'Contact Mods Result', 'message' => (string)$message, 'type' => 'success'];
     }
@@ -241,7 +231,7 @@ function corebb_admin_layout_alerts(array $viewer): array
  */
 function corebb_admin_footer_stats(): string
 {
-    if (!function_exists('LoadBoardSetting') || !LoadBoardSetting('showbasicstats')) {
+    if (!corebb_board_setting_enabled('showbasicstats')) {
         return '';
     }
 
@@ -273,17 +263,15 @@ function corebb_admin_layout_model(array $viewer, array $pageModel = [], array $
     $activeToolKey = (string)($context['tool_key'] ?? 'admin_home');
     $routeLabel = (string)($context['route_label'] ?? 'Dashboard');
     $viewerModel = corebb_admin_layout_viewer($viewer);
-    $notificationCount = function_exists('corebb_notifications_uncleared_count')
-        ? corebb_notifications_uncleared_count((int)$viewerModel['id'], false)
-        : 0;
-    $pmUnread = function_exists('corebb_pm_count') ? corebb_pm_count((int)$viewerModel['id'], 'unread') : 0;
+    $notificationCount = corebb_notifications_uncleared_count((int)$viewerModel['id'], false);
+    $pmUnread = corebb_pm_count((int)$viewerModel['id'], 'unread');
 
     return [
         'head' => [
             'title' => 'CoreBB Admin - ' . $routeLabel,
             'body_class' => 'wb-admin-body',
             'staging' => defined('COREBB_ENV') && (string)COREBB_ENV === 'staging',
-            'stylesheets' => [corebb_theme_url('style_ign.css'), corebb_theme_url('style_theme.css')],
+            'stylesheets' => [corebb_theme_url('style_vn_eol.css'), corebb_theme_url('style_theme.css')],
             'scripts' => [
                 corebb_theme_url('scripts/minmax.js'),
                 corebb_theme_url('scripts/repopulate2.js'),
@@ -303,10 +291,10 @@ function corebb_admin_layout_model(array $viewer, array $pageModel = [], array $
             'groups' => corebb_admin_nav_groups($viewer, $activeToolKey),
         ],
         'menu' => [
-            'board_url' => corebb_admin_layout_url('index.php'),
-            'logout_url' => corebb_admin_layout_url('auth.php?action=logout'),
-            'pm_url' => corebb_admin_layout_url('messages.php?action=folder&folder=unread'),
-            'notifications_url' => corebb_admin_layout_url('usercp.php?action=notifications'),
+            'board_url' => corebb_public_join_base_path('/'),
+            'logout_url' => corebb_public_join_base_path('/logoff/'),
+            'pm_url' => corebb_public_join_base_path('/private-messages/'),
+            'notifications_url' => corebb_public_join_base_path('/notifications/'),
             'pm_unread' => $pmUnread,
             'notification_count' => $notificationCount,
         ],
@@ -314,7 +302,7 @@ function corebb_admin_layout_model(array $viewer, array $pageModel = [], array $
         'special_access_notice' => (string)($pageModel['special_access_notice'] ?? ''),
         'footer' => [
             'stats' => corebb_admin_footer_stats(),
-            'version_label' => function_exists('corebb_version_label') ? corebb_version_label() : 'CoreBB Initial Release v1.0.0',
+            'version_label' => corebb_version_label(),
             'copyright_start' => 2005,
             'copyright_year' => date('Y'),
             'copyright_name' => 'CoreBB',

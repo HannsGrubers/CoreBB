@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/security.php';
 /*                        ''~``
                          ( o o )
  +------------------.oooO--(_)--Oooo.--------------------+
@@ -661,7 +662,7 @@ function db_errno($link = null): int { return (int)($GLOBALS['COREBB_DB_LAST_ERR
  * Read and unserialize a legacy CoreBB cookie safely.
  *
  * Usage: decode signed login cookies before security verification.
- * Referenced by: CookieEngine.php, API bootstrap, logout, and auth helpers.
+ * Referenced by: auth session helpers, API bootstrap, logout, and auth helpers.
  *
  * @param string $name Cookie name.
  * @return array<string, mixed> Cookie payload or empty array.
@@ -684,7 +685,7 @@ function corebb_read_serialized_cookie(string $name): array
  * Clear a cookie using the security helper when it has been loaded.
  *
  * Usage: remove login cookies from both classic and API auth flows.
- * Referenced by: CookieEngine.php, API bootstrap, and logout helpers.
+ * Referenced by: auth session helpers, API bootstrap, and logout helpers.
  *
  * @param string $name Cookie name.
  * @return void
@@ -692,10 +693,5 @@ function corebb_read_serialized_cookie(string $name): array
 function corebb_clear_cookie(string $name): void
 {
     global $CookieDomain;
-    if (function_exists('corebb_security_clear_cookie')) {
-        corebb_security_clear_cookie($name, '/', $CookieDomain ?? '');
-        return;
-    }
-    setcookie($name, '', time() - 3600, '/');
-    unset($_COOKIE[$name]);
+    corebb_security_clear_cookie($name, '/', $CookieDomain ?? '');
 }

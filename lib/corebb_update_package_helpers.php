@@ -11,6 +11,7 @@
  +-------------------------------------------------------+*/
 
 require_once __DIR__ . '/corebb_update_helpers.php';
+require_once __DIR__ . '/db.php';
 
 const COREBB_UPDATE_PACKAGE_MAX_BYTES = 104857600;
 const COREBB_UPDATE_DOWNLOAD_TIMEOUT_SECONDS = 45;
@@ -52,10 +53,7 @@ function corebb_update_app_root(): string
 
 function corebb_update_private_base_dir(): string
 {
-    if (function_exists('corebb_config_private_base_dir')) {
-        return corebb_config_private_base_dir(corebb_update_app_root());
-    }
-    return dirname(corebb_update_app_root()) . DIRECTORY_SEPARATOR . 'corebb_private';
+    return corebb_config_private_base_dir(corebb_update_app_root());
 }
 
 function corebb_update_private_dir(string $child): string
@@ -671,12 +669,7 @@ function corebb_update_preflight_rows(array $summary): array
     $rows[] = corebb_update_preflight_row('PHP version', true, PHP_VERSION);
     $rows[] = corebb_update_preflight_row('ZIP support', class_exists('ZipArchive'), class_exists('ZipArchive') ? 'Available' : 'PHP ZIP extension is missing.');
 
-    $dbOk = false;
-    if (function_exists('corebb_db_connection')) {
-        $dbOk = corebb_db_connection() instanceof PDO;
-    } elseif (function_exists('db_value')) {
-        $dbOk = db_value('SELECT 1', [], 0) == 1;
-    }
+    $dbOk = corebb_db_connection() instanceof PDO;
     $rows[] = corebb_update_preflight_row('Database connection', $dbOk, $dbOk ? 'Available' : 'Database connection could not be verified.');
 
     $tempDir = corebb_update_private_dir('extracted');

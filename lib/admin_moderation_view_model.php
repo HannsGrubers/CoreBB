@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/admin_log_helpers.php';
 /*                        ''~``
                          ( o o )
  +------------------.oooO--(_)--Oooo.--------------------+
@@ -20,6 +21,7 @@
 require_once __DIR__ . '/admin_helpers.php';
 require_once __DIR__ . '/admin_user_tools_view_model.php';
 require_once __DIR__ . '/pagination_helpers.php';
+require_once __DIR__ . '/security.php';
 
 const COREBB_ADMIN_MOD_REQUESTS_PER_PAGE = 20;
 const COREBB_ADMIN_MOD_USER_RESULTS_LIMIT = 50;
@@ -137,9 +139,7 @@ function corebb_admin_mod_now(): string
  */
 function corebb_admin_mod_current_ip(): string
 {
-    $ip = function_exists('corebb_security_client_ip')
-        ? corebb_security_client_ip()
-        : trim((string)($_SERVER['REMOTE_ADDR'] ?? ''));
+    $ip = corebb_security_client_ip();
     return substr($ip, 0, 255);
 }
 
@@ -296,7 +296,7 @@ function corebb_admin_mod_public_profile_url(int $userId): string
     if ($userId <= 0) {
         return '';
     }
-    return function_exists('corebb_public_url') ? corebb_public_url('content.php?action=profile&id=' . $userId) : '/profile/' . $userId . '/';
+    return corebb_public_join_base_path('/profile/' . $userId . '/');
 }
 
 /**
@@ -313,7 +313,7 @@ function corebb_admin_mod_user_summary(array $user): array
         'id' => (int)($user['id'] ?? 0),
         'username' => (string)($user['username'] ?? ''),
         'accesslevel' => $level,
-        'level_name' => function_exists('LoadUserLevel') ? LoadUserLevel($level) : (string)$level,
+        'level_name' => corebb_user_level_label($level),
         'posts' => (int)($user['posts'] ?? 0),
         'status' => (string)($user['status'] ?? ''),
         'status_text' => corebb_admin_mod_status_text($user['status'] ?? ''),
@@ -346,7 +346,7 @@ function corebb_admin_mod_fetch_user(int $userId): ?array
     if ($userId <= 0) {
         return null;
     }
-    $select = function_exists('corebb_admin_user_select_list') ? corebb_admin_user_select_list() : 'id, username, accesslevel, posts, status, lastip';
+    $select = corebb_admin_user_select_list();
     $row = db_one('SELECT ' . $select . ' FROM users WHERE id = ? LIMIT 1', [$userId]);
     return $row ?: null;
 }
@@ -392,7 +392,7 @@ function corebb_admin_mod_search_users(string $query, string $filter = 'all'): a
         return [];
     }
 
-    $userSelect = function_exists('corebb_admin_user_select_list') ? corebb_admin_user_select_list('u') : 'u.id AS id, u.username AS username, u.accesslevel AS accesslevel, u.posts AS posts, u.status AS status, u.lastip AS lastip';
+    $userSelect = corebb_admin_user_select_list('u');
     $sql = 'SELECT ' . $userSelect . ', bu.username AS banned_by_username FROM users u LEFT JOIN users bu ON bu.id = u.banned_by';
     if ($where) {
         $sql .= ' WHERE ' . implode(' AND ', $where);
@@ -456,7 +456,7 @@ function corebb_admin_mod_search_banned_users_vn(string $username, string $ipAdd
         $params[] = '%' . $hostAddress . '%';
     }
 
-    $userSelect = function_exists('corebb_admin_user_select_list') ? corebb_admin_user_select_list('u') : 'u.id AS id, u.username AS username, u.accesslevel AS accesslevel, u.posts AS posts, u.status AS status, u.lastip AS lastip';
+    $userSelect = corebb_admin_user_select_list('u');
     $sql = 'SELECT ' . $userSelect . ', bu.username AS banned_by_username
             FROM users u
             LEFT JOIN users bu ON bu.id = u.banned_by
@@ -509,8 +509,8 @@ function corebb_admin_mod_can_touch_user(array $viewer, array $target, string $v
  */
 function corebb_admin_mod_log(array $viewer, string $action): void
 {
-    if (function_exists('addlogentry')) {
-        addlogentry((string)($viewer['username'] ?? $viewer['id'] ?? 'Unknown'), (int)($viewer['accesslevel'] ?? 0), $action);
+    {
+        corebb_adminlog_entry((string)($viewer['username'] ?? $viewer['id'] ?? 'Unknown'), (int)($viewer['accesslevel'] ?? 0), $action);
     }
 }
 
@@ -549,7 +549,7 @@ function corebb_admin_mod_ban_user(array $viewer, int $userId, string $reason): 
         return [false, 'Error banning user: ' . db_error()];
     }
 
-    $logSuffix = $oldLevel > 1 ? ' and demoted from ' . (function_exists('LoadUserLevel') ? LoadUserLevel($oldLevel) : ('level ' . $oldLevel)) . ' to User' : '';
+    $logSuffix = $oldLevel > 1 ? ' and demoted from ' . corebb_user_level_label($oldLevel) . ' to User' : '';
     corebb_admin_mod_log($viewer, 'Banned user ' . (string)($target['username'] ?? $userId) . " ({$userId})" . $logSuffix . ($reason !== '' ? ': ' . $reason : ''));
     return [true, $oldLevel > 1 ? 'User banned and demoted to User.' : 'User banned.'];
 }
@@ -605,15 +605,11 @@ function corebb_admin_mod_unban_user(array $viewer, int $userId, string $note = 
  */
 function corebb_admin_mod_request_select_list(string $alias = 'r'): string
 {
-    if (function_exists('corebb_admin_select_columns')) {
-        return corebb_admin_select_columns('unban_requests', [
-            'id', 'userid', 'username', 'contact_email', 'ip_address', 'request_text',
-            'status', 'admin_userid', 'admin_note', 'created_at', 'updated_at',
-            'resolved_at', 'verified', 'is_verified'
-        ], $alias);
-    }
-    $prefix = $alias !== '' ? $alias . '.' : '';
-    return $prefix . 'id AS id, ' . $prefix . 'userid AS userid, ' . $prefix . 'username AS username, ' . $prefix . 'contact_email AS contact_email, ' . $prefix . 'ip_address AS ip_address, ' . $prefix . 'request_text AS request_text, ' . $prefix . 'status AS status, ' . $prefix . 'admin_userid AS admin_userid, ' . $prefix . 'admin_note AS admin_note, ' . $prefix . 'created_at AS created_at, ' . $prefix . 'updated_at AS updated_at, ' . $prefix . 'resolved_at AS resolved_at';
+    return corebb_admin_select_columns('unban_requests', [
+        'id', 'userid', 'username', 'contact_email', 'ip_address', 'request_text',
+        'status', 'admin_userid', 'admin_note', 'created_at', 'updated_at',
+        'resolved_at', 'verified', 'is_verified'
+    ], $alias);
 }
 
 /**
@@ -626,9 +622,7 @@ function corebb_admin_mod_request_select_list(string $alias = 'r'): string
 function corebb_admin_mod_fetch_request(int $requestId): ?array
 {
     $requestSelect = corebb_admin_mod_request_select_list('r');
-    $userSelect = function_exists('corebb_admin_select_columns')
-        ? corebb_admin_select_columns('users', ['accesslevel', 'posts', 'status', 'lastip', 'regdate', 'lastlogindate', 'ban_reason', 'banned_at', 'banned_by'], 'u')
-        : 'u.accesslevel AS accesslevel, u.posts AS posts, u.status AS user_status, u.lastip AS lastip, u.regdate AS regdate, u.lastlogindate AS lastlogindate, u.ban_reason AS ban_reason, u.banned_at AS banned_at, u.banned_by AS banned_by';
+    $userSelect = corebb_admin_select_columns('users', ['accesslevel', 'posts', 'status', 'lastip', 'regdate', 'lastlogindate', 'ban_reason', 'banned_at', 'banned_by'], 'u');
     // Keep the old template keys for user status distinct from the request status.
     $userSelect = str_replace('`status` AS `status`', '`status` AS `user_status`', $userSelect);
     $row = db_one('SELECT ' . $requestSelect . ', ' . $userSelect . ', bu.username AS banned_by_username FROM unban_requests r LEFT JOIN users u ON u.id = r.userid LEFT JOIN users bu ON bu.id = u.banned_by WHERE r.id = ? LIMIT 1', [$requestId]);
@@ -672,7 +666,7 @@ function corebb_admin_mod_request_summary(array $row): array
         'user_status' => (string)($row['user_status'] ?? ''),
         'user_status_text' => corebb_admin_mod_status_text($row['user_status'] ?? ''),
         'accesslevel' => (int)($row['accesslevel'] ?? 0),
-        'level_name' => function_exists('LoadUserLevel') ? LoadUserLevel((int)($row['accesslevel'] ?? 0)) : (string)($row['accesslevel'] ?? 0),
+        'level_name' => corebb_user_level_label((int)($row['accesslevel'] ?? 0)),
         'posts' => (int)($row['posts'] ?? 0),
         'profile_url' => '/admin/?act=user_pages&userid=' . $userId,
         'notes_url' => '/admin/?act=admin_notes&userid=' . $userId,
@@ -743,9 +737,7 @@ function corebb_admin_mod_list_requests(string $status, int $page): array
     $offset = ($page - 1) * COREBB_ADMIN_MOD_REQUESTS_PER_PAGE;
 
     $requestSelect = corebb_admin_mod_request_select_list('r');
-    $userSelect = function_exists('corebb_admin_select_columns')
-        ? corebb_admin_select_columns('users', ['accesslevel', 'posts', 'status', 'lastip', 'regdate', 'lastlogindate', 'ban_reason', 'banned_at', 'banned_by'], 'u')
-        : 'u.accesslevel AS accesslevel, u.posts AS posts, u.status AS user_status, u.lastip AS lastip, u.regdate AS regdate, u.lastlogindate AS lastlogindate, u.ban_reason AS ban_reason, u.banned_at AS banned_at, u.banned_by AS banned_by';
+    $userSelect = corebb_admin_select_columns('users', ['accesslevel', 'posts', 'status', 'lastip', 'regdate', 'lastlogindate', 'ban_reason', 'banned_at', 'banned_by'], 'u');
     $userSelect = str_replace('`status` AS `status`', '`status` AS `user_status`', $userSelect);
     $sql = 'SELECT ' . $requestSelect . ', ' . $userSelect . ', bu.username AS banned_by_username
             FROM unban_requests r

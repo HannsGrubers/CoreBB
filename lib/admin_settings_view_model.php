@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/admin_log_helpers.php';
 /*                        ''~``
                          ( o o )
  +------------------.oooO--(_)--Oooo.--------------------+
@@ -37,8 +38,8 @@ function corebb_admin_settings_model(array $viewer, array $request, array $post)
     if($method === 'post' && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST'){
         $messages = corebb_admin_save_system_settings($post);
         $saved = true;
-        if(function_exists('addlogentry')){
-            addlogentry((string)($viewer['username'] ?? 'Unknown'), (int)($viewer['accesslevel'] ?? 0), 'Modified system settings');
+        {
+            corebb_adminlog_entry((string)($viewer['username'] ?? 'Unknown'), (int)($viewer['accesslevel'] ?? 0), 'Modified system settings');
         }
     }
 
@@ -51,6 +52,6 @@ function corebb_admin_settings_model(array $viewer, array $request, array $post)
         'message' => (string)($request['msg'] ?? ''),
         'bool_settings' => array_merge(['theme_vn_eol','encaseboards','showbasicstats','allowguests','customtitles','quickreply','markupcode','maintenancemode','auth_google_enabled','auth_google_allow_auto_create'], corebb_admin_rate_limit_boolean_settings()),
         'number_settings' => corebb_admin_rate_limit_numeric_settings(),
-        'style_options' => corebb_admin_public_style_options(),
+        'style_options' => corebb_public_style_builtin_options(),
     ];
 }

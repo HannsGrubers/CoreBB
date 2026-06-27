@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/admin_log_helpers.php';
 /*                        ''~``
                          ( o o )
  +------------------.oooO--(_)--Oooo.--------------------+
@@ -12,6 +13,7 @@
 
 require_once __DIR__ . '/corebb_update_helpers.php';
 require_once __DIR__ . '/corebb_update_package_helpers.php';
+require_once __DIR__ . '/security.php';
 
 /**
  * Usage: Build and process the admin Updates page model.
@@ -36,22 +38,22 @@ function corebb_admin_updates_model(array $viewer, array $request, array $post, 
         $errors[] = 'Administrator access is required.';
     } elseif (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $action = (string)($post['action'] ?? '');
-        if (function_exists('corebb_security_csrf_valid') && !corebb_security_csrf_valid($post)) {
+        if (!corebb_security_csrf_valid($post)) {
             $errors[] = 'Security token expired. Please reload the page and try again.';
         } elseif ($action === 'check_updates') {
-            if (function_exists('corebb_adminlog_viewer')) {
+            {
                 corebb_adminlog_viewer($viewer, 'CoreBB update check started', 'update_check_started');
             }
             $result = corebb_update_fetch_manifest();
             if ($result['ok']) {
                 $manifest = $result['manifest'];
                 $messages[] = (string)$result['message'];
-                if (function_exists('corebb_adminlog_viewer')) {
+                {
                     corebb_adminlog_viewer($viewer, 'CoreBB update check completed', 'update_check_completed');
                 }
             } else {
                 $errors[] = (string)$result['message'];
-                if (function_exists('corebb_adminlog_viewer')) {
+                {
                     corebb_adminlog_viewer($viewer, 'CoreBB update check failed', 'update_check_failed', (string)$result['message']);
                 }
             }
@@ -69,7 +71,7 @@ function corebb_admin_updates_model(array $viewer, array $request, array $post, 
                 $messages[] = $disableMaintenance
                     ? 'Upgrade lock cleared and maintenance mode disabled.'
                     : 'Upgrade lock cleared.';
-                if (function_exists('corebb_adminlog_viewer')) {
+                {
                     corebb_adminlog_viewer(
                         $viewer,
                         'CoreBB upgrade lock cleared',
@@ -79,7 +81,7 @@ function corebb_admin_updates_model(array $viewer, array $request, array $post, 
                 }
             } catch (Throwable $e) {
                 $errors[] = $e->getMessage();
-                if (function_exists('corebb_adminlog_viewer')) {
+                {
                     corebb_adminlog_viewer($viewer, 'CoreBB upgrade lock clear failed', 'update_lock_clear_failed', $e->getMessage());
                 }
             }
@@ -87,7 +89,7 @@ function corebb_admin_updates_model(array $viewer, array $request, array $post, 
             try {
                 $packageSummary = corebb_update_handle_package_upload(is_array($files['update_package'] ?? null) ? $files['update_package'] : []);
                 $messages[] = 'Update package validated: CoreBB ' . (string)($packageSummary['version'] ?? 'unknown') . '.';
-                if (function_exists('corebb_adminlog_viewer')) {
+                {
                     corebb_adminlog_viewer(
                         $viewer,
                         'CoreBB update package uploaded and validated',
@@ -97,7 +99,7 @@ function corebb_admin_updates_model(array $viewer, array $request, array $post, 
                 }
             } catch (Throwable $e) {
                 $errors[] = $e->getMessage();
-                if (function_exists('corebb_adminlog_viewer')) {
+                {
                     corebb_adminlog_viewer($viewer, 'CoreBB update package validation failed', 'update_package_validation_failed', $e->getMessage());
                 }
             }
@@ -106,7 +108,7 @@ function corebb_admin_updates_model(array $viewer, array $request, array $post, 
                 $version = trim((string)($post['release_version'] ?? ''));
                 $packageSummary = corebb_update_handle_official_package_download($version);
                 $messages[] = 'Official package downloaded and validated: CoreBB ' . (string)($packageSummary['version'] ?? 'unknown') . '.';
-                if (function_exists('corebb_adminlog_viewer')) {
+                {
                     corebb_adminlog_viewer(
                         $viewer,
                         'CoreBB official update package downloaded and validated',
@@ -116,7 +118,7 @@ function corebb_admin_updates_model(array $viewer, array $request, array $post, 
                 }
             } catch (Throwable $e) {
                 $errors[] = $e->getMessage();
-                if (function_exists('corebb_adminlog_viewer')) {
+                {
                     corebb_adminlog_viewer($viewer, 'CoreBB official update package download failed', 'update_package_sideload_failed', $e->getMessage());
                 }
             }
@@ -127,7 +129,7 @@ function corebb_admin_updates_model(array $viewer, array $request, array $post, 
                     throw new RuntimeException('Upload and validate an update package before generating a preview.');
                 }
                 $messages[] = 'Upgrade preview generated for CoreBB ' . (string)($preview['package_version'] ?? 'unknown') . '.';
-                if (function_exists('corebb_adminlog_viewer')) {
+                {
                     corebb_adminlog_viewer(
                         $viewer,
                         'CoreBB update preview generated',
@@ -146,7 +148,7 @@ function corebb_admin_updates_model(array $viewer, array $request, array $post, 
                 if (!$packageSummary) {
                     throw new RuntimeException('Upload and validate an update package before applying an upgrade.');
                 }
-                if (function_exists('corebb_adminlog_viewer')) {
+                {
                     corebb_adminlog_viewer(
                         $viewer,
                         'CoreBB update started',
@@ -162,7 +164,7 @@ function corebb_admin_updates_model(array $viewer, array $request, array $post, 
                     . (int)($result['deleted_files'] ?? 0) . ' obsolete file(s), applied '
                     . (int)($result['migrations'] ?? 0) . ' migration(s), and cleared '
                     . (int)($result['cache_removed'] ?? 0) . ' cache item(s).';
-                if (function_exists('corebb_adminlog_viewer')) {
+                {
                     corebb_adminlog_viewer(
                         $viewer,
                         'CoreBB update completed',
@@ -172,7 +174,7 @@ function corebb_admin_updates_model(array $viewer, array $request, array $post, 
                 }
             } catch (Throwable $e) {
                 $errors[] = corebb_update_failure_recovery_message($e);
-                if (function_exists('corebb_adminlog_viewer')) {
+                {
                     corebb_adminlog_viewer($viewer, 'CoreBB update failed', corebb_update_failure_action_type($e), $e->getMessage());
                 }
             }

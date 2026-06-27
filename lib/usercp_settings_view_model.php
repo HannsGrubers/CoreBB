@@ -17,23 +17,11 @@
  |  helpers.                                             |
  +-------------------------------------------------------+*/
 
-require_once __DIR__ . '/../functions.php';
+require_once __DIR__ . '/corebb_browser_helpers.php';
 require_once __DIR__ . '/pm_helpers.php';
 require_once __DIR__ . '/notification_helpers.php';
 require_once __DIR__ . '/public_style_helpers.php';
 require_once __DIR__ . '/vip_style_helpers.php';
-
-/**
- * Usage: Count unread private messages for User CP chrome and sidebars.
- * Referenced by: corebb_usercp_base_model().
- *
- * @param int $uid Current logged-in user id.
- * @return int Unread private message count.
- */
-function corebb_usercp_unread_count(int $uid): int
-{
-    return corebb_pm_count($uid, 'unread');
-}
 
 /**
  * Usage: Build the common User CP model shared by edit-profile/settings pages.
@@ -46,7 +34,7 @@ function corebb_usercp_base_model(int $uid): array
 {
     return [
         'uid' => $uid,
-        'unreadPmCount' => corebb_usercp_unread_count($uid),
+        'unreadPmCount' => corebb_pm_count($uid, 'unread'),
         'notificationCount' => $uid > 0 ? corebb_notifications_uncleared_count($uid, false) : 0,
         'message' => trim((string)($_GET['msg'] ?? '')),
         'canEditAppearance' => corebb_vip_style_user_can_self_manage($uid),
@@ -168,7 +156,7 @@ function corebb_usercp_load_profile(int $uid): array
 
 /**
  * Usage: Save profile fields from a supplied array instead of directly from globals.
- * Referenced by: corebb_usercp_save_profile() and admin edit-profile saves.
+ * Referenced by: User CP and admin edit-profile saves.
  *
  * @param int $uid User id to update.
  * @param array<string, mixed> $source Submitted profile fields.
@@ -187,7 +175,7 @@ function corebb_usercp_save_profile_from_array(int $uid, array $source): bool
     $fields['profpic'] = corebb_clean_profile_value_from($source, 'profpic', 255);
     // Bio may contain board markup, so strip HTML but preserve BBCode-ish text.
     $fields['bio'] = corebb_usercp_truncate_bytes(trim(strip_tags((string)($source['bio'] ?? ''))), 65535);
-    if (function_exists('corebb_user_column_exists') && corebb_user_column_exists('profupdated')) {
+    if (corebb_user_column_exists('profupdated')) {
         $fields['profupdated'] = date('M y');
     }
 
@@ -199,18 +187,6 @@ function corebb_usercp_save_profile_from_array(int $uid, array $source): bool
     $params[] = $uid;
 
     return db_run('UPDATE users SET ' . $setSql . ' WHERE id = ?', $params);
-}
-
-/**
- * Usage: Save the current user's posted profile fields.
- * Referenced by: controllers/usercp.php action=profile.
- *
- * @param int $uid Current logged-in user id.
- * @return bool True when the profile update succeeds.
- */
-function corebb_usercp_save_profile(int $uid): bool
-{
-    return corebb_usercp_save_profile_from_array($uid, $_POST);
 }
 
 /**
@@ -324,7 +300,7 @@ function corebb_options_allowed_page_sizes(): array
  */
 function corebb_usercp_public_style_options(): array
 {
-    return ['' => 'Use forum default'] + corebb_public_style_options();
+    return ['' => 'Use forum default'] + corebb_public_style_builtin_options();
 }
 
 /**

@@ -94,7 +94,7 @@ function corebb_blog_entry_row_model(array $entry, bool $showControls = false): 
         'authorName' => corebb_blog_username($posterId),
         'authorTitle' => corebb_blog_user_title($posterId),
         'title' => corebb_blog_title($entry),
-        'bodyPreview' => TrimStr((string)($entry['body'] ?? ''), 45),
+        'bodyPreview' => corebb_trim_words((string)($entry['body'] ?? ''), 45),
         'posttime' => (string)($entry['posttime'] ?? ''),
         'showControls' => $showControls && corebb_blog_can_modify($entry),
     ];
@@ -225,7 +225,7 @@ function corebb_blog_viewentry_model(int $entryId): array
 function corebb_blog_edit_model(array $request, array $post, string $method): array
 {
     corebb_blog_ensure_schema();
-    if (!loggedin()) {
+    if (!corebb_load_logged_in_user()) {
         return [
             'error' => 'Sorry, you must be logged in to edit blog entries!',
             'returnUrl' => '/blogs/',
@@ -275,7 +275,7 @@ function corebb_blog_edit_model(array $request, array $post, string $method): ar
 function corebb_blog_delete_model(array $request, array $post, string $method): array
 {
     corebb_blog_ensure_schema();
-    if (!loggedin()) {
+    if (!corebb_load_logged_in_user()) {
         return [
             'error' => 'Sorry, you must be logged in to delete blog entries!',
             'returnUrl' => '/blogs/',

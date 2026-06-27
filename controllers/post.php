@@ -8,8 +8,7 @@
 
 $root = dirname(__DIR__);
 
-include $root . '/CookieEngine.php';
-include_once $root . '/functions.php';
+require_once $root . '/lib/bootstrap.php';
 require_once $root . '/lib/view.php';
 require_once $root . '/lib/layout_view_model.php';
 require_once $root . '/lib/post_view_model.php';
@@ -19,7 +18,7 @@ require_once $root . '/lib/mobile_helpers.php';
 $isPostImageUploadEndpoint = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET')) === 'POST'
     && (string)($_GET['act'] ?? '') === 'image_upload';
 
-$isLoggedIn = loggedin();
+$isLoggedIn = corebb_load_logged_in_user();
 
 if ($isPostImageUploadEndpoint) {
     if (!headers_sent()) {
@@ -73,7 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 if (!$isLoggedIn) {
-    header('Location: ' . (function_exists('corebb_public_url') ? corebb_public_url('/?msg=You+must+be+logged+in+to+post') : '/?msg=You+must+be+logged+in+to+post'));
+    header('Location: ' . corebb_public_join_base_path('/?msg=You+must+be+logged+in+to+post'));
     exit;
 }
 

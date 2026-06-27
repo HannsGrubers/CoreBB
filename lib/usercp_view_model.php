@@ -28,45 +28,6 @@ require_once __DIR__ . '/usercp_settings_view_model.php';
 require_once __DIR__ . '/vip_style_helpers.php';
 
 /**
- * Usage: Build a topic URL for the User CP recent-topics list.
- * Referenced by: corebb_fetch_usercp_model().
- *
- * @param int $topicId Topic id to link to.
- * @param int $boardId Parent board id used by the canonical URL helper.
- * @param string $boardName Parent board name used for URL slugs when available.
- * @return string Public topic URL, or "#" when the topic id is invalid.
- */
-function corebb_usercp_thread_url(int $topicId, int $boardId, string $boardName = ''): string
-{
-    if ($topicId <= 0) {
-        return '#';
-    }
-
-    return function_exists('corebb_thread_url')
-        ? corebb_thread_url($topicId, $boardId, 1, $boardName)
-        : '/topic/' . $topicId . '/';
-}
-
-/**
- * Usage: Build a board URL for the User CP recent-topics list.
- * Referenced by: corebb_fetch_usercp_model().
- *
- * @param int $boardId Board id to link to.
- * @param string $boardName Board name used for URL slugs when available.
- * @return string Public board URL, or "#" when the board id is invalid.
- */
-function corebb_usercp_board_url(int $boardId, string $boardName = ''): string
-{
-    if ($boardId <= 0) {
-        return '#';
-    }
-
-    return function_exists('corebb_board_url')
-        ? corebb_board_url($boardId, 1, $boardName)
-        : '/board/' . $boardId . '/';
-}
-
-/**
  * Usage: Load favorite boards for the User CP favorite-board manager.
  * Referenced by: controllers/usercp.php action=favorites.
  *
@@ -117,7 +78,7 @@ function corebb_usercp_favorites_model(int $userId, array $viewer = []): array
             'postCount' => $visible ? (int)($row['postcount'] ?? 0) : 0,
             'addedDisplay' => $addDate !== '' ? convert_to_vndate($addDate) : '-',
             'lastPostDisplay' => ($visible && $lastPost !== '') ? convert_to_vndate($lastPost) : '-',
-            'boardUrl' => $visible ? corebb_usercp_board_url($boardId, $name) : '',
+            'boardUrl' => $visible ? corebb_board_url($boardId, 1, $name) : '',
             'isVisible' => $visible,
         ];
     }
@@ -220,8 +181,8 @@ function corebb_fetch_usercp_model(int $userId): array
         ];
         $lastIndex = count($model['recentTopics']) - 1;
         $recent = $model['recentTopics'][$lastIndex];
-        $model['recentTopics'][$lastIndex]['topicUrl'] = corebb_usercp_thread_url((int)$recent['id'], (int)$recent['boardId'], (string)$recent['boardName']);
-        $model['recentTopics'][$lastIndex]['boardUrl'] = corebb_usercp_board_url((int)$recent['boardId'], (string)$recent['boardName']);
+        $model['recentTopics'][$lastIndex]['topicUrl'] = corebb_thread_url((int)$recent['id'], (int)$recent['boardId'], 1, (string)$recent['boardName']);
+        $model['recentTopics'][$lastIndex]['boardUrl'] = corebb_board_url((int)$recent['boardId'], 1, (string)$recent['boardName']);
     }
 
     return $model;

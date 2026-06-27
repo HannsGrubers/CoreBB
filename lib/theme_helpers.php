@@ -74,21 +74,6 @@ function corebb_theme_is_vn_eol(): bool
 
 
 /**
- * Usage: Return the public asset base path for theme URLs.
- * Referenced by: corebb_theme_url().
- *
- * @return string Public asset base path.
- */
-function corebb_theme_base_path(): string
-{
-    /* Keep public assets anchored at the configured forum base path so pretty
-     * URLs like /generaldiscussions/b1/ do not make the browser request
-     * /generaldiscussions/b1/style_vn_eol.css.
-     */
-    return function_exists('corebb_public_base_path') ? corebb_public_base_path() : '/';
-}
-
-/**
  * Usage: Resolve a theme asset path against the public site root.
  * Referenced by: admin layout, layout view model, and VN EOL chrome helpers.
  *
@@ -99,16 +84,10 @@ function corebb_theme_url(string $path): string
 {
     $path = trim($path);
     if ($path === '') {
-        return corebb_theme_base_path();
+        return corebb_public_base_path();
     }
     if (preg_match('~^(?:[a-z][a-z0-9+.-]*:|//|#)~i', $path)) {
         return $path;
     }
-    if (function_exists('corebb_public_pretty_url')) {
-        return corebb_public_pretty_url($path);
-    }
-    if ($path[0] === '/') {
-        return $path;
-    }
-    return corebb_theme_base_path() . ltrim($path, '/');
+    return corebb_public_join_base_path($path);
 }

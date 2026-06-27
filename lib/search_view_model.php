@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/corebb_date_helpers.php';
 if (!defined('COREBB_VIEW_LOADED')) {
     require_once __DIR__ . '/view.php';
 }
@@ -90,7 +91,7 @@ function corebb_search_boolean_query(string $value): string
  */
 function corebb_search_fulltext_enabled(): bool
 {
-    return function_exists('corebb_perf_search_fulltext_ready') && corebb_perf_search_fulltext_ready();
+    return corebb_perf_search_fulltext_ready();
 }
 
 /**
@@ -202,46 +203,6 @@ function corebb_search_excerpt(string $text, string $needle = '', int $limit = 2
 
 
 /**
- * Usage: Highlight the search term inside already-selected result text.
- * Referenced by: formatted_content_html() through search_highlight_model().
- *
- * @param string $text Result text to display.
- * @param string $needle Search term to highlight.
- * @return string Escaped HTML with highlight spans around matches.
- */
-function corebb_search_highlight_html(string $text, string $needle): string
-{
-    if ($text === '') {
-        return '';
-    }
-    $needle = trim($needle);
-    if ($needle === '') {
-        return corebb_h($text);
-    }
-
-    // Capture the matching term so preg_split returns it as its own part.
-    // PREG_SPLIT_DELIM_CAPTURE only works when the regex has a capturing group.
-    $pattern = '/(' . preg_quote($needle, '/') . ')/iu';
-    $parts = preg_split($pattern, $text, -1, PREG_SPLIT_DELIM_CAPTURE);
-    if (!is_array($parts) || count($parts) <= 1) {
-        return corebb_h($text);
-    }
-
-    $html = '';
-    foreach ($parts as $part) {
-        if ($part === '') {
-            continue;
-        }
-        if (preg_match($pattern, $part) === 1) {
-            $html .= '<span style="background:#ffff66; color:#000000; font-weight:bold;">' . corebb_h($part) . '</span>';
-        } else {
-            $html .= corebb_h($part);
-        }
-    }
-    return $html;
-}
-
-/**
  * Usage: Build a deep link to a matching post within thread pagination.
  * Referenced by: corebb_search_posts().
  *
@@ -253,13 +214,10 @@ function corebb_search_highlight_html(string $text, string $needle): string
  */
 function corebb_search_post_url(int $topicId, int $boardId, int $postId, string $boardName = ''): string
 {
-    $perPage = function_exists('corebb_current_thread_posts_per_page') ? corebb_current_thread_posts_per_page() : 25;
+    $perPage = corebb_current_thread_posts_per_page();
     $position = (int)db_value('SELECT COUNT(*) FROM posts WHERE threadid = ? AND is_deleted = 0 AND id <= ?', [$topicId, $postId], 1);
     $page = max(1, (int)ceil(max(1, $position) / max(1, $perPage)));
-    if (function_exists('corebb_thread_url')) {
-        return corebb_thread_url($topicId, $boardId, $page, $boardName, $postId);
-    }
-    return '/topic/' . $topicId . '/p' . $page . '/#post' . $postId;
+    return corebb_thread_url($topicId, $boardId, $page, $boardName, $postId);
 }
 
 /**
@@ -472,10 +430,10 @@ function corebb_search_posts(string $q, string $author, int $boardId, int $page,
             'topic_title' => (string)($row['topic_title'] ?? 'Untitled Topic'),
             'url' => corebb_search_post_url($topicId, $boardId, $postId, $boardName),
             'board_name' => $boardName,
-            'board_url' => function_exists('corebb_board_url') ? corebb_board_url($boardId, 1, $boardName) : '/board/' . $boardId . '/',
+            'board_url' => corebb_board_url($boardId, 1, $boardName),
             'author' => (string)($row['username'] ?? 'Unknown'),
             'author_url' => '/profile/' . (int)($row['posterid'] ?? 0) . '/',
-            'date' => $stamp !== '' && function_exists('convert_to_vndate') ? convert_to_vndate($stamp) : $stamp,
+            'date' => $stamp !== '' ? convert_to_vndate($stamp) : $stamp,
             'excerpt' => corebb_search_excerpt((string)($row['body'] ?? ''), $q),
         ];
     }
@@ -553,12 +511,12 @@ function corebb_search_topics(string $q, string $author, int $boardId, int $page
         $items[] = [
             'kind' => 'topic',
             'title' => (string)($row['title'] ?? 'Untitled Topic'),
-            'url' => function_exists('corebb_thread_url') ? corebb_thread_url($topicId, $boardId, 1, $boardName) : '/topic/' . $topicId . '/p1/',
+            'url' => corebb_thread_url($topicId, $boardId, 1, $boardName),
             'board_name' => $boardName,
-            'board_url' => function_exists('corebb_board_url') ? corebb_board_url($boardId, 1, $boardName) : '/board/' . $boardId . '/',
+            'board_url' => corebb_board_url($boardId, 1, $boardName),
             'author' => (string)($row['username'] ?? 'Unknown'),
             'author_url' => '/profile/' . (int)($row['posterid'] ?? 0) . '/',
-            'date' => $stamp !== '' && function_exists('convert_to_vndate') ? convert_to_vndate($stamp) : $stamp,
+            'date' => $stamp !== '' ? convert_to_vndate($stamp) : $stamp,
             'replies' => max(0, (int)($row['post_count'] ?? 0) - 1),
             'locked' => (int)($row['locked'] ?? 0) === 1,
             'sticky' => (int)($row['sticky'] ?? 0) === 1,

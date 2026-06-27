@@ -8,15 +8,15 @@
 
 $root = dirname(__DIR__);
 
-include $root . '/CookieEngine.php';
+require_once $root . '/lib/bootstrap.php';
 require_once $root . '/lib/view.php';
 require_once $root . '/lib/layout_view_model.php';
 require_once $root . '/lib/moderator_view_model.php';
 
 corebb_mod_ensure_schema();
 
-if (!loggedin() || !corebb_mod_can_moderate()) {
-    header('Location: ' . (function_exists('corebb_public_url') ? corebb_public_url('/denied/') : '/denied/'));
+if (!corebb_load_logged_in_user() || !corebb_mod_can_moderate()) {
+    header('Location: ' . corebb_public_join_base_path('/denied/'));
     exit;
 }
 

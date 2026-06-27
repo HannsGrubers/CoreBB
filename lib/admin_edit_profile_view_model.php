@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/admin_log_helpers.php';
 /*                        ''~``
                          ( o o )
  +------------------.oooO--(_)--Oooo.--------------------+
@@ -145,7 +146,7 @@ function corebb_admin_edit_profile_user_summary(array $user): array
         'username' => (string)($user['username'] ?? ''),
         'profile_url' => '/profile/' . $userId . '/',
         'accesslevel' => $level,
-        'level_name' => function_exists('LoadUserLevel') ? LoadUserLevel($level) : (string)$level,
+        'level_name' => corebb_user_level_label($level),
         'posts' => number_format((int)($user['posts'] ?? 0)),
         'registered' => (string)($user['regdate'] ?? ''),
     ];
@@ -190,8 +191,8 @@ function corebb_admin_edit_profile_model(array $viewer, array $request, array $p
 
         $ok = corebb_usercp_save_profile_from_array($targetId, $post);
         if ($ok) {
-            if (function_exists('addlogentry')) {
-                addlogentry(
+            {
+                corebb_adminlog_entry(
                     (string)($viewer['username'] ?? 'Unknown'),
                     (int)($viewer['accesslevel'] ?? 0),
                     'Edited user profile: ' . $targetId,

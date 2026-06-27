@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/admin_log_helpers.php';
 /*                        ''~``
                          ( o o )
  +------------------.oooO--(_)--Oooo.--------------------+
@@ -322,14 +323,7 @@ function corebb_user_pages_title(array $user): string
 function corebb_user_pages_user_type(array $user): string
 {
     $level = (int)($user['accesslevel'] ?? 0);
-    if (function_exists('LoadUserLevel')) {
-        return (string)LoadUserLevel($level);
-    }
-    if ($level >= 5) { return 'Administrator'; }
-    if ($level >= 4) { return 'Manager'; }
-    if ($level >= 3) { return 'Moderator'; }
-    if ($level >= 2) { return 'VIP'; }
-    return 'User';
+    return (string)corebb_user_level_label($level);
 }
 
 /**
@@ -341,12 +335,12 @@ function corebb_user_pages_user_type(array $user): string
  */
 function corebb_user_pages_special_access(int $userId): array
 {
-    if ($userId <= 0 || !function_exists('corebb_admin_user_granted_tool_keys')) {
+    if ($userId <= 0) {
         return [];
     }
 
     $granted = array_fill_keys(corebb_admin_user_granted_tool_keys($userId), true);
-    if (!$granted || !function_exists('corebb_admin_tool_catalog')) {
+    if (!$granted) {
         return [];
     }
 
@@ -499,8 +493,8 @@ function corebb_user_pages_clear_value(array $viewer, array $target, string $act
         return [false, 'Error updating user: ' . db_error()];
     }
 
-    if (function_exists('addlogentry')) {
-        addlogentry((string)($viewer['username'] ?? $viewer['id'] ?? 'Unknown'), (int)($viewer['accesslevel'] ?? 0), $msg . ' User #' . $userId);
+    {
+        corebb_adminlog_entry((string)($viewer['username'] ?? $viewer['id'] ?? 'Unknown'), (int)($viewer['accesslevel'] ?? 0), $msg . ' User #' . $userId);
     }
 
     return [true, $msg];
@@ -601,14 +595,12 @@ function corebb_admin_user_pages_model(array $viewer, array $request, array $pos
             && corebb_admin_target_content_error($viewer, $selectedUser) === '';
         $model['selected_user']['can_manage_icons'] = corebb_user_pages_can_use_tool($viewer, 'manage_icons')
             && corebb_admin_target_content_error($viewer, $selectedUser) === '';
-        $model['selected_user']['can_edit_appearance'] = function_exists('corebb_admin_can_access_tool')
-            ? corebb_admin_can_access_tool($viewer, 'user_appearance_admin')
-            : ((int)($viewer['accesslevel'] ?? 0) >= 4);
+        $model['selected_user']['can_edit_appearance'] = corebb_admin_can_access_tool($viewer, 'user_appearance_admin');
         $model['search'] = [
             'username' => (string)($selectedUser['username'] ?? $username),
             'userid' => (string)($selectedUser['id'] ?? $userId),
         ];
-        if ((int)($viewer['accesslevel'] ?? 0) >= 3 && function_exists('corebb_adminlog_viewer') && !$isPost) {
+        if ((int)($viewer['accesslevel'] ?? 0) >= 3  && !$isPost) {
             corebb_adminlog_viewer(
                 $viewer,
                 'Viewed User Portal for user #' . (int)($selectedUser['id'] ?? 0) . ' (' . (string)($selectedUser['username'] ?? 'Unknown') . ')',

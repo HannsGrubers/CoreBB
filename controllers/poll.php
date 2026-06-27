@@ -8,8 +8,7 @@
 
 $root = dirname(__DIR__);
 
-include $root . '/CookieEngine.php';
-include_once $root . '/functions.php';
+require_once $root . '/lib/bootstrap.php';
 require_once $root . '/lib/poll_helpers.php';
 require_once $root . '/lib/private_board_helpers.php';
 
@@ -38,21 +37,19 @@ $topicId = (int)($_POST['topicid'] ?? 0);
 $optionId = (int)($_POST['optionid'] ?? 0);
 $userId = (int)($userlogindata_a['id'] ?? 0);
 
-if (!loggedin() || $userId <= 0) {
-    header('Location: ' . (function_exists('corebb_public_url') ? corebb_public_url('/login/') : '/login/'));
+if (!corebb_load_logged_in_user() || $userId <= 0) {
+    header('Location: ' . corebb_public_join_base_path('/login/'));
     exit;
 }
 
-$voteBoardId = function_exists('corebb_topic_board_id') ? (int)corebb_topic_board_id($topicId) : 0;
+$voteBoardId = (int)corebb_topic_board_id($topicId);
 if ($voteBoardId <= 0 || !corebb_private_user_can_view_board_id($voteBoardId, $userId, (int)($userlogindata_a['accesslevel'] ?? 0))) {
-    header('Location: ' . (function_exists('corebb_public_url') ? corebb_public_url('/') : '/'));
+    header('Location: ' . corebb_public_join_base_path('/'));
     exit;
 }
 
 $boardName = (string)db_value('SELECT name FROM forums WHERE id = ? LIMIT 1', [$voteBoardId], '');
-$redirect = function_exists('corebb_thread_url')
-    ? corebb_thread_url($topicId, $voteBoardId, 1, $boardName) . '#poll'
-    : '/topic/' . max(0, $topicId) . '/p1/#poll';
+$redirect = corebb_thread_url($topicId, $voteBoardId, 1, $boardName) . '#poll';
 
 if (!corebb_secure_archive_user_can_write_board_id($voteBoardId, (int)($userlogindata_a['accesslevel'] ?? 0))) {
     corebb_poll_vote_redirect($redirect, 'archive');

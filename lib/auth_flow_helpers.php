@@ -6,6 +6,7 @@
 require_once __DIR__ . '/rate_limit_helpers.php';
 require_once __DIR__ . '/email_verification_helpers.php';
 require_once __DIR__ . '/auth_password_helpers.php';
+require_once __DIR__ . '/corebb_url_helpers.php';
 
 /**
  * Usage: Send an auth workflow to its next public URL and stop execution.
@@ -16,9 +17,7 @@ require_once __DIR__ . '/auth_password_helpers.php';
  */
 function corebb_auth_redirect(string $url): void
 {
-    if (function_exists('corebb_public_url')) {
-        $url = corebb_public_url($url);
-    }
+    $url = corebb_public_join_base_path($url);
     header('Location: ' . $url);
     exit;
 }

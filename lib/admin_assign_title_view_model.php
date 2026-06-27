@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/admin_log_helpers.php';
 /*                        ''~``
                          ( o o )
  +------------------.oooO--(_)--Oooo.--------------------+
@@ -147,9 +148,7 @@ function corebb_assign_title_prepare_title(string $title): string
 {
     $title = str_replace(["\r\n", "\r"], "\n", $title);
     $title = trim(strip_tags($title));
-    if (function_exists('CleanPostDataForPrepared')) {
-        $title = CleanPostDataForPrepared($title);
-    }
+    $title = corebb_prepare_post_data($title);
     return corebb_assign_title_limit_text($title, 255);
 }
 
@@ -215,11 +214,11 @@ function corebb_admin_assign_title_model(array $viewer, array $request, array $p
                 $model['messages'][] = $action === 'clear_title'
                     ? 'Title cleared for ' . $plainName . '.'
                     : 'Title updated for ' . $plainName . '.';
-                if (function_exists('addlogentry')) {
+                {
                     $description = $action === 'clear_title'
                         ? 'Cleared title for user: ' . $targetId
                         : 'Assigned title for user: ' . $targetId;
-                    addlogentry(
+                    corebb_adminlog_entry(
                         (string)($viewer['username'] ?? $viewer['id'] ?? 'Unknown'),
                         (int)($viewer['accesslevel'] ?? 0),
                         $description,

@@ -29,10 +29,9 @@ require_once __DIR__ . '/private_board_helpers.php';
  *
  * @param int $topicId Topic id from the route.
  * @param int $page Requested page number.
- * @param string $threadScript Fallback route used when pretty URL helpers are unavailable.
  * @return array<string, mixed> Thread display state for Twig/API consumers.
  */
-function corebb_thread_fetch_model(int $topicId, int $page, string $threadScript = 'controllers/forum.php?action=thread'): array
+function corebb_thread_fetch_model(int $topicId, int $page): array
 {
     global $userlogindata_a, $QueryCount;
 
@@ -82,7 +81,7 @@ function corebb_thread_fetch_model(int $topicId, int $page, string $threadScript
     $boardRow = is_array($boardRow) ? $boardRow : [];
     $editTimer = (int)($boardRow['edittimer'] ?? 0);
     $archiveReadOnly = !corebb_secure_archive_user_can_write_board_row($boardRow, (int)($userlogindata_a['accesslevel'] ?? 0));
-    $isLoggedIn = function_exists('loggedin') && loggedin();
+    $isLoggedIn = corebb_load_logged_in_user();
 
     $posts = [];
     // LIMIT/OFFSET are sanitized integers here. Keeping them literal avoids PDO
@@ -133,9 +132,7 @@ function corebb_thread_fetch_model(int $topicId, int $page, string $threadScript
     $canReply = $isLoggedIn && !$archiveReadOnly && (!$locked || $canModerate);
     $pollUserId = $isLoggedIn ? (int)($userlogindata_a['id'] ?? 0) : 0;
     $pollMessage = corebb_poll_message_from_code((string)($_GET['pollmsg'] ?? ''));
-    $threadUrlPattern = function_exists('corebb_thread_url')
-        ? str_replace('/p999999/', '/p{page}/', corebb_thread_url($topicId, $boardId, 999999, (string)($boardRow['name'] ?? 'Board')))
-        : $threadScript . (str_contains($threadScript, '?') ? '&' : '?') . "id={$topicId}&p={page}";
+    $threadUrlPattern = str_replace('/p999999/', '/p{page}/', corebb_thread_url($topicId, $boardId, 999999, (string)($boardRow['name'] ?? 'Board')));
     $pagination = $postCount > $perPage ? corebb_pagination_model($threadUrlPattern, $currentPage, $totalPages, 'MainMenuFont') : corebb_pagination_model('', $currentPage, $totalPages, 'MainMenuFont');
     $poll = corebb_thread_prepare_poll_model(
         array_merge(corebb_poll_thread_model($topicId, $pollUserId), ['archiveReadOnly' => $archiveReadOnly]),
@@ -161,7 +158,7 @@ function corebb_thread_fetch_model(int $topicId, int $page, string $threadScript
         'posts' => $posts,
         'poll' => $poll,
         'pollMessage' => $pollMessage,
-        'replyUrl' => function_exists('corebb_reply_url') ? corebb_reply_url($topicId, $boardId) : '/post/reply/' . $topicId . '/b' . $boardId . '/',
+        'replyUrl' => corebb_reply_url($topicId, $boardId),
         'pagination' => $pagination,
     ];
 }
@@ -210,7 +207,7 @@ function corebb_thread_prepare_post_row(
     $row['author_access_level'] = (int)($row['author_accesslevel'] ?? 0);
     $row['author_posts_count'] = $authorPostCount;
     $row['author_posts_display'] = number_format($authorPostCount);
-    $row['signature'] = $posterId > 0 ? CreateUserSignature($posterId) : '';
+    $row['signature'] = $posterId > 0 ? corebb_user_signature_text($posterId) : '';
     $row['can_user_edit'] = $canUserEdit;
     $row['edit_minutes_left'] = $editMinutesLeft;
     $row['show_actions'] = $showPostActions;
@@ -218,22 +215,22 @@ function corebb_thread_prepare_post_row(
     $row['edit_time_display'] = $row['was_edited'] ? convert_to_vndate((string)($row['editdate'] ?? '')) : '';
     $row['edit_count_text'] = $editCountText;
     $row['edited_by_id'] = (int)($row['editedby'] ?? 0);
-    $row['reply_url'] = function_exists('corebb_reply_url') ? corebb_reply_url($topicId, $boardId) : '/post/reply/' . $topicId . '/b' . $boardId . '/';
-    $row['quote_url'] = function_exists('corebb_reply_url') ? corebb_reply_url($topicId, $boardId, $postId) : '/post/reply/' . $topicId . '/b' . $boardId . '/q' . $postId . '/';
-    $row['edit_url'] = function_exists('corebb_edit_post_url') ? corebb_edit_post_url($postId) : '/post/edit/' . $postId . '/';
-    $row['moderator_edit_url'] = function_exists('corebb_edit_post_url') ? corebb_edit_post_url($postId, true) : '/post/edit/' . $postId . '/?mod=1';
-    $row['report_url'] = function_exists('corebb_public_url') ? corebb_public_url('support.php?action=report&post=' . $postId) : '/report-message/' . $postId . '/';
-    $row['pm_url'] = function_exists('corebb_public_url') ? corebb_public_url('messages.php?action=send&usr=' . $posterId) : '/private-messages/send/' . $posterId . '/';
+    $row['reply_url'] = corebb_reply_url($topicId, $boardId);
+    $row['quote_url'] = corebb_reply_url($topicId, $boardId, $postId);
+    $row['edit_url'] = corebb_edit_post_url($postId);
+    $row['moderator_edit_url'] = corebb_edit_post_url($postId, true);
+    $row['report_url'] = corebb_public_join_base_path('/report-message/' . $postId . '/');
+    $row['pm_url'] = corebb_public_join_base_path('/private-messages/send/' . $posterId . '/');
     $row['post_history_url'] = $posterId > 0 ? '/profile/' . $posterId . '/posts/' : '';
     $row['admin_notes_url'] = $posterId > 0 ? '/admin/?act=admin_notes&userid=' . $posterId : '';
-    $row['remove_url'] = function_exists('corebb_public_url') ? corebb_public_url('moderation.php?act=remove_post&post=' . $postId) : '/moderator/?act=remove_post&post=' . $postId;
-    $row['ban_url'] = function_exists('corebb_public_url') ? corebb_public_url('moderation.php?act=ban_user&post=' . $postId) : '/moderator/?act=ban_user&post=' . $postId;
-    $row['ipc_url'] = function_exists('corebb_public_url') ? corebb_public_url('moderation.php?act=ipc&post=' . $postId) : '/moderator/?act=ipc&post=' . $postId;
-    $row['lock_url'] = function_exists('corebb_public_url') ? corebb_public_url('moderation.php?act=lock_topic&topic=' . $topicId) : '/moderator/?act=lock_topic&topic=' . $topicId;
+    $row['remove_url'] = corebb_public_join_base_path('/moderator/?act=remove_post&post=' . $postId);
+    $row['ban_url'] = corebb_public_join_base_path('/moderator/?act=ban_user&post=' . $postId);
+    $row['ipc_url'] = corebb_public_join_base_path('/moderator/?act=ipc&post=' . $postId);
+    $row['lock_url'] = corebb_public_join_base_path('/moderator/?act=lock_topic&topic=' . $topicId);
     $row['lock_label'] = $locked ? 'Unlock' : 'Lock';
-    $row['post_id_url'] = function_exists('corebb_public_url') ? corebb_public_url('content.php?action=post_id&id=' . $postId) : '/post-id/' . $postId . '/';
-    $row['question_icon_url'] = function_exists('corebb_public_asset') ? corebb_public_asset('images/question.gif') : 'images/question.gif';
-    $row['thread_url'] = function_exists('corebb_thread_url') ? corebb_thread_url($topicId, $boardId, 1, $boardName, $postId) : '/topic/' . $topicId . '/p1/#post' . $postId;
+    $row['post_id_url'] = corebb_public_join_base_path('/post-id/' . $postId . '/');
+    $row['question_icon_url'] = corebb_public_join_base_path('images/question.gif');
+    $row['thread_url'] = corebb_thread_url($topicId, $boardId, 1, $boardName, $postId);
 
     return $row;
 }
@@ -269,7 +266,7 @@ function corebb_thread_prepare_poll_model(array $pollModel, bool $isLoggedIn): a
             'votes' => $votes,
             'percent_int' => (int)$percent,
             'bar_width' => $totalVotes > 0 ? max(1, min(320, (int)round(($votes / $totalVotes) * 320))) : 1,
-            'pixel_src' => function_exists('corebb_public_asset') ? corebb_public_asset('images/pixel_poll_' . $optionNumber . '.gif') : 'images/pixel_poll_' . $optionNumber . '.gif',
+            'pixel_src' => corebb_public_join_base_path('images/pixel_poll_' . $optionNumber . '.gif'),
         ]);
     }
 
@@ -289,7 +286,7 @@ function corebb_thread_prepare_poll_model(array $pollModel, bool $isLoggedIn): a
     return array_merge($pollModel, [
         'options' => $options,
         'canVote' => $canVote,
-        'voteAction' => function_exists('corebb_pretty_path') ? corebb_pretty_path('poll/vote/') : '/poll/vote/',
+        'voteAction' => corebb_pretty_path('poll/vote/'),
         'statusMessage' => $statusMessage,
     ]);
 }

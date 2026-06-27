@@ -43,7 +43,7 @@ if (!$link) {
 
 require_once dirname(__DIR__) . '/security.php';
 require_once dirname(__DIR__) . '/auth_password_helpers.php';
-require_once dirname(__DIR__, 2) . '/functions.php';
+require_once dirname(__DIR__) . '/corebb_browser_helpers.php';
 require_once dirname(__DIR__) . '/view.php';
 require_once __DIR__ . '/guardrails.php';
 
@@ -55,9 +55,9 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
 /**
  * Load the API viewer from the signed persistent-login cookie once per request.
  *
- * Usage: give API endpoints the same authentication state as classic pages
- * without including CookieEngine.php.
- * Referenced by: loggedin(), bootstrap initialization, and API guardrails.
+ * Usage: give API endpoints the same authentication state as browser pages
+ * without including the browser bootstrap.
+ * Referenced by: bootstrap initialization, API guardrails, and shared view models.
  *
  * @return bool True when a valid user session was loaded.
  */
@@ -111,19 +111,6 @@ function corebb_load_logged_in_user(): bool
     $_SESSION['userid'] = $userlogindata_a['id'] ?? '';
     $ok = true;
     return true;
-}
-
-/**
- * API-local login predicate compatible with classic CoreBB helpers.
- *
- * Usage: allow shared view models and serializers to call loggedin().
- * Referenced by: API guardrails, serializers, and shared view models.
- *
- * @return bool True when the API viewer is authenticated.
- */
-function loggedin(): bool
-{
-    return corebb_load_logged_in_user();
 }
 
 corebb_load_logged_in_user();

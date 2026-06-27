@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/admin_log_helpers.php';
 /*                        ''~``
                          ( o o )
  +------------------.oooO--(_)--Oooo.--------------------+
@@ -61,8 +62,8 @@ function corebb_pm_mod_limit_text(string $value, int $maxBytes): string
  */
 function corebb_pm_mod_log(array $viewer, string $action, string $type = 'pm_moderation', string $description = ''): void
 {
-    if (function_exists('addlogentry')) {
-        addlogentry((string)($viewer['username'] ?? $viewer['id'] ?? 'Unknown'), (int)($viewer['accesslevel'] ?? 0), $action, $type, $description !== '' ? $description : $action);
+    {
+        corebb_adminlog_entry((string)($viewer['username'] ?? $viewer['id'] ?? 'Unknown'), (int)($viewer['accesslevel'] ?? 0), $action, $type, $description !== '' ? $description : $action);
     }
 }
 

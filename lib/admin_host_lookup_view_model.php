@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/admin_log_helpers.php';
 /*                        ''~``
                          ( o o )
  +------------------.oooO--(_)--Oooo.--------------------+
@@ -208,7 +209,7 @@ function corebb_admin_host_lookup_model(array $viewer, array $request, array $po
         $model['rows'] = corebb_host_lookup_users_for_ips(array_values($ips));
     }
 
-    if (($ip !== '' || $host !== '') && empty($model['errors']) && (int)($viewer['accesslevel'] ?? 0) >= 3 && function_exists('corebb_adminlog_viewer')) {
+    if (($ip !== '' || $host !== '') && empty($model['errors']) && (int)($viewer['accesslevel'] ?? 0) >= 3 ) {
         $parts = [];
         if ($ip !== '') { $parts[] = 'IP ' . $ip; }
         if ($host !== '') { $parts[] = 'host ' . $host; }

@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/admin_log_helpers.php';
 /*                        ''~``
                          ( o o )
  +------------------.oooO--(_)--Oooo.--------------------+
@@ -35,9 +36,7 @@ require_once __DIR__ . '/private_board_helpers.php';
 function corebb_admin_boards_ensure_schema(): void
 {
     corebb_private_ensure_schema();
-    if (function_exists('corebb_perf_add_column_if_missing')) {
-        corebb_perf_add_column_if_missing('boards', 'default_open', 'TINYINT(1) NOT NULL DEFAULT 0');
-    }
+    corebb_perf_add_column_if_missing('boards', 'default_open', 'TINYINT(1) NOT NULL DEFAULT 0');
 }
 
 /**
@@ -235,8 +234,8 @@ function corebb_admin_boards_move_category(int $categoryId, string $direction, a
     corebb_admin_reindex_category_positions();
 
     if ($ok) {
-        if (function_exists('addlogentry')) {
-            addlogentry((string)($viewer['username'] ?? ''), $accessLevel, "Moved category {$categoryId} {$direction}");
+        {
+            corebb_adminlog_entry((string)($viewer['username'] ?? ''), $accessLevel, "Moved category {$categoryId} {$direction}");
         }
         return [true, 'Successfully changed category position.'];
     }
@@ -289,8 +288,8 @@ function corebb_admin_boards_move_board(int $forumId, string $direction, array $
     corebb_admin_reindex_forum_positions($categoryId);
 
     if ($ok) {
-        if (function_exists('addlogentry')) {
-            addlogentry((string)($viewer['username'] ?? ''), (int)($viewer['accesslevel'] ?? 0), "Moved board {$forumId} {$direction}");
+        {
+            corebb_adminlog_entry((string)($viewer['username'] ?? ''), (int)($viewer['accesslevel'] ?? 0), "Moved board {$forumId} {$direction}");
         }
         return [true, 'Successfully changed board position.'];
     }
@@ -374,7 +373,7 @@ function corebb_admin_add_category_model(array $viewer, array $get, array $post)
             return $model;
         }
 
-        if ($catname === '' || (function_exists('validate') && !validate($catname))) {
+        if ($catname === '' || !corebb_text_is_simple_label($catname)) {
             $model['messages'][] = 'Sorry, you may only use letters, numbers, spaces, punctuation, and underscores in category names.';
             $model['step'] = 'form';
             return $model;
@@ -386,8 +385,8 @@ function corebb_admin_add_category_model(array $viewer, array $get, array $post)
         }
 
         if (corebb_admin_add_category($catname, $isPrivate, $isSecureArchive, $defaultOpen)) {
-            if (function_exists('addlogentry')) {
-                addlogentry((string)($viewer['username'] ?? ''), (int)($viewer['accesslevel'] ?? 0), "Added category: {$catname}");
+            {
+                corebb_adminlog_entry((string)($viewer['username'] ?? ''), (int)($viewer['accesslevel'] ?? 0), "Added category: {$catname}");
             }
             $model['messages'][] = 'Category added successfully.';
             $model['step'] = 'done';
@@ -458,8 +457,8 @@ function corebb_admin_delete_category_model(array $viewer, array $get, array $po
             return $model;
         }
         if (db_run('DELETE FROM boards WHERE id = ?', [$id])) {
-            if (function_exists('addlogentry')) {
-                addlogentry((string)($viewer['username'] ?? ''), (int)($viewer['accesslevel'] ?? 0), "Deleted category: {$id}");
+            {
+                corebb_adminlog_entry((string)($viewer['username'] ?? ''), (int)($viewer['accesslevel'] ?? 0), "Deleted category: {$id}");
             }
             $model['messages'][] = 'Category deleted.';
             $model['deleted'] = true;
@@ -555,15 +554,15 @@ function corebb_admin_modify_category_model(array $viewer, array $get, array $po
             $model['messages'][] = corebb_secure_archive_denied_message();
         } elseif ($name === '') {
             $model['messages'][] = 'Category name may not be blank.';
-        } elseif (function_exists('validate') && !validate($name)) {
+        } elseif (!corebb_text_is_simple_label($name)) {
             $model['messages'][] = 'Sorry, you may only use letters, numbers, spaces, punctuation, and underscores in category names.';
         } else {
             $ok = db_run('UPDATE boards SET name = ?, private = ?, secure_archive = ?, default_open = ? WHERE id = ?', [$name, $private, $secureArchive, $defaultOpen, $id]);
             if ($ok) {
                 $model['messages'][] = 'Category successfully updated.';
                 $model['saved'] = true;
-                if (function_exists('addlogentry')) {
-                    addlogentry((string)($viewer['username'] ?? ''), (int)($viewer['accesslevel'] ?? 0), "Modified category: {$id}");
+                {
+                    corebb_adminlog_entry((string)($viewer['username'] ?? ''), (int)($viewer['accesslevel'] ?? 0), "Modified category: {$id}");
                 }
             } else {
                 $model['messages'][] = 'Error updating category: ' . db_error();
@@ -642,8 +641,8 @@ function corebb_admin_add_board_model(array $viewer, array $get, array $post): a
                 $model['newboarddescription'] = '';
                 $model['boardtimer'] = 30;
                 $model['private'] = 0;
-                if (function_exists('addlogentry')) {
-                    addlogentry((string)($viewer['username'] ?? ''), (int)($viewer['accesslevel'] ?? 0), "Added board: {$name}");
+                {
+                    corebb_adminlog_entry((string)($viewer['username'] ?? ''), (int)($viewer['accesslevel'] ?? 0), "Added board: {$name}");
                 }
             } else {
                 $model['messages'][] = 'Error adding board: ' . db_error();
@@ -689,8 +688,8 @@ function corebb_admin_modify_board_model(array $viewer, array $get, array $post)
         }
         $model['messages'][] = $message;
         $model['done'] = $ok;
-        if ($ok && function_exists('addlogentry')) {
-            addlogentry((string)($viewer['username'] ?? ''), (int)($viewer['accesslevel'] ?? 0), "Moved contents from board {$source} to {$target} and deleted source board");
+        if ($ok ) {
+            corebb_adminlog_entry((string)($viewer['username'] ?? ''), (int)($viewer['accesslevel'] ?? 0), "Moved contents from board {$source} to {$target} and deleted source board");
         }
         return $model;
     }
@@ -704,8 +703,8 @@ function corebb_admin_modify_board_model(array $viewer, array $get, array $post)
         }
         $model['messages'][] = $message;
         $model['done'] = $ok;
-        if ($ok && function_exists('addlogentry')) {
-            addlogentry((string)($viewer['username'] ?? ''), (int)($viewer['accesslevel'] ?? 0), "Deleted board {$forumId}");
+        if ($ok ) {
+            corebb_adminlog_entry((string)($viewer['username'] ?? ''), (int)($viewer['accesslevel'] ?? 0), "Deleted board {$forumId}");
         }
         return $model;
     }
@@ -744,8 +743,8 @@ function corebb_admin_modify_board_model(array $viewer, array $get, array $post)
             }
             if ($ok) {
                 $model['messages'][] = 'Successfully edited the board.';
-                if (function_exists('addlogentry')) {
-                    addlogentry((string)($viewer['username'] ?? ''), (int)($viewer['accesslevel'] ?? 0), "Modified board {$id}");
+                {
+                    corebb_adminlog_entry((string)($viewer['username'] ?? ''), (int)($viewer['accesslevel'] ?? 0), "Modified board {$id}");
                 }
             } else {
                 $model['messages'][] = 'Error updating board: ' . db_error();
@@ -766,8 +765,8 @@ function corebb_admin_modify_board_model(array $viewer, array $get, array $post)
                 $grantUserId = (int)($grantUser['id'] ?? 0);
                 if (corebb_private_add_board_grant($id, $grantUserId, (int)($viewer['id'] ?? 0))) {
                     $model['messages'][] = 'Private board access added for ' . (string)($grantUser['username'] ?? ('User ' . $grantUserId)) . '.';
-                    if (function_exists('addlogentry')) {
-                        addlogentry((string)($viewer['username'] ?? ''), (int)($viewer['accesslevel'] ?? 0), "Granted private board {$id} access to user {$grantUserId}");
+                    {
+                        corebb_adminlog_entry((string)($viewer['username'] ?? ''), (int)($viewer['accesslevel'] ?? 0), "Granted private board {$id} access to user {$grantUserId}");
                     }
                 } else {
                     $model['messages'][] = 'Error adding private board access: ' . db_error();
@@ -777,8 +776,8 @@ function corebb_admin_modify_board_model(array $viewer, array $get, array $post)
             $grantUserId = (int)($post['userid'] ?? 0);
             if ($grantUserId > 0 && corebb_private_remove_board_grant($id, $grantUserId)) {
                 $model['messages'][] = 'Private board access removed.';
-                if (function_exists('addlogentry')) {
-                    addlogentry((string)($viewer['username'] ?? ''), (int)($viewer['accesslevel'] ?? 0), "Removed private board {$id} access from user {$grantUserId}");
+                {
+                    corebb_adminlog_entry((string)($viewer['username'] ?? ''), (int)($viewer['accesslevel'] ?? 0), "Removed private board {$id} access from user {$grantUserId}");
                 }
             } else {
                 $model['messages'][] = 'Error removing private board access: ' . db_error();

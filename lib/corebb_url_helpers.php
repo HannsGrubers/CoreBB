@@ -17,13 +17,15 @@
  |  URL helpers.                                         |
  +-------------------------------------------------------+*/
 
-if (!defined('COREBB_URL_HELPERS_LOADED')) {
-    define('COREBB_URL_HELPERS_LOADED', true);
+if (defined('COREBB_URL_HELPERS_LOADED')) {
+    return;
 }
+
+define('COREBB_URL_HELPERS_LOADED', true);
 
 /**
  * Usage: Return the public root used by link and asset builders.
- * Referenced by: corebb_public_pretty_url() and functions.php's pretty URL implementation.
+ * Referenced by: corebb_public_join_base_path(), route builders, and mobile/API helpers.
  *
  * @return string Root-relative base path with a trailing slash.
  */
@@ -60,7 +62,7 @@ function corebb_public_base_path(): string
 
 /**
  * Usage: Prefix a local URL with the configured forum base path.
- * Referenced by: corebb_public_pretty_url() and functions.php's pretty URL implementation.
+ * Referenced by: route builders, templates, redirects, and asset helpers.
  *
  * @param string $path Local path, query string, fragment, or absolute URL.
  * @return string Public URL rooted at the forum base path.
@@ -88,55 +90,4 @@ function corebb_public_join_base_path(string $path): string
     }
 
     return $base . '/' . ltrim($path, '/');
-}
-
-/**
- * Usage: Normalize a legacy/public path into the forum's public URL shape.
- * Referenced by: corebb_public_url(), templates, and theme helpers.
- *
- * When functions.php is loaded, corebb_public_pretty_url_impl() performs the
- * full legacy script-to-route mapping. When this lightweight helper file is
- * loaded by itself, this function still anchors relative paths at the web root.
- *
- * @param string $path Link path to normalize.
- * @return string Public URL suitable for href/src attributes after escaping.
- */
-function corebb_public_pretty_url(string $path): string
-{
-    if (function_exists('corebb_public_pretty_url_impl')) {
-        return corebb_public_pretty_url_impl($path);
-    }
-
-    $path = trim($path);
-    if ($path === '') {
-        return corebb_public_base_path();
-    }
-    if (preg_match('~^(?:[a-z][a-z0-9+.-]*:|//|#|\?|javascript:|mailto:|tel:)~i', $path)) {
-        return $path;
-    }
-    return corebb_public_join_base_path($path);
-}
-
-/**
- * Usage: Short alias for building public forum URLs.
- * Referenced by: legacy helpers and Twig-facing view data.
- *
- * @param string $path Link path to normalize.
- * @return string Public URL rooted at the forum base path.
- */
-function corebb_public_url(string $path): string
-{
-    return corebb_public_pretty_url($path);
-}
-
-/**
- * Usage: Normalize local asset paths before they are placed in templates.
- * Referenced by: avatar/icon/star helpers and stylesheet/image view data.
- *
- * @param string $path Asset path relative to the forum root, or an absolute URL.
- * @return string Public asset URL.
- */
-function corebb_public_asset(string $path): string
-{
-    return corebb_public_url($path);
 }

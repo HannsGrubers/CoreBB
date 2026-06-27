@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/security.php';
 /*                        ''~``
                          ( o o )
  +------------------.oooO--(_)--Oooo.--------------------+
@@ -51,7 +52,7 @@ function corebb_rate_limit_identifier(string $identifier): string
  */
 function corebb_rate_limit_legacy_table_exists(): bool
 {
-    $db = function_exists('corebb_db_connection_name') ? corebb_db_connection_name() : (string)($GLOBALS['MySQL_Database'] ?? '');
+    $db = corebb_db_connection_name();
     if ($db === '') {
         return false;
     }
@@ -140,11 +141,7 @@ function corebb_rate_limit_cleanup(): void
  */
 function corebb_rate_limit_current_ip(): string
 {
-    if (function_exists('corebb_security_client_ip')) {
-        return (string)corebb_security_client_ip();
-    }
-    $ip = trim((string)($_SERVER['REMOTE_ADDR'] ?? ''));
-    return $ip !== '' ? substr($ip, 0, 64) : 'Unknown';
+    return (string)corebb_security_client_ip();
 }
 
 /**

@@ -9,7 +9,7 @@
             <div class="corebb-admin-modern-eyebrow">System</div>
             <h2>Edit System Style</h2>
             <div class="corebb-admin-modern-meta">
-                <span>{{ file.setting|default('style.css') }}</span>
+                <span>{{ file.setting|default('style_vn_eol.css') }}</span>
             </div>
         </div>
         <div class="corebb-admin-modern-actions">
@@ -20,7 +20,7 @@
     {% include 'partials/admin_messages.twig' with {messages: messages, errors: errors} only %}
 
     <div class="corebb-admin-modern-note{% if not file.path_allowed|default(false) or not file.inside_root|default(false) or not file.exists|default(false) or not file.writable|default(false) %} is-danger{% endif %}">
-        Editing style file: <strong>{{ file.setting|default('style.css') }}</strong>
+        Editing style file: <strong>{{ file.setting|default('style_vn_eol.css') }}</strong>
         {% if not file.path_allowed|default(false) %}
             <span>Warning: the configured style path must be a relative .css file under the forum root.</span>
         {% elseif not file.inside_root|default(false) %}

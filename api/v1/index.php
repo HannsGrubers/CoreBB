@@ -334,7 +334,7 @@ if ($resource === 'polls' && $method === 'POST') {
 
     // A vote is a write, so board visibility and Secure Archive read-only
     // checks are enforced before the poll helper records the ballot.
-    $boardId = function_exists('corebb_topic_board_id') ? (int)corebb_topic_board_id($topicId) : 0;
+    $boardId = (int)corebb_topic_board_id($topicId);
     if ($boardId <= 0 || !corebb_private_user_can_view_board_id($boardId, $userId, $accessLevel)) {
         corebb_api_error('poll_not_found', 'Poll not found.', 404);
     }

@@ -17,6 +17,11 @@
  |  models for Twig views.                              |
  +-------------------------------------------------------+*/
 
+require_once __DIR__ . '/corebb_url_helpers.php';
+require_once __DIR__ . '/corebb_markup_helpers.php';
+require_once __DIR__ . '/pm_helpers.php';
+require_once __DIR__ . '/user_display_helpers.php';
+
 /**
  * Usage: Create a typed content payload for Twig's final formatting pipe.
  * Referenced by: the specific content model helpers in this file.
@@ -126,6 +131,44 @@ function corebb_search_highlight_model(string $text, string $needle): array
 }
 
 /**
+ * Usage: Highlight the search term inside already-selected result text.
+ * Referenced by: formatted content rendering and search result view models.
+ *
+ * @param string $text Result text to display.
+ * @param string $needle Search term to highlight.
+ * @return string Escaped HTML with highlight spans around matches.
+ */
+function corebb_search_highlight_html(string $text, string $needle): string
+{
+    if ($text === '') {
+        return '';
+    }
+    $needle = trim($needle);
+    if ($needle === '') {
+        return corebb_h($text);
+    }
+
+    $pattern = '/(' . preg_quote($needle, '/') . ')/iu';
+    $parts = preg_split($pattern, $text, -1, PREG_SPLIT_DELIM_CAPTURE);
+    if (!is_array($parts) || count($parts) <= 1) {
+        return corebb_h($text);
+    }
+
+    $html = '';
+    foreach ($parts as $part) {
+        if ($part === '') {
+            continue;
+        }
+        if (preg_match($pattern, $part) === 1) {
+            $html .= '<span style="background:#ffff66; color:#000000; font-weight:bold;">' . corebb_h($part) . '</span>';
+        } else {
+            $html .= corebb_h($part);
+        }
+    }
+    return $html;
+}
+
+/**
  * Usage: Provide the post-editor face palette in display rows.
  * Referenced by: Twig through post_faces_model().
  *
@@ -217,16 +260,12 @@ function corebb_formatted_content_html(array $content): string
     }
 
     if ($type === 'pm_body') {
-        if (function_exists('corebb_pm_markup')) {
-            return corebb_pm_markup($body);
-        }
-        $permissions = 'B-I-Q-U-O-BQ-S-HR-UL-OL-LI-ST-SP-BL-CT-F-LL-FC-FG-FH-FB-FD-FL-FT-FBB-FS-CB-MD-IMG';
-        return nl2br(function_exists('MarkUp') ? MarkUp($body, $permissions) : corebb_h($body));
+        return corebb_pm_markup($body);
     }
 
     if ($type === 'admin_note_body') {
         $permissions = 'B-I-Q-U-O-BQ-S-HR-UL-OL-LI-ST-SP-BL-CT-F-LL-FC-FG-FH-FB-FD-FL-FT-FBB-FS-CB';
-        return nl2br(function_exists('MarkUp') ? MarkUp($body, $permissions) : corebb_h($body));
+        return nl2br(corebb_render_markup($body, $permissions));
     }
 
     if ($type === 'profile_bio') {
@@ -235,7 +274,7 @@ function corebb_formatted_content_html(array $content): string
             return '&nbsp;';
         }
         $permissions = 'B-I-Q-U-O-BQ-S-HR-UL-OL-LI-ST-SP-BL-CT-F-LL-FC-FG-FH-FB-FD-FL-FT-FBB-FS-CB-MD-IMG';
-        return nl2br(function_exists('MarkUp') ? MarkUp($body, $permissions) : corebb_h($body));
+        return nl2br(corebb_render_markup($body, $permissions));
     }
 
     if ($type === 'stored_page') {
@@ -252,22 +291,22 @@ function corebb_formatted_content_html(array $content): string
         }
         $format = (string)($options['format'] ?? 'plain');
         if ($format === 'website') {
-            return function_exists('MarkUp') ? MarkUp($value, 'LL') : corebb_h($value);
+            return corebb_render_markup($value, 'LL');
         }
         if ($format === 'email') {
             $safeEmail = corebb_h($value);
-            $atAsset = function_exists('corebb_public_asset') ? corebb_public_asset('images/at_small.gif') : 'images/at_small.gif';
+            $atAsset = corebb_public_join_base_path('images/at_small.gif');
             return str_replace('@', "<img class='wb-img-middle' src='" . corebb_h($atAsset) . "' alt='At'>", $safeEmail);
         }
         return corebb_h($value);
     }
 
     if ($type === 'search_highlight') {
-        return function_exists('corebb_search_highlight_html') ? corebb_search_highlight_html($body, (string)($options['needle'] ?? '')) : corebb_h($body);
+        return corebb_search_highlight_html($body, (string)($options['needle'] ?? ''));
     }
 
     if ($type === 'user_title') {
-        return function_exists('corebb_markup_user_title') ? corebb_markup_user_title($body) : corebb_h(trim($body));
+        return corebb_markup_user_title($body);
     }
 
     return corebb_h($body);

@@ -31,148 +31,135 @@ if (!defined('IN_BOARDS')) {
 if (!defined('COREBB_CONFIG_LOADED')) {
     define('COREBB_CONFIG_LOADED', true);
 
-    if (!function_exists('corebb_config_normalize_path')) {
-        function corebb_config_normalize_path(string $path): string
-        {
-            $path = str_replace('\\', '/', $path);
-            $path = preg_replace('#/+#', '/', $path) ?: $path;
-            return rtrim($path, '/');
-        }
+    function corebb_config_normalize_path(string $path): string
+    {
+        $path = str_replace('\\', '/', $path);
+        $path = preg_replace('#/+#', '/', $path) ?: $path;
+        return rtrim($path, '/');
     }
 
-    if (!function_exists('corebb_config_public_document_root')) {
-        function corebb_config_public_document_root(string $appRoot): string
-        {
-            $docRoot = trim((string)($_SERVER['DOCUMENT_ROOT'] ?? getenv('DOCUMENT_ROOT') ?: ''));
-            if ($docRoot !== '') {
-                $resolved = realpath($docRoot);
-                $docRoot = corebb_config_normalize_path($resolved !== false ? $resolved : $docRoot);
-                if ($docRoot !== '' && (corebb_config_normalize_path($appRoot) === $docRoot || str_starts_with(corebb_config_normalize_path($appRoot) . '/', $docRoot . '/'))) {
-                    return $docRoot;
-                }
+    function corebb_config_public_document_root(string $appRoot): string
+    {
+        $docRoot = trim((string)($_SERVER['DOCUMENT_ROOT'] ?? getenv('DOCUMENT_ROOT') ?: ''));
+        if ($docRoot !== '') {
+            $resolved = realpath($docRoot);
+            $docRoot = corebb_config_normalize_path($resolved !== false ? $resolved : $docRoot);
+            if ($docRoot !== '' && (corebb_config_normalize_path($appRoot) === $docRoot || str_starts_with(corebb_config_normalize_path($appRoot) . '/', $docRoot . '/'))) {
+                return $docRoot;
             }
-
-            $root = corebb_config_normalize_path($appRoot);
-            $publicHtmlPos = stripos($root, '/public_html');
-            if ($publicHtmlPos !== false) {
-                return substr($root, 0, $publicHtmlPos + strlen('/public_html'));
-            }
-
-            return '';
         }
+
+        $root = corebb_config_normalize_path($appRoot);
+        $publicHtmlPos = stripos($root, '/public_html');
+        if ($publicHtmlPos !== false) {
+            return substr($root, 0, $publicHtmlPos + strlen('/public_html'));
+        }
+
+        return '';
     }
 
-    if (!function_exists('corebb_config_instance_key')) {
-        function corebb_config_instance_key(string $appRoot): string
-        {
-            $forced = strtolower(trim((string)(getenv('COREBB_INSTANCE') ?: getenv('WB_INSTANCE') ?: '')));
-            if ($forced !== '' && preg_match('/^[a-z0-9_-]{1,80}$/', $forced)) {
-                return $forced;
-            }
-
-            $root = corebb_config_normalize_path($appRoot);
-            $host = strtolower(trim((string)($_SERVER['HTTP_HOST'] ?? getenv('HTTP_HOST') ?: '')));
-            $host = preg_replace('/:\d+$/', '', $host) ?? $host;
-            $docRoot = corebb_config_public_document_root($root);
-            $relativePath = '';
-            if ($docRoot !== '' && str_starts_with($root . '/', $docRoot . '/')) {
-                $relativePath = trim(substr($root, strlen($docRoot)), '/');
-            }
-
-            $seed = trim($host . ($relativePath !== '' ? '_' . str_replace('/', '_', $relativePath) : ''), '_');
-            if ($seed === '') {
-                $seed = basename($root);
-            }
-
-            $key = strtolower(trim((string)preg_replace('/[^A-Za-z0-9]+/', '_', $seed), '_'));
-            return $key !== '' ? substr($key, 0, 80) : 'default';
+    function corebb_config_instance_key(string $appRoot): string
+    {
+        $forced = strtolower(trim((string)(getenv('COREBB_INSTANCE') ?: getenv('WB_INSTANCE') ?: '')));
+        if ($forced !== '' && preg_match('/^[a-z0-9_-]{1,80}$/', $forced)) {
+            return $forced;
         }
+
+        $root = corebb_config_normalize_path($appRoot);
+        $host = strtolower(trim((string)($_SERVER['HTTP_HOST'] ?? getenv('HTTP_HOST') ?: '')));
+        $host = preg_replace('/:\d+$/', '', $host) ?? $host;
+        $docRoot = corebb_config_public_document_root($root);
+        $relativePath = '';
+        if ($docRoot !== '' && str_starts_with($root . '/', $docRoot . '/')) {
+            $relativePath = trim(substr($root, strlen($docRoot)), '/');
+        }
+
+        $seed = trim($host . ($relativePath !== '' ? '_' . str_replace('/', '_', $relativePath) : ''), '_');
+        if ($seed === '') {
+            $seed = basename($root);
+        }
+
+        $key = strtolower(trim((string)preg_replace('/[^A-Za-z0-9]+/', '_', $seed), '_'));
+        return $key !== '' ? substr($key, 0, 80) : 'default';
     }
 
-    if (!function_exists('corebb_config_should_use_legacy_private_path')) {
-        function corebb_config_should_use_legacy_private_path(string $appRoot): bool
-        {
-            $forced = strtolower(trim((string)(getenv('COREBB_ALLOW_LEGACY_PRIVATE_CONFIG') ?: '')));
-            if (in_array($forced, ['1', 'true', 'yes', 'on'], true)) {
-                return true;
-            }
-
-            $root = corebb_config_normalize_path($appRoot);
-            $docRoot = corebb_config_public_document_root($root);
-            return $docRoot === '' || $docRoot === $root;
+    function corebb_config_should_use_legacy_private_path(string $appRoot): bool
+    {
+        $forced = strtolower(trim((string)(getenv('COREBB_ALLOW_LEGACY_PRIVATE_CONFIG') ?: '')));
+        if (in_array($forced, ['1', 'true', 'yes', 'on'], true)) {
+            return true;
         }
+
+        $root = corebb_config_normalize_path($appRoot);
+        $docRoot = corebb_config_public_document_root($root);
+        return $docRoot === '' || $docRoot === $root;
     }
 
-    if (!function_exists('corebb_config_detect_environment')) {
-        function corebb_config_detect_environment(string $appRoot): string
-        {
-            $forced = strtolower(trim((string)(getenv('COREBB_ENV') ?: getenv('WB_ENV') ?: '')));
-            if (in_array($forced, ['live', 'production', 'prod'], true)) {
-                return 'live';
-            }
-            if (in_array($forced, ['staging', 'stage', 'test'], true)) {
-                return 'staging';
-            }
-            if (in_array($forced, ['local', 'dev', 'development'], true)) {
-                return 'local';
-            }
-
-            $root = corebb_config_normalize_path($appRoot);
-
-            // Common staging directory names. Explicit COREBB_ENV still wins for
-            // hosts with a different deployment layout.
-            if (preg_match('#/(corebb-staging|staging-corebb|staging_corebb|staging|stage|test)(/|$)#i', $root)) {
-                return 'staging';
-            }
-
-            // Common shared-host public document root layout.
-            if (preg_match('#/public_html(/|$)#i', $root)) {
-                return 'live';
-            }
-
-            return 'unknown';
+    function corebb_config_detect_environment(string $appRoot): string
+    {
+        $forced = strtolower(trim((string)(getenv('COREBB_ENV') ?: getenv('WB_ENV') ?: '')));
+        if (in_array($forced, ['live', 'production', 'prod'], true)) {
+            return 'live';
         }
+        if (in_array($forced, ['staging', 'stage', 'test'], true)) {
+            return 'staging';
+        }
+        if (in_array($forced, ['local', 'dev', 'development'], true)) {
+            return 'local';
+        }
+
+        $root = corebb_config_normalize_path($appRoot);
+
+        // Common staging directory names. Explicit COREBB_ENV still wins for
+        // hosts with a different deployment layout.
+        if (preg_match('#/(corebb-staging|staging-corebb|staging_corebb|staging|stage|test)(/|$)#i', $root)) {
+            return 'staging';
+        }
+
+        // Common shared-host public document root layout.
+        if (preg_match('#/public_html(/|$)#i', $root)) {
+            return 'live';
+        }
+
+        return 'unknown';
     }
 
-    if (!function_exists('corebb_config_private_base_dir')) {
-        function corebb_config_private_base_dir(string $appRoot): string
-        {
-            $forcedBase = trim((string)(getenv('COREBB_PRIVATE_BASE_DIR') ?: getenv('WB_PRIVATE_BASE_DIR') ?: ''));
-            if ($forcedBase !== '') {
-                return corebb_config_normalize_path($forcedBase);
-            }
-
-            $root = corebb_config_normalize_path($appRoot);
-            $publicHtmlPos = stripos($root, '/public_html');
-            if ($publicHtmlPos !== false) {
-                return substr($root, 0, $publicHtmlPos) . '/corebb_private';
-            }
-
-            $docRoot = corebb_config_public_document_root($root);
-            if ($docRoot !== '') {
-                $docPublicHtmlPos = stripos($docRoot, '/public_html');
-                if ($docPublicHtmlPos !== false) {
-                    return substr($docRoot, 0, $docPublicHtmlPos) . '/corebb_private';
-                }
-
-                return dirname($docRoot) . '/corebb_private';
-            }
-
-            // Preferred shared-host layout:
-            //   /home/account/public_html/forum -> /home/account/corebb_private/
-            $parent = dirname($root);
-            if ($parent !== '' && $parent !== '.' && $parent !== '/') {
-                return $parent . '/corebb_private';
-            }
-
-            return $root . '/corebb_private';
+    function corebb_config_private_base_dir(string $appRoot): string
+    {
+        $forcedBase = trim((string)(getenv('COREBB_PRIVATE_BASE_DIR') ?: getenv('WB_PRIVATE_BASE_DIR') ?: ''));
+        if ($forcedBase !== '') {
+            return corebb_config_normalize_path($forcedBase);
         }
+
+        $root = corebb_config_normalize_path($appRoot);
+        $publicHtmlPos = stripos($root, '/public_html');
+        if ($publicHtmlPos !== false) {
+            return substr($root, 0, $publicHtmlPos) . '/corebb_private';
+        }
+
+        $docRoot = corebb_config_public_document_root($root);
+        if ($docRoot !== '') {
+            $docPublicHtmlPos = stripos($docRoot, '/public_html');
+            if ($docPublicHtmlPos !== false) {
+                return substr($docRoot, 0, $docPublicHtmlPos) . '/corebb_private';
+            }
+
+            return dirname($docRoot) . '/corebb_private';
+        }
+
+        // Preferred shared-host layout:
+        //   /home/account/public_html/forum -> /home/account/corebb_private/
+        $parent = dirname($root);
+        if ($parent !== '' && $parent !== '.' && $parent !== '/') {
+            return $parent . '/corebb_private';
+        }
+
+        return $root . '/corebb_private';
     }
 
-    if (!function_exists('corebb_config_candidate_paths')) {
-        function corebb_config_candidate_paths(string $appRoot, string $environment): array
-        {
-            $paths = [];
+    function corebb_config_candidate_paths(string $appRoot, string $environment): array
+    {
+        $paths = [];
 
             // Explicit override for unusual/local setups. Keep this first so a
             // developer can test locally without changing tracked project files.
@@ -223,8 +210,7 @@ if (!defined('COREBB_CONFIG_LOADED')) {
                     $clean[] = $path;
                 }
             }
-            return $clean;
-        }
+        return $clean;
     }
 
     $corebbConfigAppRoot = realpath(__DIR__);

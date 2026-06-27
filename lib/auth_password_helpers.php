@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/security.php';
 /*                        ''~``
                          ( o o )
  +------------------.oooO--(_)--Oooo.--------------------+
@@ -26,7 +27,7 @@ if (!defined('COREBB_AUTH_PASSWORD_HELPERS_LOADED')) {
  *
  * Usage: call before login, password reset, admin password changes, or token
  * operations touch modern password/login-token fields.
- * Referenced by: auth login flow, functions.php registration, API auth,
+ * Referenced by: auth login flow, browser helper registration, API auth,
  * password recovery, admin user tools, and helpers in this file.
  *
  * @return void
@@ -71,7 +72,7 @@ function corebb_auth_ensure_schema(): void
  *
  * Usage: create or replace account passwords for registration, resets, and
  * admin password changes.
- * Referenced by: functions.php registration, auth login upgrade path,
+ * Referenced by: browser helper registration, auth login upgrade path,
  * password recovery, API auth, and admin tools.
  *
  * @param string $password Plaintext password from a trusted validation path.
@@ -154,10 +155,7 @@ function corebb_auth_prune_login_tokens(): void
  */
 function corebb_auth_client_ip(): string
 {
-    if (function_exists('corebb_security_client_ip')) {
-        return (string)corebb_security_client_ip();
-    }
-    return (string)($_SERVER['REMOTE_ADDR'] ?? '');
+    return (string)corebb_security_client_ip();
 }
 
 /**
@@ -197,7 +195,7 @@ function corebb_auth_create_login_token(int $userId, int $expiresAt): array
  * Verify a persistent-login selector/token pair for one user.
  *
  * Usage: authenticate remember-me cookies and revoke stale or failed tokens.
- * Referenced by: CookieEngine.php and API bootstrap.
+ * Referenced by: auth session helpers and API bootstrap.
  *
  * @param int $userId User id claimed by the cookie.
  * @param string $selector Public selector from the cookie.
@@ -236,7 +234,7 @@ function corebb_auth_verify_login_token(int $userId, string $selector, string $t
  *
  * Usage: clear a remember-me cookie server-side after logout or failed token
  * verification.
- * Referenced by: CookieEngine.php, auth logout flow, API auth, and API bootstrap.
+ * Referenced by: auth session helpers, auth logout flow, API auth, and API bootstrap.
  *
  * @param string $selector Token selector to delete.
  * @return void

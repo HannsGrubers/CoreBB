@@ -18,8 +18,7 @@
 
 define('IN_ADMIN', true);
 
-include 'CookieEngine.php';
-include_once 'functions.php';
+require_once __DIR__ . '/lib/bootstrap.php';
 include_once 'lib/view.php';
 include_once 'lib/admin_routes.php';
 
@@ -28,8 +27,8 @@ $route = corebb_admin_resolve_route($requestedAct);
 $act = (string)($route['act'] ?? '');
 $unknownAct = (string)($route['unknown_act'] ?? '');
 
-if (function_exists('loggedin') && !loggedin()) {
-    header('Location: ' . (function_exists('corebb_public_url') ? corebb_public_url('/') : '/'));
+if (!corebb_load_logged_in_user()) {
+    header('Location: ' . corebb_public_join_base_path('/'));
     exit;
 }
 
@@ -37,12 +36,12 @@ $viewer = is_array($GLOBALS['userlogindata_a'] ?? null) ? $GLOBALS['userlogindat
 $toolKey = corebb_admin_tool_key_for_request($act, $_GET);
 
 if (!corebb_admin_can_access_admin($viewer)) {
-    header('Location: ' . (function_exists('corebb_public_url') ? corebb_public_url('/denied/') : '/denied/'));
+    header('Location: ' . corebb_public_join_base_path('/denied/'));
     exit;
 }
 
 if (!corebb_admin_can_access_tool($viewer, $toolKey)) {
-    header('Location: ' . (function_exists('corebb_public_url') ? corebb_public_url('/denied/') : '/denied/'));
+    header('Location: ' . corebb_public_join_base_path('/denied/'));
     exit;
 }
 

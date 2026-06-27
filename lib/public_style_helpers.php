@@ -7,7 +7,7 @@
  | layout, and User CP forms.
  +-------------------------------------------------------*/
 
-require_once __DIR__ . '/../functions.php';
+require_once __DIR__ . '/corebb_browser_helpers.php';
 
 /**
  * Usage: Check whether a stylesheet path is a local CSS file CoreBB may load.
@@ -64,7 +64,7 @@ function corebb_public_style_canonical_file(string $style): string
 
 /**
  * Usage: Return CoreBB's built-in public stylesheet choices.
- * Referenced by: corebb_public_style_options().
+ * Referenced by: admin settings, User CP theme selection, and style validation.
  *
  * @return array<string, string> Style filename to display label.
  */
@@ -76,17 +76,6 @@ function corebb_public_style_builtin_options(): array
         'style_modern_2.css' => 'CoreBB Modern 2',
         'style_emberline.css' => 'CoreBB Emberline',
     ];
-}
-
-/**
- * Usage: Build the curated public stylesheet list exposed to admins and users.
- * Referenced by: admin default-style settings and User CP theme selection.
- *
- * @return array<string, string> Style filename to display label.
- */
-function corebb_public_style_options(): array
-{
-    return corebb_public_style_builtin_options();
 }
 
 /**
@@ -108,7 +97,7 @@ function corebb_public_style_resolve_user_value(string $value): string
         $file = (string)($row['file'] ?? '');
         if ($file !== '' && corebb_public_style_file_is_safe($file)) {
             $file = corebb_public_style_normalize_file($file);
-            return isset(corebb_public_style_options()[$file]) ? $file : '';
+            return isset(corebb_public_style_builtin_options()[$file]) ? $file : '';
         }
     }
 
@@ -116,7 +105,7 @@ function corebb_public_style_resolve_user_value(string $value): string
         return '';
     }
     $file = corebb_public_style_normalize_file($value);
-    return isset(corebb_public_style_options()[$file]) ? $file : '';
+    return isset(corebb_public_style_builtin_options()[$file]) ? $file : '';
 }
 
 /**
@@ -137,5 +126,5 @@ function corebb_public_style_normalize_user_choice(string $value): string
         return '';
     }
     $file = corebb_public_style_normalize_file($value);
-    return isset(corebb_public_style_options()[$file]) ? $file : '';
+    return isset(corebb_public_style_builtin_options()[$file]) ? $file : '';
 }

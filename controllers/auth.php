@@ -9,8 +9,7 @@
 
 $root = dirname(__DIR__);
 
-include $root . '/CookieEngine.php';
-include_once $root . '/functions.php';
+require_once $root . '/lib/bootstrap.php';
 require_once $root . '/lib/auth_flow_helpers.php';
 require_once $root . '/lib/google_auth_helpers.php';
 

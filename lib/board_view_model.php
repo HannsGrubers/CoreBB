@@ -32,7 +32,7 @@ require_once __DIR__ . '/private_board_helpers.php';
  */
 function corebb_board_moderation_links_model(int $boardId): array
 {
-    if ($boardId <= 0 || !function_exists('corebb_mod_can_moderate') || !corebb_mod_can_moderate()) {
+    if ($boardId <= 0 || !corebb_mod_can_moderate()) {
         return [
             'visible' => false,
             'mod_requests_url' => '',
@@ -53,10 +53,9 @@ function corebb_board_moderation_links_model(int $boardId): array
  *
  * @param int $boardId Board id from the route.
  * @param int $page Requested page number.
- * @param string $boardScript Fallback route used when pretty URL helpers are unavailable.
  * @return array<string, mixed> Board display state, topics, pagination, and permission flags.
  */
-function corebb_board_fetch_model(int $boardId, int $page, string $boardScript = 'controllers/forum.php?action=board'): array
+function corebb_board_fetch_model(int $boardId, int $page): array
 {
     global $userlogindata_a, $QueryCount, $debug_desc;
 
@@ -91,13 +90,11 @@ function corebb_board_fetch_model(int $boardId, int $page, string $boardScript =
 
     $cookName = 'bb' . $boardId;
     $cookieSet = false;
-    if (function_exists('MakeCookie')) {
-        $cookieSet = (bool)MakeCookie($cookName, $board['lastpstdatets'] ?? '');
-        $debug_desc .= "<tr><td class='wb-bg-debug-label'> <b>Set Cookie for board ID:</b> {$boardId} <b>Name:</b> " . htmlspecialchars($cookName, ENT_QUOTES) . "</td><td class='wb-bg-debug-value'> " . ($cookieSet ? 'True' : 'False') . '</td></tr>';
-    }
+    $cookieSet = corebb_set_forum_cookie($cookName, $board['lastpstdatets'] ?? '');
+    $debug_desc .= "<tr><td class='wb-bg-debug-label'> <b>Set Cookie for board ID:</b> {$boardId} <b>Name:</b> " . htmlspecialchars($cookName, ENT_QUOTES) . "</td><td class='wb-bg-debug-value'> " . ($cookieSet ? 'True' : 'False') . '</td></tr>';
 
     $isFavorite = false;
-    if (loggedin()) {
+    if (corebb_load_logged_in_user()) {
         $isFavorite = db_exists('SELECT 1 FROM favoriteboards WHERE ownerid = ? AND boardid = ? LIMIT 1', [(int)($userlogindata_a['id'] ?? 0), $boardId]);
         $QueryCount++;
     }
@@ -121,11 +118,10 @@ function corebb_board_fetch_model(int $boardId, int $page, string $boardScript =
         $topics[] = $prepared;
     }
 
-    $pagination = corebb_board_pagination_model('', $currentPage, $totalPages);
+    $pagination = corebb_pagination_model('', $currentPage, $totalPages);
     if ($topicCount > $perPage) {
-        $separator = str_contains($boardScript, '?') ? '&' : '?';
-        $boardPageUrl = function_exists('corebb_board_url') ? str_replace('/p999999/', '/p{page}/', corebb_board_url($boardId, 999999, (string)($board['name'] ?? 'Board'))) : $boardScript . $separator . 'id=' . $boardId . '&p={page}';
-        $pagination = corebb_board_pagination_model($boardPageUrl, $currentPage, $totalPages);
+        $boardPageUrl = str_replace('/p999999/', '/p{page}/', corebb_board_url($boardId, 999999, (string)($board['name'] ?? 'Board')));
+        $pagination = corebb_pagination_model($boardPageUrl, $currentPage, $totalPages);
     }
 
     return [
@@ -139,11 +135,11 @@ function corebb_board_fetch_model(int $boardId, int $page, string $boardScript =
         'totalPages' => $totalPages,
         'currentPage' => $currentPage,
         'topics' => $topics,
-        'isLoggedIn' => function_exists('loggedin') && loggedin(),
-        'newTopicUrl' => function_exists('corebb_new_topic_url') ? corebb_new_topic_url($boardId) : '/post/new/b' . $boardId . '/',
-        'newPollUrl' => function_exists('corebb_new_poll_url') ? corebb_new_poll_url($boardId) : '/post/new/b' . $boardId . '/poll/',
-        'favoriteUrl' => function_exists('corebb_public_url') ? corebb_public_url('board/' . $boardId . '/favorite/') : '/board/' . $boardId . '/favorite/',
-        'loginUrl' => function_exists('corebb_public_url') ? corebb_public_url('auth.php?action=login') : '/login/',
+        'isLoggedIn' => corebb_load_logged_in_user(),
+        'newTopicUrl' => corebb_new_topic_url($boardId),
+        'newPollUrl' => corebb_new_poll_url($boardId),
+        'favoriteUrl' => corebb_public_join_base_path('board/' . $boardId . '/favorite/'),
+        'loginUrl' => corebb_public_join_base_path('/login/'),
         'pagination' => $pagination,
         'isFavorite' => $isFavorite,
         'cookieName' => $cookName,
@@ -151,22 +147,6 @@ function corebb_board_fetch_model(int $boardId, int $page, string $boardScript =
         'archiveReadOnly' => $archiveReadOnly,
         'moderation' => corebb_board_moderation_links_model($boardId),
     ];
-}
-
-
-/**
- * Usage: Build board pagination via the shared pagination helper.
- * Referenced by: corebb_board_fetch_model().
- *
- * @param string $urlPattern URL containing a {page} placeholder.
- * @param int $currentPage Current board page.
- * @param int $totalPages Total board pages.
- * @param string $class CSS class used by the pagination partial.
- * @return array<string, mixed> Pagination model for Twig.
- */
-function corebb_board_pagination_model(string $urlPattern, int $currentPage, int $totalPages, string $class = 'MainMenuFont'): array
-{
-    return corebb_pagination_model($urlPattern, $currentPage, $totalPages, $class);
 }
 
 
@@ -261,12 +241,8 @@ function corebb_board_topic_pages_model(int $topicId, int $boardId, int $postCou
     }
 
     $totalPages = (int)ceil($postCount / $perPage);
-    $urlPattern = function_exists('corebb_thread_url')
-        ? str_replace('/p999999/', '/p{page}/', corebb_thread_url($topicId, $boardId, 999999, $boardName))
-        : "/topic/{$topicId}/p{page}/";
-    $sequence = function_exists('corebb_compact_page_sequence')
-        ? corebb_compact_page_sequence(1, $totalPages, 1)
-        : range(1, $totalPages);
+    $urlPattern = str_replace('/p999999/', '/p{page}/', corebb_thread_url($topicId, $boardId, 999999, $boardName));
+    $sequence = corebb_compact_page_sequence(1, $totalPages, 1);
 
     $items = [];
     foreach ($sequence as $page) {
@@ -310,7 +286,7 @@ function corebb_board_prepare_topic_row(array $topic, array $board = [], ?array 
     $replyCount = max(0, (int)$postCount - 1);
     $boardId = (int)($board['id'] ?? ($topic['boardid'] ?? 0));
     $boardName = (string)($board['name'] ?? 'Board');
-    $threadUrl = function_exists('corebb_thread_url') ? corebb_thread_url($topicId, $boardId, 1, $boardName) : '/topic/' . $topicId . '/';
+    $threadUrl = corebb_thread_url($topicId, $boardId, 1, $boardName);
 
     $topic['_locked'] = $locked;
     $topic['_sticky'] = $sticky;
@@ -330,9 +306,7 @@ function corebb_board_prepare_topic_row(array $topic, array $board = [], ?array 
 
     $threadPerPage = corebb_current_thread_posts_per_page();
     $lastPostPage = max(1, (int)ceil(max(1, (int)$postCount) / $threadPerPage));
-    $topic['_last_post_url'] = function_exists('corebb_thread_url')
-        ? corebb_thread_url($topicId, (int)$topic['_board_id'], $lastPostPage, (string)$topic['_board_name'], $lastPostId)
-        : '/topic/' . $topicId . '/p' . $lastPostPage . '/' . ($lastPostId > 0 ? '#post' . $lastPostId : '');
+    $topic['_last_post_url'] = corebb_thread_url($topicId, (int)$topic['_board_id'], $lastPostPage, (string)$topic['_board_name'], $lastPostId);
     $topic['topic_id'] = $topicId;
     $topic['subject'] = (string)($topic['title'] ?? 'Untitled Topic');
     $topic['thread_url'] = $threadUrl;

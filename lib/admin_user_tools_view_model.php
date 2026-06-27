@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/corebb_date_helpers.php';
+require_once __DIR__ . '/admin_log_helpers.php';
 require_once __DIR__ . '/auth_password_helpers.php';
 /**
  * Admin user/message tools.
@@ -10,6 +12,7 @@ require_once __DIR__ . '/moderation_helpers.php';
 require_once __DIR__ . '/private_board_helpers.php';
 require_once __DIR__ . '/notification_helpers.php';
 require_once __DIR__ . '/admin_helpers.php';
+require_once __DIR__ . '/user_display_helpers.php';
 
 /**
  * Usage: Cache the available columns for a table before building adaptive SELECTs.
@@ -94,11 +97,11 @@ function corebb_admin_user_select_list(string $alias = ''): string
 function corebb_admin_level_options(): array
 {
     return [
-        5 => function_exists('LoadUserLevel') ? LoadUserLevel(5) : 'Administrator',
-        4 => function_exists('LoadUserLevel') ? LoadUserLevel(4) : 'Manager',
-        3 => function_exists('LoadUserLevel') ? LoadUserLevel(3) : 'Moderator',
-        2 => function_exists('LoadUserLevel') ? LoadUserLevel(2) : 'VIP',
-        1 => function_exists('LoadUserLevel') ? LoadUserLevel(1) : 'Regular',
+        5 => corebb_user_level_label(5),
+        4 => corebb_user_level_label(4),
+        3 => corebb_user_level_label(3),
+        2 => corebb_user_level_label(2),
+        1 => corebb_user_level_label(1),
     ];
 }
 
@@ -447,7 +450,7 @@ function corebb_admin_tool_groups_for_user(array $user, ?array $selectedKeys = n
                 'key' => $key,
                 'label' => (string)$item['label'],
                 'min_level' => $minLevel,
-                'min_level_label' => function_exists('LoadUserLevel') ? LoadUserLevel($minLevel) : (string)$minLevel,
+                'min_level_label' => corebb_user_level_label($minLevel),
                 'selected' => isset($explicit[$key]),
                 'inherited' => $level >= $minLevel,
             ];
@@ -682,7 +685,7 @@ function corebb_admin_user_summary(array $user): array
         'username' => (string)($user['username'] ?? ''),
         'profile_url' => '/profile/' . (int)($user['id'] ?? 0) . '/',
         'accesslevel' => $level,
-        'level_name' => function_exists('LoadUserLevel') ? LoadUserLevel($level) : (string)$level,
+        'level_name' => corebb_user_level_label($level),
         'posts' => (int)($user['posts'] ?? 0),
         'registered' => (string)($user['regdate'] ?? ($user['date_account_added'] ?? '')),
     ];
@@ -752,15 +755,15 @@ function corebb_admin_edit_rights_model(array $viewer, array $request, array $po
             $ok = db_run('UPDATE users SET accesslevel = ? WHERE id = ?', [$newLevel, $userId]);
             if ($ok) {
                 $newLevelText = $model['levels'][$newLevel] ?? (string)$newLevel;
-                if (function_exists('addlogentry')) {
-                    addlogentry((string)($viewer['username'] ?? 'Unknown'), (int)($viewer['accesslevel'] ?? 0), 'Changed user: ' . $userId . ' to level: ' . $newLevel . ' (' . $newLevelText . ')');
+                {
+                    corebb_adminlog_entry((string)($viewer['username'] ?? 'Unknown'), (int)($viewer['accesslevel'] ?? 0), 'Changed user: ' . $userId . ' to level: ' . $newLevel . ' (' . $newLevelText . ')');
                 }
                 $model['messages'][] = 'User ' . ($target['username'] ?? $userId) . ' was updated to level ' . $newLevel . ' (' . $newLevelText . ').';
                 if ($model['can_manage_tool_grants']) {
                     if (corebb_admin_replace_tool_grants($userId, $selectedTools, $viewer)) {
                         $model['messages'][] = 'Additional admin tool access updated.';
-                        if (function_exists('addlogentry')) {
-                            addlogentry((string)($viewer['username'] ?? 'Unknown'), (int)($viewer['accesslevel'] ?? 0), 'Updated admin tool access for user: ' . $userId);
+                        {
+                            corebb_adminlog_entry((string)($viewer['username'] ?? 'Unknown'), (int)($viewer['accesslevel'] ?? 0), 'Updated admin tool access for user: ' . $userId);
                         }
                     } else {
                         $model['errors'][] = 'Error updating admin tool access: ' . db_error();
@@ -774,7 +777,7 @@ function corebb_admin_edit_rights_model(array $viewer, array $request, array $po
                     $model['tool_summary'] = corebb_admin_tool_group_summary($model['tool_groups']);
                     $model['current_level'] = [
                         'value' => (int)($updatedTarget['accesslevel'] ?? 0),
-                        'label' => function_exists('LoadUserLevel') ? LoadUserLevel((int)($updatedTarget['accesslevel'] ?? 0)) : (string)($updatedTarget['accesslevel'] ?? 0),
+                        'label' => corebb_user_level_label((int)($updatedTarget['accesslevel'] ?? 0)),
                     ];
                 }
             } else {
@@ -801,7 +804,7 @@ function corebb_admin_edit_rights_model(array $viewer, array $request, array $po
             $model['new_level_name'] = $model['levels'][$newLevel];
             $model['current_level'] = [
                 'value' => (int)($target['accesslevel'] ?? 0),
-                'label' => function_exists('LoadUserLevel') ? LoadUserLevel((int)($target['accesslevel'] ?? 0)) : (string)($target['accesslevel'] ?? 0),
+                'label' => corebb_user_level_label((int)($target['accesslevel'] ?? 0)),
             ];
             $model['target_level'] = [
                 'value' => $newLevel,
@@ -827,7 +830,7 @@ function corebb_admin_edit_rights_model(array $viewer, array $request, array $po
             $model['tool_summary'] = corebb_admin_tool_group_summary($model['tool_groups']);
             $model['current_level'] = [
                 'value' => (int)($target['accesslevel'] ?? 0),
-                'label' => function_exists('LoadUserLevel') ? LoadUserLevel((int)($target['accesslevel'] ?? 0)) : (string)($target['accesslevel'] ?? 0),
+                'label' => corebb_user_level_label((int)($target['accesslevel'] ?? 0)),
             ];
         }
     } elseif (!$isPost && isset($request['user'])) {
@@ -844,7 +847,7 @@ function corebb_admin_edit_rights_model(array $viewer, array $request, array $po
             $model['tool_summary'] = corebb_admin_tool_group_summary($model['tool_groups']);
             $model['current_level'] = [
                 'value' => (int)($target['accesslevel'] ?? 0),
-                'label' => function_exists('LoadUserLevel') ? LoadUserLevel((int)($target['accesslevel'] ?? 0)) : (string)($target['accesslevel'] ?? 0),
+                'label' => corebb_user_level_label((int)($target['accesslevel'] ?? 0)),
             ];
         }
     }
@@ -893,8 +896,8 @@ function corebb_admin_change_password_model(array $viewer, array $request, array
                 corebb_auth_revoke_user_login_tokens($userId);
             }
             if ($ok) {
-                if (function_exists('addlogentry')) {
-                    addlogentry((string)($viewer['username'] ?? 'Unknown'), (int)($viewer['accesslevel'] ?? 0), "Changed user: {$userId}'s password");
+                {
+                    corebb_adminlog_entry((string)($viewer['username'] ?? 'Unknown'), (int)($viewer['accesslevel'] ?? 0), "Changed user: {$userId}'s password");
                 }
                 $model['messages'][] = 'Password updated for ' . ($target['username'] ?? $userId) . '.';
             } else {
@@ -980,8 +983,8 @@ function corebb_admin_add_user_model(array $viewer, array $request, array $post)
             $placeholders = implode(', ', array_fill(0, count($insertColumns), '?'));
             $ok = db_run('INSERT INTO users (' . $insertSql . ') VALUES (' . $placeholders . ')', array_values($newUser));
             if ($ok) {
-                if (function_exists('addlogentry')) {
-                    addlogentry((string)($viewer['username'] ?? 'Unknown'), (int)($viewer['accesslevel'] ?? 0), 'Added new user: ' . $username . ' - Userlevel: ' . $level);
+                {
+                    corebb_adminlog_entry((string)($viewer['username'] ?? 'Unknown'), (int)($viewer['accesslevel'] ?? 0), 'Added new user: ' . $username . ' - Userlevel: ' . $level);
                 }
                 $model['messages'][] = 'User successfully added.';
                 $model['form'] = ['username' => '', 'userlevel' => 1];
@@ -1024,8 +1027,7 @@ function corebb_admin_view_message_limit_text(string $value, int $maxBytes): str
 function corebb_admin_view_message_normalize(string $subject, string $body): array
 {
     $subject = corebb_admin_view_message_limit_text(trim($subject), 100);
-    $body = function_exists('CleanPostDataForPrepared') ? CleanPostDataForPrepared($body) : $body;
-    $body = corebb_admin_view_message_limit_text((string)$body, 65535);
+    $body = corebb_admin_view_message_limit_text(corebb_prepare_post_data($body), 65535);
     if ($subject === '' && trim($body) === '') {
         return ['-', '(no message)'];
     }
@@ -1103,11 +1105,11 @@ function corebb_admin_view_message_apply_post(array $model, array $viewer, int $
     $model['modify_block_reason'] = $isDeleted ? 'This message is currently in the Deleted Posts bin. Restore or purge it from that tool.' : ($archiveError !== '' ? $archiveError : $rightsError);
     $model['edit_subject'] = (string)($postRow['title'] ?? '');
     $model['edit_body'] = (string)($postRow['body'] ?? '');
-    $model['post_date'] = function_exists('convert_to_vndate') ? convert_to_vndate((string)($postRow['posttime'] ?? '')) : (string)($postRow['posttime'] ?? '');
+    $model['post_date'] = convert_to_vndate((string)($postRow['posttime'] ?? ''));
     $editCount = max(1, (int)($postRow['editcount'] ?? 0));
     $model['post_edit'] = [
         'was_edited' => (int)($postRow['wasedited'] ?? 0) === 1,
-        'date' => function_exists('convert_to_vndate') ? convert_to_vndate((string)($postRow['editdate'] ?? '')) : (string)($postRow['editdate'] ?? ''),
+        'date' => convert_to_vndate((string)($postRow['editdate'] ?? '')),
         'count_text' => $editCount === 1 ? '1 edit total' : $editCount . ' edits total',
         'edited_by_id' => (int)($postRow['editedby'] ?? 0),
     ];
@@ -1126,9 +1128,7 @@ function corebb_admin_view_message_apply_post(array $model, array $viewer, int $
  */
 function corebb_admin_view_message_model(array $viewer, array $request, array $post): array
 {
-    if (function_exists('corebb_mod_ensure_schema')) {
-        corebb_mod_ensure_schema();
-    }
+    corebb_mod_ensure_schema();
     $model = corebb_admin_require_model_base($viewer, 'View a Message', $request);
     $model['mode'] = 'form';
     $model['messageid'] = 0;
@@ -1171,7 +1171,7 @@ function corebb_admin_view_message_model(array $viewer, array $request, array $p
             (string)($post['message_subject'] ?? ''),
             (string)($post['message_body'] ?? '')
         );
-        $now = function_exists('convert_to_timestamp_raw') ? convert_to_timestamp_raw(time()) : (string)time();
+        $now = convert_to_timestamp_raw(time());
         $ok = corebb_mod_update_post_with_edit_metadata(
             $messageId,
             $subject,
@@ -1188,9 +1188,7 @@ function corebb_admin_view_message_model(array $viewer, array $request, array $p
         if ($topicId > 0) {
             corebb_mod_refresh_topic_from_posts($topicId);
         }
-        if (function_exists('corebb_mod_log')) {
-			corebb_mod_log('Moderator edited post ' . $messageId . ' from View a Message');
-		}	
+        corebb_mod_log('Moderator edited post ' . $messageId . ' from View a Message');
         corebb_notifications_notify_moderated_post(
             $postRow,
             'edited',
@@ -1243,7 +1241,7 @@ function corebb_admin_view_message_model(array $viewer, array $request, array $p
         }
 
         $model = corebb_admin_view_message_apply_post($model, $viewer, $messageId);
-        if (($model['mode'] ?? '') === 'view' && (int)($viewer['accesslevel'] ?? 0) >= 3 && function_exists('corebb_adminlog_viewer')) {
+        if (($model['mode'] ?? '') === 'view' && (int)($viewer['accesslevel'] ?? 0) >= 3 ) {
             $posterId = (int)($model['post']['posterid'] ?? 0);
             corebb_adminlog_viewer(
                 $viewer,

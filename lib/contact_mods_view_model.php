@@ -18,6 +18,7 @@
  +-------------------------------------------------------+*/
 
 require_once __DIR__ . '/contact_mods_helpers.php';
+require_once __DIR__ . '/corebb_url_helpers.php';
 require_once __DIR__ . '/rate_limit_helpers.php';
 
 /**
@@ -39,11 +40,11 @@ function corebb_contact_mods_public_model(array $viewer, array $get, array $post
     $messages = [];
     $errors = [];
     $viewerId = (int)($viewer['id'] ?? 0);
-    $baseContactUrl = function_exists('corebb_public_url') ? corebb_public_url('support.php?action=contact') : '/contact-mods/';
+    $baseContactUrl = corebb_public_join_base_path('/contact-mods/');
     $returnUrl = corebb_contact_mods_request_return_url($get, $post);
     $contactUrl = corebb_contact_mods_url_with_return($baseContactUrl, $returnUrl);
 
-    if (!function_exists('loggedin') || !loggedin() || $viewerId <= 0) {
+    if (!corebb_load_logged_in_user() || $viewerId <= 0) {
         return [
             'viewer' => $viewer,
             'viewer_accesslevel' => (int)($viewer['accesslevel'] ?? 0),
@@ -100,7 +101,7 @@ function corebb_contact_mods_public_model(array $viewer, array $get, array $post
         if (!$dupeRow && !$errors) {
             $ok = db_run(
                 'INSERT INTO contact_mod_requests (userid, subject, message, status, created_at, created_ip) VALUES (?, ?, ?, ?, ?, ?)',
-                [$viewerId, $subject, $message, 'new', date('Y-m-d H:i:s'), corebb_contact_mods_current_ip()]
+                [$viewerId, $subject, $message, 'new', date('Y-m-d H:i:s'), corebb_mod_current_ip()]
             );
             if ($ok) {
                 $messages[] = 'Your Contact Mods request has been submitted. A moderator response will arrive by private message.';

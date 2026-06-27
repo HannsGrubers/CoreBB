@@ -8,7 +8,7 @@
 
 $root = dirname(__DIR__);
 
-include $root . '/CookieEngine.php';
+require_once $root . '/lib/bootstrap.php';
 require_once $root . '/lib/view.php';
 require_once $root . '/lib/layout_view_model.php';
 require_once $root . '/lib/blog_view_model.php';
@@ -22,9 +22,7 @@ require_once $root . '/lib/blog_view_model.php';
  */
 function corebb_blog_redirect(string $url): void
 {
-    if (function_exists('corebb_public_url')) {
-        $url = corebb_public_url($url);
-    }
+    $url = corebb_public_join_base_path($url);
     header('Location: ' . $url);
     exit;
 }
@@ -40,7 +38,7 @@ function corebb_blog_redirect(string $url): void
 function corebb_blog_modify_redirect(array $post, string $requestMethod): void
 {
     corebb_blog_ensure_schema();
-    if (!loggedin()) {
+    if (!corebb_load_logged_in_user()) {
         corebb_blog_redirect('/blogs/?msg=Sorry,+you+must+be+logged+in+to+modify+your+blog!');
     }
     if (strtoupper($requestMethod) !== 'POST') {
@@ -74,7 +72,7 @@ $model = [];
 
 switch ($action) {
     case 'my':
-        if (!loggedin()) {
+        if (!corebb_load_logged_in_user()) {
             corebb_blog_redirect('/blogs/?msg=Sorry,+you+must+be+logged+in+to+view+your+blog!');
         }
         corebb_blog_redirect('/blogs/user/' . corebb_blog_current_user_id() . '/');

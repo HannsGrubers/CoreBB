@@ -29,9 +29,7 @@ require_once __DIR__ . '/private_board_helpers.php';
  */
 function corebb_index_ensure_schema(): void
 {
-    if (function_exists('corebb_perf_add_column_if_missing')) {
-        corebb_perf_add_column_if_missing('boards', 'default_open', 'TINYINT(1) NOT NULL DEFAULT 0');
-    }
+    corebb_perf_add_column_if_missing('boards', 'default_open', 'TINYINT(1) NOT NULL DEFAULT 0');
 }
 
 /**
@@ -80,7 +78,7 @@ function corebb_fetch_index_model(?int $expandedCategoryId = null, bool $showEmp
     corebb_private_ensure_schema();
     corebb_index_ensure_schema();
 
-    $userId = loggedin() ? (int)($MyData['id'] ?? $userlogindata_a['id'] ?? 0) : 0;
+    $userId = corebb_load_logged_in_user() ? (int)($MyData['id'] ?? $userlogindata_a['id'] ?? 0) : 0;
     $accessLevel = (int)($userlogindata_a['accesslevel'] ?? 0);
 
     $model = [
@@ -296,7 +294,7 @@ function corebb_index_prepare_forum_row(array $forum): array
     $forum['forum_id'] = $forumId;
     $forum['title'] = $name;
     $forum['description'] = (string)($forum['description'] ?? '');
-    $forum['board_url'] = function_exists('corebb_board_url') ? corebb_board_url($forumId, 1, $name) : '/board/' . $forumId . '/';
+    $forum['board_url'] = corebb_board_url($forumId, 1, $name);
     $forum['last_post_display'] = $lastPostDisplay;
     $forum['new_mark'] = $newMark;
     $forum['has_new_posts'] = trim($newMark) !== '';

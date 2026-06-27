@@ -8,8 +8,7 @@
 
 $root = dirname(__DIR__);
 
-include $root . '/CookieEngine.php';
-include_once $root . '/functions.php';
+require_once $root . '/lib/bootstrap.php';
 include_once $root . '/lib/pm_helpers.php';
 include_once $root . '/lib/pm_view_model.php';
 include_once $root . '/lib/pm_send_view_model.php';
@@ -26,9 +25,7 @@ include_once $root . '/lib/mobile_helpers.php';
  */
 function corebb_messages_redirect(string $url): void
 {
-    if (function_exists('corebb_public_url')) {
-        $url = corebb_public_url($url);
-    }
+    $url = corebb_public_join_base_path($url);
     header('Location: ' . $url);
     exit;
 }
@@ -72,7 +69,7 @@ if ($action === 'send') {
     corebb_mobile_redirect('pm', ['folder' => $folder === 'unread' ? 'inbox' : $folder]);
 }
 
-if (!loggedin()) {
+if (!corebb_load_logged_in_user()) {
     if ($action === 'send') {
         corebb_messages_redirect('/login/?msg=' . urlencode('You must be logged in to send private messages!'));
     }

@@ -19,6 +19,7 @@
 
 require_once __DIR__ . '/admin_user_tools_view_model.php';
 require_once __DIR__ . '/corebb_update_helpers.php';
+require_once __DIR__ . '/admin_log_helpers.php';
 
 /**
  * Usage: Count rows in a table for dashboard totals.
@@ -194,23 +195,21 @@ function corebb_admin_dashboard_normalize_log_row(array $row): array
  */
 function corebb_admin_dashboard_logs(?int $level = null, int $limit = 20): array
 {
-    if (function_exists('corebb_adminlogs_ensure_schema')) {
-        corebb_adminlogs_ensure_schema();
-    }
+    corebb_adminlogs_ensure_schema();
 
     $limit = max(1, min(100, $limit));
     $params = [];
 
-    $idExpr = function_exists('corebb_adminlogs_select_expr') ? corebb_adminlogs_select_expr('id', '0') : 'al.id';
-    $useridExpr = function_exists('corebb_adminlogs_select_expr') ? corebb_adminlogs_select_expr('userid', '0') : 'al.userid';
-    $userlevelExpr = function_exists('corebb_adminlogs_select_expr') ? corebb_adminlogs_select_expr('userlevel', "''") : 'al.userlevel';
-    $actionExpr = function_exists('corebb_adminlogs_select_expr') ? corebb_adminlogs_select_expr('action', "''") : 'al.action';
-    $adminUsernameExpr = function_exists('corebb_adminlogs_select_expr') ? corebb_adminlogs_select_expr('admin_username', "''") : 'al.admin_username';
-    $ipExpr = function_exists('corebb_adminlogs_select_expr') ? corebb_adminlogs_select_expr('ip_address', "''") : 'al.ip_address';
-    $typeExpr = function_exists('corebb_adminlogs_select_expr') ? corebb_adminlogs_select_expr('action_type', "''") : 'al.action_type';
-    $descriptionExpr = function_exists('corebb_adminlogs_select_expr') ? corebb_adminlogs_select_expr('description', $actionExpr) : 'al.description';
-    $dateExpr = function_exists('corebb_adminlogs_effective_date_expr') ? corebb_adminlogs_effective_date_expr('al') : (function_exists('corebb_adminlogs_select_expr') ? corebb_adminlogs_select_expr('date_performed', "''") : 'al.date_performed');
-    $orderSql = function_exists('corebb_adminlogs_order_sql') ? corebb_adminlogs_order_sql() : 'al.id DESC';
+    $idExpr = corebb_adminlogs_select_expr('id', '0');
+    $useridExpr = corebb_adminlogs_select_expr('userid', '0');
+    $userlevelExpr = corebb_adminlogs_select_expr('userlevel', "''");
+    $actionExpr = corebb_adminlogs_select_expr('action', "''");
+    $adminUsernameExpr = corebb_adminlogs_select_expr('admin_username', "''");
+    $ipExpr = corebb_adminlogs_select_expr('ip_address', "''");
+    $typeExpr = corebb_adminlogs_select_expr('action_type', "''");
+    $descriptionExpr = corebb_adminlogs_select_expr('description', $actionExpr);
+    $dateExpr = corebb_adminlogs_select_expr('date_performed', "''");
+    $orderSql = corebb_adminlogs_order_sql();
 
     $where = '';
     if($level !== null){
@@ -275,7 +274,7 @@ function corebb_admin_dashboard_model(array $viewer): array
 {
     $accessLevel = (int)($viewer['accesslevel'] ?? 0);
     $title = corebb_admin_dashboard_title($accessLevel);
-    if($accessLevel < 2 && function_exists('corebb_admin_user_granted_tool_keys') && corebb_admin_user_granted_tool_keys((int)($viewer['id'] ?? 0))){
+    if($accessLevel < 2 && corebb_admin_user_granted_tool_keys((int)($viewer['id'] ?? 0))){
         $title = [
             'title' => 'Special Access Area',
             'body' => 'From here you can use the administration tools specifically granted to your account.',

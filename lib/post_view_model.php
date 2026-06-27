@@ -134,14 +134,12 @@ function corebb_post_thread_url(int $topicId, int $boardId): string
         return '#';
     }
 
-    return function_exists('corebb_thread_url')
-        ? corebb_thread_url($topicId, $boardId, 1)
-        : '/topic/' . $topicId . '/';
+    return corebb_thread_url($topicId, $boardId, 1);
 }
 
 /**
  * Usage: Build a board URL for post result links.
- * Referenced by: corebb_post_success_links() and process results.
+ * Referenced by: post process result links.
  */
 function corebb_post_board_url(int $boardId, string $boardName = ''): string
 {
@@ -149,9 +147,7 @@ function corebb_post_board_url(int $boardId, string $boardName = ''): string
         return '#';
     }
 
-    return function_exists('corebb_board_url')
-        ? corebb_board_url($boardId, 1, $boardName)
-        : '/board/' . $boardId . '/';
+    return corebb_board_url($boardId, 1, $boardName);
 }
 
 /**
@@ -165,36 +161,6 @@ function corebb_post_result_model(string $status, string $message, array $links 
         'message' => $message,
         'links' => $links,
     ];
-}
-
-/**
- * Usage: Normalize raw subject/body pairs for simple write paths.
- * Referenced by: older integrations and kept for compatible post helpers.
- */
-function corebb_post_normalize_subject_body(string $subject, string $body): array
-{
-    $subject = corebb_post_limit_text(trim($subject), 100);
-    $body = corebb_post_limit_text(CleanPostDataForPrepared($body), 65535);
-
-    if ($subject === '' && $body === '') {
-        return ['-', '(no message)'];
-    }
-    if ($subject === '') {
-        $subject = '-';
-    }
-    if ($body === '') {
-        $body = '(no message)';
-    }
-    return [$subject, $body];
-}
-
-/**
- * Usage: Check whether the author may submit privileged [a_image] markup.
- * Referenced by: admin-image downgrade helpers.
- */
-function corebb_post_user_can_author_admin_image(array $user): bool
-{
-    return corebb_post_image_can_upload($user);
 }
 
 /**
@@ -215,7 +181,7 @@ function corebb_post_downgrade_admin_image_tags(string $body): string
  */
 function corebb_post_normalize_admin_image_tags_for_user(string $body, array $user): string
 {
-    if (corebb_post_user_can_author_admin_image($user)) {
+    if (corebb_post_image_can_upload($user)) {
         return $body;
     }
     return corebb_post_downgrade_admin_image_tags($body);
@@ -228,7 +194,7 @@ function corebb_post_normalize_admin_image_tags_for_user(string $body, array $us
 function corebb_post_prepare_subject_body_with_upload(array $post, array $user): array
 {
     $subject = corebb_post_limit_text(trim((string)($post['message_subject'] ?? '')), 100);
-    $body = corebb_post_limit_text(CleanPostDataForPrepared((string)($post['message_body'] ?? '')), 65535);
+    $body = corebb_post_limit_text(corebb_prepare_post_data((string)($post['message_body'] ?? '')), 65535);
     $body = corebb_post_normalize_admin_image_tags_for_user($body, $user);
     $uploadedPath = '';
 
@@ -306,18 +272,6 @@ function corebb_post_now_values(): array
         'vn_date' => convert_to_timestamp_raw(time()),
         'unix' => time(),
         'short_date' => date('m/d/y'),
-    ];
-}
-
-/**
- * Usage: Build standard success links after creating or replying to a topic.
- * Referenced by: post processing branches and kept for compatibility.
- */
-function corebb_post_success_links(int $boardId, string $boardName, int $topicId): array
-{
-    return [
-        ['label' => 'View the board', 'href' => corebb_post_board_url($boardId, $boardName), 'text' => $boardName],
-        ['label' => 'View your message', 'href' => corebb_post_thread_url($topicId, $boardId), 'text' => 'here'],
     ];
 }
 

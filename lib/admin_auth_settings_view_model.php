@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/admin_log_helpers.php';
 /*-------------------------------------------------------
  | admin_auth_settings_view_model.php - Auth settings.
  +-------------------------------------------------------*/
@@ -94,8 +95,8 @@ function corebb_admin_auth_settings_model(array $viewer, array $request, array $
         $result = corebb_admin_auth_settings_save($post);
         $messages = $result['messages'];
         $errors = $result['errors'];
-        if (!$errors && function_exists('addlogentry')) {
-            addlogentry((string)($viewer['username'] ?? 'Unknown'), (int)($viewer['accesslevel'] ?? 0), 'Modified authentication settings');
+        if (!$errors ) {
+            corebb_adminlog_entry((string)($viewer['username'] ?? 'Unknown'), (int)($viewer['accesslevel'] ?? 0), 'Modified authentication settings');
         }
     }
 

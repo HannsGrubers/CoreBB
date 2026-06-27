@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/corebb_date_helpers.php';
 if (!defined('COREBB_VIEW_LOADED')) {
     require_once __DIR__ . '/view.php';
 }
@@ -104,7 +105,7 @@ function corebb_profile_content_display_date(string $preferred, string $fallback
         $value = date('Y-n-j H:i:s', (int)$value);
     }
 
-    return $value !== '' && function_exists('convert_to_vndate') ? convert_to_vndate($value) : $value;
+    return $value !== '' ? convert_to_vndate($value) : $value;
 }
 
 /**
@@ -135,13 +136,10 @@ function corebb_profile_content_url(int $userId, string $type, int $page = 1): s
  */
 function corebb_profile_content_post_url(int $topicId, int $boardId, int $postId, string $boardName = ''): string
 {
-    $perPage = function_exists('corebb_current_thread_posts_per_page') ? corebb_current_thread_posts_per_page() : 25;
+    $perPage = corebb_current_thread_posts_per_page();
     $position = (int)db_value('SELECT COUNT(*) FROM posts WHERE threadid = ? AND is_deleted = 0 AND id <= ?', [$topicId, $postId], 1);
     $page = max(1, (int)ceil(max(1, $position) / max(1, $perPage)));
-    if (function_exists('corebb_thread_url')) {
-        return corebb_thread_url($topicId, $boardId, $page, $boardName, $postId);
-    }
-    return '/topic/' . $topicId . '/p' . $page . '/#post' . $postId;
+    return corebb_thread_url($topicId, $boardId, $page, $boardName, $postId);
 }
 
 /**
@@ -198,8 +196,8 @@ function corebb_profile_topics_model(array $user, int $page, int $perPage): arra
     $rows = array_slice($rows, $offset, $perPage);
 
     $topicIds = array_map(static fn($row) => (int)($row['id'] ?? 0), $rows);
-    $latestPosts = function_exists('corebb_board_latest_posts_by_topic') ? corebb_board_latest_posts_by_topic($topicIds) : [];
-    $topicPostCounts = function_exists('corebb_board_post_counts_by_topic') ? corebb_board_post_counts_by_topic($topicIds) : [];
+    $latestPosts = corebb_board_latest_posts_by_topic($topicIds);
+    $topicPostCounts = corebb_board_post_counts_by_topic($topicIds);
 
     $items = [];
     foreach ($rows as $row) {
@@ -212,17 +210,17 @@ function corebb_profile_topics_model(array $user, int $page, int $perPage): arra
         $lastPostDisplay = $lastPost ? (string)($lastPost['posttime'] ?? '') : (string)($row['lastpost'] ?? '');
         $lastPosterId = $lastPost ? (int)($lastPost['posterid'] ?? 0) : 0;
         $lastPostId = $lastPost ? (int)($lastPost['id'] ?? 0) : 0;
-        $threadPerPage = function_exists('corebb_current_thread_posts_per_page') ? corebb_current_thread_posts_per_page() : 25;
+        $threadPerPage = corebb_current_thread_posts_per_page();
         $lastPage = max(1, (int)ceil(max(1, $postCount) / max(1, $threadPerPage)));
 
         $items[] = [
             'title' => (string)($row['title'] ?? 'Untitled Topic'),
-            'url' => function_exists('corebb_thread_url') ? corebb_thread_url($topicId, $boardId, 1, $boardName) : '/topic/' . $topicId . '/p1/',
-            'topic_pages' => function_exists('corebb_board_topic_pages_model') ? corebb_board_topic_pages_model($topicId, $boardId, $postCount, $threadPerPage, $boardName) : ['visible' => false, 'items' => []],
+            'url' => corebb_thread_url($topicId, $boardId, 1, $boardName),
+            'topic_pages' => corebb_board_topic_pages_model($topicId, $boardId, $postCount, $threadPerPage, $boardName),
             'board_name' => $boardName,
-            'board_url' => function_exists('corebb_board_url') ? corebb_board_url($boardId, 1, $boardName) : '/board/' . $boardId . '/',
+            'board_url' => corebb_board_url($boardId, 1, $boardName),
             'date' => corebb_profile_content_display_date($lastPostRaw, $lastPostDisplay),
-            'last_post_url' => function_exists('corebb_thread_url') ? corebb_thread_url($topicId, $boardId, $lastPage, $boardName, $lastPostId) : '/topic/' . $topicId . '/p' . $lastPage . '/' . ($lastPostId > 0 ? '#post' . $lastPostId : ''),
+            'last_post_url' => corebb_thread_url($topicId, $boardId, $lastPage, $boardName, $lastPostId),
             'last_poster_id' => $lastPosterId,
             'last_poster_name' => $lastPost ? (string)($lastPost['author'] ?? '') : '',
             'replies' => max(0, $postCount - 1),
@@ -298,7 +296,7 @@ function corebb_profile_posts_model(array $user, int $page, int $perPage): array
             'topic_title' => (string)($row['topic_title'] ?? 'Untitled Topic'),
             'url' => corebb_profile_content_post_url($topicId, $boardId, $postId, $boardName),
             'board_name' => $boardName,
-            'board_url' => function_exists('corebb_board_url') ? corebb_board_url($boardId, 1, $boardName) : '/board/' . $boardId . '/',
+            'board_url' => corebb_board_url($boardId, 1, $boardName),
             'date' => corebb_profile_content_display_date($stamp, $stampDisplay),
             'excerpt' => corebb_profile_content_excerpt((string)($row['body'] ?? '')),
         ];
@@ -318,7 +316,7 @@ function corebb_profile_posts_model(array $user, int $page, int $perPage): array
  */
 function corebb_profile_content_model(int $userId, string $type, int $page): array
 {
-    if (!function_exists('loggedin') || !loggedin()) {
+    if (!corebb_load_logged_in_user()) {
         return [
             'found' => false,
             'login_required' => true,

@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/corebb_date_helpers.php';
+require_once __DIR__ . '/admin_log_helpers.php';
 /*                        ''~``
                          ( o o )
  +------------------.oooO--(_)--Oooo.--------------------+
@@ -21,6 +23,8 @@ require_once __DIR__ . '/moderation_helpers.php';
 require_once __DIR__ . '/rate_limit_helpers.php';
 require_once __DIR__ . '/private_board_helpers.php';
 require_once __DIR__ . '/pagination_helpers.php';
+require_once __DIR__ . '/corebb_url_helpers.php';
+require_once __DIR__ . '/corebb_route_helpers.php';
 require_once __DIR__ . '/admin_board_filter_helpers.php';
 
 /**
@@ -72,15 +76,7 @@ function corebb_mod_request_thread_url(int $topicId, int $boardId = 0, int $post
         return '';
     }
 
-    $path = 'controllers/forum.php?action=thread&id=' . $topicId;
-    if ($boardId > 0) {
-        $path .= '&brd=' . $boardId;
-    }
-    if ($postId > 0) {
-        $path .= '#post' . $postId;
-    }
-
-    return function_exists('corebb_public_url') ? corebb_public_url($path) : '/topic/' . $topicId . '/p1/' . ($postId > 0 ? '#post' . $postId : '');
+    return corebb_thread_url($topicId, $boardId, 1, '', $postId);
 }
 
 /**
@@ -99,8 +95,16 @@ function corebb_mod_request_display_url(string $url, int $topicId, int $boardId 
     if (preg_match('/^thread\.php\?id=(\d+)(?:&brd=(\d+))?(?:&p=\d+)?(?:#post(\d+))?$/', $url, $matches)) {
         return corebb_mod_request_thread_url((int)$matches[1], (int)($matches[2] ?? 0), (int)($matches[3] ?? $postId));
     }
+    if (preg_match('~^(?:controllers/)?forum\.php\?~i', $url)) {
+        $parts = parse_url($url);
+        parse_str((string)($parts['query'] ?? ''), $params);
+        $topicId = (int)($params['id'] ?? $topicId);
+        $boardId = (int)($params['brd'] ?? $params['boardid'] ?? $boardId);
+        $postId = (int)($params['post'] ?? $postId);
+        return corebb_mod_request_thread_url($topicId, $boardId, $postId);
+    }
     if ($url !== '') {
-        return function_exists('corebb_public_url') ? corebb_public_url($url) : $url;
+        return corebb_public_join_base_path($url);
     }
     return corebb_mod_request_thread_url($topicId, $boardId, $postId);
 }
@@ -224,21 +228,6 @@ function corebb_mod_request_check_token(array $post): bool
 }
 
 /**
- * Usage: Read the current client IP for a post report.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @return string Normalized or display-ready string.
- */
-function corebb_mod_request_current_ip(): string
-{
-    if (function_exists('corebb_mod_current_ip')) {
-        return corebb_mod_current_ip();
-    }
-    $ip = trim((string)($_SERVER['REMOTE_ADDR'] ?? ''));
-    return $ip !== '' ? substr($ip, 0, 64) : 'Unknown';
-}
-
-/**
  * Usage: Fetch the row used by this admin action.
  * Referenced by: admin route handlers and helper chains in this file.
  *
@@ -336,8 +325,8 @@ function corebb_mod_requests_new_count(array $viewer): int
  */
 function corebb_mod_requests_log(array $viewer, string $action, string $type = 'mod_request', string $description = ''): void
 {
-    if (function_exists('addlogentry')) {
-        addlogentry((string)($viewer['username'] ?? $viewer['id'] ?? 'Unknown'), (int)($viewer['accesslevel'] ?? 0), $action, $type, $description !== '' ? $description : $action);
+    {
+        corebb_adminlog_entry((string)($viewer['username'] ?? $viewer['id'] ?? 'Unknown'), (int)($viewer['accesslevel'] ?? 0), $action, $type, $description !== '' ? $description : $action);
     }
 }
 
@@ -420,7 +409,7 @@ function corebb_report_post_model(array $viewer, array $get, array $post): array
     $message = [];
     $errors = [];
 
-    if (!function_exists('loggedin') || !loggedin()) {
+    if (!corebb_load_logged_in_user()) {
         return ['missing' => true, 'message' => 'You must be logged in to contact the moderators.'];
     }
 
@@ -475,7 +464,7 @@ function corebb_report_post_model(array $viewer, array $get, array $post): array
                 db_run(
                     'INSERT INTO mod_requests (postid, topicid, boardid, reporterid, reported_userid, reason_type, comments, severity, url, status, created_at, created_ip)
                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                    [$postId, $topicId, $boardId, $reporterId, $reportedUserId, $reason, $comments, $severity, $url, 'new', date('Y-m-d H:i:s'), corebb_mod_request_current_ip()]
+                    [$postId, $topicId, $boardId, $reporterId, $reportedUserId, $reason, $comments, $severity, $url, 'new', date('Y-m-d H:i:s'), corebb_mod_current_ip()]
                 );
                 $message[] = 'Your moderator request has been submitted.';
             }
@@ -485,8 +474,7 @@ function corebb_report_post_model(array $viewer, array $get, array $post): array
     $topicId = (int)($postRow['threadid'] ?? 0);
     $boardId = (int)($postRow['boardid'] ?? 0);
     $threadUrl = corebb_mod_request_thread_url($topicId, $boardId, $postId);
-    $reportPath = 'support.php?action=report&post=' . $postId;
-    $reportUrl = function_exists('corebb_public_url') ? corebb_public_url($reportPath) : $reportPath;
+    $reportUrl = corebb_public_join_base_path('/report-message/' . $postId . '/');
 
     return [
         'missing' => false,
@@ -797,7 +785,7 @@ function corebb_admin_moderate_message_model(array $viewer, array $get, array $p
             'title' => (string)($postRow['title'] ?? ''),
             'body' => (string)($postRow['body'] ?? ''),
             'posttime' => (string)($postRow['posttime'] ?? ''),
-            'posttime_label' => ($postRow['posttime'] ?? '') !== '' && function_exists('convert_to_vndate') ? convert_to_vndate((string)$postRow['posttime']) : (string)($postRow['posttime'] ?? ''),
+            'posttime_label' => ($postRow['posttime'] ?? '') !== '' ? convert_to_vndate((string)$postRow['posttime']) : (string)($postRow['posttime'] ?? ''),
             'user_ip' => $userIp,
             'post_ip' => $messageIp,
             'thread_url' => $threadUrl,

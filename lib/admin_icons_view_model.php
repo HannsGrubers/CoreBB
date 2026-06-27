@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/admin_log_helpers.php';
 /*                        ''~``
                          ( o o )
  +------------------.oooO--(_)--Oooo.--------------------+
@@ -287,9 +288,7 @@ function corebb_admin_icons_list(array $filters, int $page, int $perPage): array
             'owner' => [
                 'id' => $ownerId,
                 'username' => $ownerName !== '' ? $ownerName : ($ownerId > 0 ? 'User #' . $ownerId : 'System/default'),
-                'profile_url' => $ownerId > 0
-                    ? (function_exists('corebb_public_url') ? corebb_public_url('content.php?action=profile&id=' . $ownerId) : '/profile/' . $ownerId . '/')
-                    : '',
+                'profile_url' => $ownerId > 0 ? corebb_public_join_base_path('/profile/' . $ownerId . '/') : '',
                 'style_css' => '',
                 'linked' => $ownerId > 0,
                 'blank' => false,
@@ -368,8 +367,8 @@ function corebb_admin_icons_icon(int $iconId): ?array
  */
 function corebb_admin_icons_log(array $viewer, string $message): void
 {
-    if (function_exists('addlogentry')) {
-        addlogentry((string)($viewer['username'] ?? ''), (int)($viewer['accesslevel'] ?? 0), $message);
+    {
+        corebb_adminlog_entry((string)($viewer['username'] ?? ''), (int)($viewer['accesslevel'] ?? 0), $message);
     }
 }
 

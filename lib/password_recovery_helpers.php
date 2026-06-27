@@ -4,6 +4,7 @@
  */
 require_once __DIR__ . '/auth_password_helpers.php';
 require_once __DIR__ . '/mail_helpers.php';
+require_once __DIR__ . '/security.php';
 
 if (!defined('COREBB_PASSWORD_RECOVERY_HELPERS_LOADED')) {
     define('COREBB_PASSWORD_RECOVERY_HELPERS_LOADED', true);
@@ -73,7 +74,7 @@ function corebb_password_recovery_public_base_url(): string
 
     $https = strtolower((string)($_SERVER['HTTPS'] ?? ''));
     $scheme = ($https !== '' && $https !== 'off') ? 'https' : 'http';
-    return $scheme . '://' . (function_exists('corebb_mail_public_host') ? corebb_mail_public_host() : 'localhost');
+    return $scheme . '://' . corebb_mail_public_host();
 }
 
 /**
@@ -136,10 +137,7 @@ function corebb_password_recovery_lookup_user_by_email(string $email): ?array
  */
 function corebb_password_recovery_request_ip(): string
 {
-    if (function_exists('corebb_security_client_ip')) {
-        return (string)corebb_security_client_ip();
-    }
-    return (string)($_SERVER['REMOTE_ADDR'] ?? '');
+    return (string)corebb_security_client_ip();
 }
 
 /**
@@ -419,7 +417,7 @@ function corebb_password_recovery_send_request(string $email): array
 
     $resetUrl = corebb_password_recovery_url($token);
     $username = (string)($user['username'] ?? 'there');
-    $boardName = function_exists('corebb_mail_board_name') ? corebb_mail_board_name() : 'CoreBB';
+    $boardName = corebb_mail_board_name();
     $body = "Hello " . $username . ",\n\n"
         . "A password reset was requested for your " . $boardName . " account.\n\n"
         . "Reset your password here:\n"

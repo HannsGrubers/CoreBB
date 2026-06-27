@@ -18,6 +18,7 @@
  +-------------------------------------------------------+*/
 
 require_once __DIR__ . '/mail_helpers.php';
+require_once __DIR__ . '/security.php';
 
 /**
  * Usage: Create the email verification table used by registration and resend flows.
@@ -59,7 +60,7 @@ function corebb_email_verification_base_url(): string
     }
     $https = strtolower((string)($_SERVER['HTTPS'] ?? ''));
     $scheme = ($https !== '' && $https !== 'off') ? 'https' : 'http';
-    return $scheme . '://' . (function_exists('corebb_mail_public_host') ? corebb_mail_public_host() : 'localhost');
+    return $scheme . '://' . corebb_mail_public_host();
 }
 
 /**
@@ -96,7 +97,7 @@ function corebb_email_verification_create_token(int $userid, string $email): arr
     $hash = hash('sha256', $token);
     $nowText = convert_to_timestamp_raw(time());
     $expires = time() + 86400;
-    $ip = function_exists('corebb_security_client_ip') ? corebb_security_client_ip() : ($_SERVER['REMOTE_ADDR'] ?? '');
+    $ip = corebb_security_client_ip();
 
     $ok = db_run(
         "INSERT INTO email_verifications (userid, email, token_hash, created_at, expires_at, verified_at, ipaddress)
@@ -128,7 +129,7 @@ function corebb_email_verification_send(int $userid, string $username, string $e
     }
 
     $url = corebb_email_verification_url((string)$created['token']);
-    $boardName = function_exists('corebb_mail_board_name') ? corebb_mail_board_name() : 'CoreBB';
+    $boardName = corebb_mail_board_name();
     $subject = 'Verify your ' . $boardName . ' account';
     $body = "Welcome to " . $boardName . ", " . $username . ".\n\n"
         . "Please verify your email address before logging in:\n\n"

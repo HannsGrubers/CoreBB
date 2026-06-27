@@ -106,7 +106,7 @@ function corebb_api_auth_login(array $data): array
     }
 
     $now = convert_to_timestamp_raw(time());
-    $ip = str_replace('.', '-', corebb_api_client_ip());
+    $ip = str_replace('.', '-', corebb_security_client_ip());
     $duration = corebb_api_auth_expiry($data['expiry'] ?? $data['expires_in'] ?? 86400);
     $expiresAt = time() + $duration;
     $loginToken = corebb_auth_create_login_token($userId, $expiresAt);

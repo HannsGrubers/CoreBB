@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/admin_log_helpers.php';
 /*                        ''~``
                          ( o o )
  +------------------.oooO--(_)--Oooo.--------------------+
@@ -369,8 +370,8 @@ function corebb_admin_mail_save(array $viewer, array $post): array
         $write = corebb_admin_mail_write_config($path, $values);
         if (!empty($write['ok'])) {
             $messages[] = $write['message'];
-            if (function_exists('addlogentry')) {
-                addlogentry(
+            {
+                corebb_adminlog_entry(
                     (string)($viewer['username'] ?? 'Unknown'),
                     (int)($viewer['accesslevel'] ?? 0),
                     'Updated mail services configuration',
@@ -409,8 +410,8 @@ function corebb_admin_mail_send_test(array $viewer, array $post): array
         . "Sent: " . date('Y-m-d H:i:s') . "\n";
     $result = corebb_mail_send($to, $subject, $body);
     if (!empty($result['sent'])) {
-        if (function_exists('addlogentry')) {
-            addlogentry(
+        {
+            corebb_adminlog_entry(
                 (string)($viewer['username'] ?? 'Unknown'),
                 (int)($viewer['accesslevel'] ?? 0),
                 'Sent mail services test email',

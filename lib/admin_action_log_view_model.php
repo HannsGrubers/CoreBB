@@ -18,6 +18,7 @@
  +-------------------------------------------------------+*/
 
 require_once __DIR__ . '/admin_user_tools_view_model.php';
+require_once __DIR__ . '/admin_log_helpers.php';
 
 const COREBB_ADMIN_ACTION_LOG_PER_PAGE = 25;
 
@@ -29,25 +30,7 @@ const COREBB_ADMIN_ACTION_LOG_PER_PAGE = 25;
  */
 function corebb_action_log_ensure_schema(): void
 {
-    if (function_exists('corebb_adminlogs_ensure_schema')) {
-        corebb_adminlogs_ensure_schema();
-        return;
-    }
-
-    if (!db_exists('SHOW TABLES LIKE ?', ['adminlogs'])) {
-        db_run("CREATE TABLE IF NOT EXISTS `adminlogs` (
-            `id` INT NOT NULL AUTO_INCREMENT,
-            `userid` INT NOT NULL DEFAULT 0,
-            `userlevel` VARCHAR(255) NOT NULL DEFAULT '',
-            `action` TEXT NULL,
-            `admin_username` VARCHAR(255) NOT NULL DEFAULT '',
-            `ip_address` VARCHAR(64) NOT NULL DEFAULT '',
-            `action_type` VARCHAR(80) NOT NULL DEFAULT '',
-            `description` TEXT NULL,
-            `date_performed` DATETIME NULL,
-            PRIMARY KEY (`id`)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
-    }
+    corebb_adminlogs_ensure_schema();
 }
 
 /**
@@ -67,21 +50,6 @@ function corebb_action_log_filter_value(array $request, string $key, string $fal
 }
 
 /**
- * Usage: Choose the safest admin-log SQL expression for optional columns.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @param string $column Database column name.
- * @param string $fallbackSql Fallback SQL expression.
- * @return string Normalized or display-ready string.
- */
-function corebb_action_log_expr(string $column, string $fallbackSql): string
-{
-    return function_exists('corebb_adminlogs_select_expr')
-        ? corebb_adminlogs_select_expr($column, $fallbackSql)
-        : 'al.`' . str_replace('`', '``', $column) . '`';
-}
-
-/**
  * Usage: Build the SQL fragment for an admin query.
  * Referenced by: admin route handlers and helper chains in this file.
  *
@@ -92,11 +60,11 @@ function corebb_action_log_expr(string $column, string $fallbackSql): string
 function corebb_action_log_build_where(array $filters, array &$params): string
 {
     $where = [];
-    $useridExpr = corebb_action_log_expr('userid', '0');
-    $adminUsernameExpr = corebb_action_log_expr('admin_username', "''");
-    $ipExpr = corebb_action_log_expr('ip_address', "''");
-    $typeExpr = corebb_action_log_expr('action_type', "''");
-    $actionExpr = corebb_action_log_expr('action', "''");
+    $useridExpr = corebb_adminlogs_select_expr('userid', '0');
+    $adminUsernameExpr = corebb_adminlogs_select_expr('admin_username', "''");
+    $ipExpr = corebb_adminlogs_select_expr('ip_address', "''");
+    $typeExpr = corebb_adminlogs_select_expr('action_type', "''");
+    $actionExpr = corebb_adminlogs_select_expr('action', "''");
 
     if ($filters['susername'] !== '') {
         $like = '%' . $filters['susername'] . '%';
@@ -131,31 +99,12 @@ function corebb_action_log_count(array $filters): int
 {
     $params = [];
     $where = corebb_action_log_build_where($filters, $params);
-    $useridExpr = corebb_action_log_expr('userid', '0');
+    $useridExpr = corebb_adminlogs_select_expr('userid', '0');
     return (int)db_value(
         'SELECT COUNT(*) FROM adminlogs al LEFT JOIN users u ON u.id = ' . $useridExpr . $where,
         $params,
         0
     );
-}
-
-/**
- * Usage: Derive a compact action type from stored action text.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @param string $action Human-readable action message.
- * @return string Normalized or display-ready string.
- */
-function corebb_action_log_derive_type(string $action): string
-{
-    if (function_exists('corebb_adminlog_action_type')) {
-        return corebb_adminlog_action_type($action);
-    }
-
-    $slug = strtolower(trim($action));
-    $slug = preg_replace('/[^a-z0-9]+/', '_', $slug);
-    $slug = trim((string)$slug, '_');
-    return $slug !== '' ? substr($slug, 0, 80) : 'admin_action';
 }
 
 /**
@@ -315,16 +264,16 @@ function corebb_action_log_fetch(array $filters, int $page, int $perPage): array
     $offset = max(0, ($page - 1) * $perPage);
     $limit = max(1, min(100, $perPage));
 
-    $idExpr = corebb_action_log_expr('id', '0');
-    $useridExpr = corebb_action_log_expr('userid', '0');
-    $userlevelExpr = corebb_action_log_expr('userlevel', "''");
-    $actionExpr = corebb_action_log_expr('action', "''");
-    $adminUsernameExpr = corebb_action_log_expr('admin_username', "''");
-    $ipExpr = corebb_action_log_expr('ip_address', "''");
-    $typeExpr = corebb_action_log_expr('action_type', "''");
-    $descriptionExpr = corebb_action_log_expr('description', $actionExpr);
-    $dateExpr = function_exists('corebb_adminlogs_effective_date_expr') ? corebb_adminlogs_effective_date_expr('al') : corebb_action_log_expr('date_performed', "''");
-    $orderSql = function_exists('corebb_adminlogs_order_sql') ? corebb_adminlogs_order_sql() : 'al.id DESC';
+    $idExpr = corebb_adminlogs_select_expr('id', '0');
+    $useridExpr = corebb_adminlogs_select_expr('userid', '0');
+    $userlevelExpr = corebb_adminlogs_select_expr('userlevel', "''");
+    $actionExpr = corebb_adminlogs_select_expr('action', "''");
+    $adminUsernameExpr = corebb_adminlogs_select_expr('admin_username', "''");
+    $ipExpr = corebb_adminlogs_select_expr('ip_address', "''");
+    $typeExpr = corebb_adminlogs_select_expr('action_type', "''");
+    $descriptionExpr = corebb_adminlogs_select_expr('description', $actionExpr);
+    $dateExpr = corebb_adminlogs_select_expr('date_performed', "''");
+    $orderSql = corebb_adminlogs_order_sql();
 
     $queryRows = db_all(
         'SELECT ' . $idExpr . ' AS id, ' . $useridExpr . ' AS userid, ' . $userlevelExpr . ' AS userlevel, ' . $actionExpr . ' AS action, ' . $adminUsernameExpr . ' AS admin_username, ' . $ipExpr . ' AS ip_address, ' . $typeExpr . ' AS action_type, ' . $descriptionExpr . ' AS description, ' . $dateExpr . ' AS date_performed, u.username AS joined_username
@@ -344,7 +293,7 @@ function corebb_action_log_fetch(array $filters, int $page, int $perPage): array
 
         $actionType = trim((string)($row['action_type'] ?? ''));
         if ($actionType === '') {
-            $actionType = corebb_action_log_derive_type($description);
+            $actionType = corebb_adminlog_action_type($description);
         }
 
         $ip = trim((string)($row['ip_address'] ?? ''));

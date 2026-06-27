@@ -38,9 +38,7 @@ function corebb_moderator_thread_url(int $topicId, int $boardId = 0, int $postId
         return '/';
     }
 
-    return function_exists('corebb_thread_url')
-        ? corebb_thread_url($topicId, $boardId, 1, '', $postId)
-        : '/topic/' . $topicId . '/' . ($postId > 0 ? '#post' . $postId : '');
+    return corebb_thread_url($topicId, $boardId, 1, '', $postId);
 }
 
 /**
@@ -58,7 +56,7 @@ function corebb_moderator_board_url(int $boardId): string
         return '/';
     }
 
-    return function_exists('corebb_board_url') ? corebb_board_url($boardId, 1) : '/board/' . $boardId . '/';
+    return corebb_board_url($boardId, 1);
 }
 
 /**
@@ -95,7 +93,7 @@ function corebb_moderator_normalize_redirect(string $url): string
         return $url;
     }
 
-    return function_exists('corebb_public_url') ? corebb_public_url($url) : (str_starts_with($url, '/') ? $url : '/' . ltrim($url, '/'));
+    return corebb_public_join_base_path($url);
 }
 
 /**

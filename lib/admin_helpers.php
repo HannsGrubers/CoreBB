@@ -24,20 +24,8 @@ if (!defined('COREBB_ADMIN_HELPERS_LOADED')) {
 include_once __DIR__ . '/rate_limit_helpers.php';
 require_once __DIR__ . '/private_board_helpers.php';
 require_once __DIR__ . '/public_style_helpers.php';
-
-/**
- * Usage: Escape a value for legacy admin HTML fallbacks.
- * Referenced by: admin view-models that still prepare small text fragments.
- *
- * @param mixed $value Raw value to normalize.
- * @return string HTML-safe text.
- */
-function corebb_admin_h($value): string
-{
-    return function_exists('corebb_h')
-        ? corebb_h($value)
-        : htmlspecialchars((string)$value, ENT_QUOTES, 'UTF-8');
-}
+require_once __DIR__ . '/performance_helpers.php';
+require_once __DIR__ . '/view.php';
 
 /**
  * Usage: Read one system setting with a caller-supplied fallback.
@@ -149,7 +137,7 @@ function corebb_admin_normalize_system_setting(string $name, string $value): str
 {
     if ($name === 'defaultstyle') {
         $value = corebb_public_style_normalize_file(trim(str_replace('\\', '/', $value)));
-        if (isset(corebb_admin_public_style_options()[$value])) {
+        if (isset(corebb_public_style_builtin_options()[$value])) {
             return $value;
         }
         return 'style_vn_eol.css';
@@ -162,7 +150,7 @@ function corebb_admin_normalize_system_setting(string $name, string $value): str
     if (in_array($name, corebb_admin_rate_limit_numeric_settings(), true)) {
         $value = trim($value);
         if (!preg_match('/^-?\d+$/', $value)) {
-            $defaults = function_exists('corebb_rate_limit_default_settings') ? corebb_rate_limit_default_settings() : [];
+            $defaults = corebb_rate_limit_default_settings();
             return (string)($defaults[$name] ?? '1');
         }
         $int = max(1, min(604800, (int)$value));
@@ -230,19 +218,6 @@ function corebb_admin_system_settings(): array
     }
 
     return $settings;
-}
-
-/**
- * Build the known public stylesheet options for settings forms.
- *
- * Usage: give admins the curated safe dropdown for the defaultstyle setting.
- * Referenced by: corebb_admin_settings_model().
- *
- * @return array<string, string> Style filename to display label.
- */
-function corebb_admin_public_style_options(): array
-{
-    return corebb_public_style_options();
 }
 
 /**
@@ -354,9 +329,7 @@ function corebb_admin_reindex_forum_positions(int $categoryId): void
  */
 function corebb_admin_add_category(string $name, int $private = 0, int $secureArchive = 0, int $defaultOpen = 0): bool
 {
-    if (function_exists('corebb_perf_add_column_if_missing')) {
-        corebb_perf_add_column_if_missing('boards', 'default_open', 'TINYINT(1) NOT NULL DEFAULT 0');
-    }
+    corebb_perf_add_column_if_missing('boards', 'default_open', 'TINYINT(1) NOT NULL DEFAULT 0');
 
     return db_run(
         'INSERT INTO boards (name, position, private, secure_archive, default_open) VALUES (?, ?, ?, ?, ?)',
@@ -384,7 +357,7 @@ function corebb_admin_delete_board_full(int $forumId): array
     db_run('DELETE FROM posts WHERE boardid = ?', [$forumId]);
     db_run('DELETE FROM topics WHERE boardid = ?', [$forumId]);
     db_run('DELETE FROM favoriteboards WHERE boardid = ?', [$forumId]);
-    if (function_exists('corebb_perf_table_exists') && corebb_perf_table_exists('private_board_access')) {
+    if (corebb_perf_table_exists('private_board_access')) {
         db_run('DELETE FROM private_board_access WHERE boardid = ?', [$forumId]);
     }
     if (!db_run('DELETE FROM forums WHERE id = ?', [$forumId])) {
@@ -419,7 +392,7 @@ function corebb_admin_move_board_contents_and_delete(int $fromForumId, int $toFo
     db_run('UPDATE topics SET boardid = ? WHERE boardid = ?', [$toForumId, $fromForumId]);
     db_run('UPDATE posts SET boardid = ? WHERE boardid = ?', [$toForumId, $fromForumId]);
     db_run('UPDATE favoriteboards SET boardid = ? WHERE boardid = ?', [$toForumId, $fromForumId]);
-    if (function_exists('corebb_perf_table_exists') && corebb_perf_table_exists('private_board_access')) {
+    if (corebb_perf_table_exists('private_board_access')) {
         db_run('DELETE FROM private_board_access WHERE boardid = ?', [$fromForumId]);
     }
     if (!db_run('DELETE FROM forums WHERE id = ?', [$fromForumId])) {

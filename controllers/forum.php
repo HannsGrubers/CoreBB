@@ -13,7 +13,7 @@ if (!in_array($action, $allowedActions, true)) {
     $action = 'board';
 }
 
-include $root . '/CookieEngine.php';
+require_once $root . '/lib/bootstrap.php';
 
 /**
  * Usage: Redirect the favorite-board action back to the forum index with a status message.
@@ -24,10 +24,7 @@ include $root . '/CookieEngine.php';
  */
 function corebb_forum_favorite_redirect(string $message): void
 {
-    $url = '/?msg=' . rawurlencode($message);
-    if (function_exists('corebb_public_url')) {
-        $url = corebb_public_url($url);
-    }
+    $url = corebb_public_join_base_path('/?msg=' . rawurlencode($message));
     header('Location: ' . $url);
     exit;
 }
@@ -51,7 +48,7 @@ switch ($action) {
     case 'favorite':
         require_once $root . '/lib/private_board_helpers.php';
 
-        if (!function_exists('loggedin') || !loggedin()) {
+        if (!corebb_load_logged_in_user()) {
             corebb_forum_favorite_redirect('Please log in.');
         }
 
@@ -81,7 +78,7 @@ switch ($action) {
             corebb_forum_favorite_redirect('Board already exists in your favorites list!');
         }
 
-        $now = function_exists('convert_to_timestamp_raw') ? convert_to_timestamp_raw(time()) : date('Y-n-j H:i:s');
+        $now = convert_to_timestamp_raw(time());
         $ok = db_run('INSERT INTO favoriteboards (boardid, ownerid, adddate) VALUES (?, ?, ?)', [$boardId, $userId, $now]);
 
         corebb_forum_favorite_redirect($ok ? 'Board successfully added to favorites list!' : 'Error adding board to favorites list!');
@@ -95,9 +92,7 @@ switch ($action) {
         require_once $root . '/lib/moderation_helpers.php';
         require_once $root . '/lib/mobile_helpers.php';
 
-        if (function_exists('corebb_mod_ensure_schema')) {
-            corebb_mod_ensure_schema();
-        }
+        corebb_mod_ensure_schema();
 
         $boardId = (int)($_GET['id'] ?? 0);
         $page = max(1, (int)($_GET['p'] ?? ($_GET['page'] ?? 1)));

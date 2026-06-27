@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/corebb_date_helpers.php';
 require_once __DIR__ . '/rate_limit_helpers.php';
 /**
  * Private-message helpers for the PHP 8 migration.
@@ -296,7 +297,7 @@ function corebb_pm_report_private_message(array $viewer, int $pmId, string $reas
     if ($dupe) {
         return ['ok' => true, 'message' => 'You have already reported this private message.'];
     }
-    $rate = function_exists('corebb_rate_limit_report_submit') ? corebb_rate_limit_report_submit($viewer) : ['allowed' => true];
+    $rate = corebb_rate_limit_report_submit($viewer);
     if (empty($rate['allowed'])) {
         return ['ok' => false, 'message' => corebb_rate_limit_message($rate, 'private-message reports')];
     }
@@ -447,9 +448,7 @@ function corebb_pm_send_from_post(array $sender, array $post): array
         return ['ok' => false, 'message' => corebb_rate_limit_message($rate, 'private messages')];
     }
 
-    $now = function_exists('convert_to_timestamp_raw')
-        ? convert_to_timestamp_raw(time())
-        : date('Y-n-j H:i:s');
+    $now = convert_to_timestamp_raw(time());
 
     $sentTo = [];
     $missing = [];

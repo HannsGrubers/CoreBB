@@ -16,7 +16,7 @@
  |  avatar_view_model.php  - Avatar/icon helpers.        |
  +-------------------------------------------------------+*/
 
-require_once __DIR__ . '/../functions.php';
+require_once __DIR__ . '/corebb_browser_helpers.php';
 
 const COREBB_AVATAR_MAX_WIDTH = 120;
 const COREBB_AVATAR_MAX_HEIGHT = 120;

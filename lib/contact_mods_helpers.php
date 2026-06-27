@@ -1,4 +1,7 @@
 <?php
+require_once __DIR__ . '/corebb_date_helpers.php';
+require_once __DIR__ . '/admin_log_helpers.php';
+require_once __DIR__ . '/moderation_helpers.php';
 /*                        ''~``
                          ( o o )
  +------------------.oooO--(_)--Oooo.--------------------+
@@ -299,21 +302,6 @@ function corebb_contact_mods_check_token(array $post): bool
 }
 
 /**
- * Usage: Resolve the current client IP for Contact Mods audit records.
- * Referenced by: corebb_contact_mods_public_model().
- *
- * @return string Client IP address, capped to the database column length.
- */
-function corebb_contact_mods_current_ip(): string
-{
-    if (function_exists('corebb_mod_current_ip')) {
-        return corebb_mod_current_ip();
-    }
-    $ip = trim((string)($_SERVER['REMOTE_ADDR'] ?? ''));
-    return $ip !== '' ? substr($ip, 0, 64) : 'Unknown';
-}
-
-/**
  * Usage: Count new Contact Mods requests for navigation badges and admin pages.
  * Referenced by: admin header/sidebar, layout view model, and admin Contact Mods model.
  *
@@ -358,8 +346,8 @@ function corebb_contact_mods_status_label(string $status): string
  */
 function corebb_contact_mods_log(array $viewer, string $action, string $type = 'contact_mods', string $description = ''): void
 {
-    if (function_exists('addlogentry')) {
-        addlogentry((string)($viewer['username'] ?? $viewer['id'] ?? 'Unknown'), (int)($viewer['accesslevel'] ?? 0), $action, $type, $description !== '' ? $description : $action);
+    {
+        corebb_adminlog_entry((string)($viewer['username'] ?? $viewer['id'] ?? 'Unknown'), (int)($viewer['accesslevel'] ?? 0), $action, $type, $description !== '' ? $description : $action);
     }
 }
 
@@ -475,9 +463,7 @@ function corebb_contact_mods_send_reply_pm(array $viewer, array $request, string
     $body .= $original;
     $body = corebb_contact_mods_limit_text($body, 65535);
 
-    $now = function_exists('convert_to_timestamp_raw')
-        ? convert_to_timestamp_raw(time())
-        : date('Y-n-j H:i:s');
+    $now = convert_to_timestamp_raw(time());
 
     $ok = db_run(
         'INSERT INTO privatemessages (senderid, recieveid, title, message, markread, datesent) VALUES (?, ?, ?, ?, ?, ?)',

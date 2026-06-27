@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/admin_log_helpers.php';
 /*                        ''~``
                          ( o o )
  +------------------.oooO--(_)--Oooo.--------------------+
@@ -18,6 +19,7 @@
  +-------------------------------------------------------+*/
 
 require_once __DIR__ . '/tos_helpers.php';
+require_once __DIR__ . '/public_style_helpers.php';
 
 /**
  * Usage: Write an audit entry for this admin workflow.
@@ -29,32 +31,9 @@ require_once __DIR__ . '/tos_helpers.php';
  */
 function corebb_admin_content_add_log(array $viewer, string $action): void
 {
-    if(function_exists('addlogentry')){
-        addlogentry((string)($viewer['username'] ?? 'Unknown'), (int)($viewer['accesslevel'] ?? 0), $action);
+    {
+        corebb_adminlog_entry((string)($viewer['username'] ?? 'Unknown'), (int)($viewer['accesslevel'] ?? 0), $action);
     }
-}
-
-/**
- * Usage: Load the Terms of Service text from system settings.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @return string Normalized or display-ready string.
- */
-function corebb_admin_tos_load(): string
-{
-    return corebb_tos_load_text();
-}
-
-/**
- * Usage: Save the Terms of Service text into system settings.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @param string $tos Terms of Service text.
- * @return bool True when the check passes or mutation succeeds.
- */
-function corebb_admin_tos_save(string $tos): bool
-{
-    return corebb_tos_save_text($tos);
 }
 
 /**
@@ -74,7 +53,7 @@ function corebb_admin_tos_model(array $viewer, array $request, array $post): arr
 
     if($method === 'post' && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST'){
         $newTos = (string)($post['newtos'] ?? '');
-        if(corebb_admin_tos_save($newTos)){
+        if(corebb_tos_save_text($newTos)){
             corebb_admin_content_add_log($viewer, 'Modified the System TOS');
             $messages[] = 'Successfully modified system TOS.';
         }
@@ -91,7 +70,7 @@ function corebb_admin_tos_model(array $viewer, array $request, array $post): arr
     return [
         'viewer' => $viewer,
         'viewer_accesslevel' => (int)($viewer['accesslevel'] ?? 0),
-        'tos' => corebb_admin_tos_load(),
+        'tos' => corebb_tos_load_text(),
         'messages' => $messages,
         'errors' => $errors,
     ];
@@ -137,12 +116,13 @@ function corebb_admin_path_inside_root(string $path, string $root): bool
 function corebb_admin_style_file_from_setting(): array
 {
     $row = corebb_admin_style_setting_row();
-    $setting = trim((string)($row['setting'] ?? 'style.css'));
+    $setting = trim((string)($row['setting'] ?? 'style_vn_eol.css'));
     $setting = str_replace('\\', '/', $setting);
     $setting = preg_replace('/[\x00-\x1F\x7F]+/', '', $setting) ?? '';
     if($setting === ''){
-        $setting = 'style.css';
+        $setting = 'style_vn_eol.css';
     }
+    $setting = corebb_public_style_normalize_file($setting);
 
     $root = realpath(__DIR__ . '/..') ?: dirname(__DIR__);
     $isAbsolute = (bool)preg_match('~^(?:[A-Za-z]:)?[\/]~', $setting);

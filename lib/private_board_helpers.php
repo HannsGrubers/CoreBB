@@ -32,7 +32,7 @@ require_once __DIR__ . '/performance_helpers.php';
 function corebb_private_current_user_id(): int
 {
     global $userlogindata_a, $MyData;
-    if (function_exists('loggedin') && loggedin()) {
+    if (corebb_load_logged_in_user()) {
         return (int)($MyData['id'] ?? $userlogindata_a['id'] ?? 0);
     }
     return 0;
@@ -128,18 +128,6 @@ function corebb_private_board_row(int $boardId)
 
 
 /**
- * Usage: Check whether a viewer can administer Secure Archive content.
- * Referenced by: Secure Archive write/modify helpers.
- *
- * @param int|null $accessLevel Explicit access level, or null to use current viewer.
- * @return bool True when the viewer is an administrator.
- */
-function corebb_secure_archive_is_admin(?int $accessLevel = null): bool
-{
-    return corebb_private_is_admin($accessLevel);
-}
-
-/**
  * Usage: Determine whether a board is locked by board or category Secure Archive flags.
  * Referenced by: public read-only checks, index display, and admin board tools.
  *
@@ -164,18 +152,6 @@ function corebb_secure_archive_category_is_locked(array $category): bool
 }
 
 /**
- * Usage: Check whether a viewer may modify Secure Archive content.
- * Referenced by: board/category/topic/post Secure Archive write checks.
- *
- * @param int|null $accessLevel Explicit access level, or null to use current viewer.
- * @return bool True when the viewer can modify Secure Archive content.
- */
-function corebb_secure_archive_user_can_modify(?int $accessLevel = null): bool
-{
-    return corebb_secure_archive_is_admin($accessLevel);
-}
-
-/**
  * Usage: Check whether a viewer may write to a board row.
  * Referenced by: board, thread, post, poll, and moderation workflows.
  *
@@ -188,7 +164,7 @@ function corebb_secure_archive_user_can_write_board_row(array $board, ?int $acce
     if (!corebb_secure_archive_board_is_effectively_locked($board)) {
         return true;
     }
-    return corebb_secure_archive_user_can_modify($accessLevel ?? corebb_private_current_access_level());
+    return corebb_private_is_admin($accessLevel ?? corebb_private_current_access_level());
 }
 
 /**
@@ -241,7 +217,7 @@ function corebb_secure_archive_user_can_modify_category_id(int $categoryId, ?int
     if (!corebb_secure_archive_category_is_locked($category)) {
         return true;
     }
-    return corebb_secure_archive_user_can_modify($accessLevel ?? corebb_private_current_access_level());
+    return corebb_private_is_admin($accessLevel ?? corebb_private_current_access_level());
 }
 
 /**

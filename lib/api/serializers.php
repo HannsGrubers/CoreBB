@@ -18,6 +18,8 @@
 
 require_once dirname(__DIR__) . '/user_display_helpers.php';
 require_once dirname(__DIR__) . '/content_format_helpers.php';
+require_once dirname(__DIR__) . '/corebb_route_helpers.php';
+require_once dirname(__DIR__) . '/corebb_url_helpers.php';
 
 /**
  * Convert formatted content into compact plain text.
@@ -56,20 +58,6 @@ function corebb_api_user_plain(int $userId, string $fallback = ''): string
         }
     }
     return $fallback !== '' ? $fallback : ($userId > 0 ? ('User #' . $userId) : 'Unknown');
-}
-
-/**
- * Convert a path into a public API/web URL.
- *
- * Usage: keep API link generation aligned with CoreBB pretty URL rewriting.
- * Referenced by: all serializers that expose links.
- *
- * @param string $path Legacy script path, pretty path, or absolute URL.
- * @return string Public URL.
- */
-function corebb_api_url(string $path): string
-{
-    return corebb_public_url($path);
 }
 
 /**
@@ -117,7 +105,7 @@ function corebb_api_forum(array $forum): array
         'isSecureArchive' => !empty($forum['_secure_archive']),
         'hasNewPosts' => trim(corebb_api_plain_text($forum['_new_mark'] ?? '')) !== '',
         'links' => [
-            'self' => corebb_api_url('api/v1/boards/' . $forumId),
+            'self' => corebb_public_join_base_path('api/v1/boards/' . $forumId),
             'web' => corebb_board_url($forumId, 1, (string)($forum['name'] ?? 'Board')),
         ],
     ];
@@ -199,8 +187,8 @@ function corebb_api_topic(array $topic): array
             ],
         ],
         'links' => [
-            'self' => corebb_api_url('api/v1/threads/' . $topicId),
-            'web' => (string)($topic['_thread_url'] ?? corebb_api_url('controllers/forum.php?action=thread&id=' . $topicId)),
+            'self' => corebb_public_join_base_path('api/v1/threads/' . $topicId),
+            'web' => (string)($topic['_thread_url'] ?? corebb_thread_url($topicId)),
             'lastPost' => (string)($topic['_last_post_url'] ?? ''),
         ],
     ];
@@ -226,8 +214,8 @@ function corebb_api_board(array $model): array
         'pagination' => corebb_api_pagination($model),
         'topics' => array_map('corebb_api_topic', $model['topics'] ?? []),
         'permissions' => [
-            'canPost' => loggedin() && empty($model['archiveReadOnly']),
-            'canFavorite' => loggedin(),
+            'canPost' => corebb_load_logged_in_user() && empty($model['archiveReadOnly']),
+            'canFavorite' => corebb_load_logged_in_user(),
         ],
     ];
 }
@@ -270,7 +258,7 @@ function corebb_api_poll(array $pollModel): array
         'totalVotes' => (int)($pollModel['totalVotes'] ?? 0),
         'hasVoted' => !empty($pollModel['hasVoted']),
         'votedOptionId' => (int)($pollModel['votedOptionId'] ?? 0),
-        'canVote' => loggedin()
+        'canVote' => corebb_load_logged_in_user()
             && (int)($pollModel['userId'] ?? 0) > 0
             && empty($pollModel['archiveReadOnly'])
             && empty($pollModel['hasVoted'])
@@ -296,8 +284,8 @@ function corebb_api_poll_vote_result(array $result, int $topicId): array
         'message' => (string)($result['message'] ?? ''),
         'topicId' => $topicId,
         'links' => [
-            'thread' => corebb_api_url('api/v1/threads/' . $topicId),
-            'web' => corebb_api_url('controllers/forum.php?action=thread&id=' . $topicId . '&p=1#poll'),
+            'thread' => corebb_public_join_base_path('api/v1/threads/' . $topicId),
+            'web' => corebb_thread_url($topicId) . '#poll',
         ],
     ];
 }
@@ -351,7 +339,7 @@ function corebb_api_post(array $post): array
             'editMinutesLeft' => (int)($post['_edit_minutes_left'] ?? 0),
         ],
         'links' => [
-            'web' => corebb_api_url('post-id/' . $postId . '/'),
+            'web' => corebb_public_join_base_path('post-id/' . $postId . '/'),
         ],
     ];
 }
@@ -433,7 +421,7 @@ function corebb_api_profile(array $model): array
             'canModerate' => corebb_mod_can_moderate(),
         ],
         'links' => [
-            'web' => corebb_api_url('profile/' . (int)($user['id'] ?? 0) . '/'),
+            'web' => corebb_public_join_base_path('profile/' . (int)($user['id'] ?? 0) . '/'),
             'topics' => (string)($model['all_topics_url'] ?? ''),
             'posts' => (string)($model['all_posts_url'] ?? ''),
         ],
@@ -510,7 +498,7 @@ function corebb_api_post_preflight(array $model, string $action): array
             'maxHeight' => (int)($model['postImageMaxHeight'] ?? 0),
         ],
         'links' => [
-            'submit' => corebb_api_url('post/submit/'),
+            'submit' => corebb_public_join_base_path('post/submit/'),
         ],
     ];
 
@@ -541,7 +529,7 @@ function corebb_api_post_result(array $model): array
         $links[] = [
             'text' => (string)($link['text'] ?? ''),
             'href' => $href,
-            'web' => $href !== '' ? corebb_api_url($href) : '',
+            'web' => $href !== '' ? corebb_public_join_base_path($href) : '',
         ];
     }
 
@@ -589,19 +577,19 @@ function corebb_api_pm_folders(array $viewer): array
                 'key' => 'inbox',
                 'title' => 'Inbox',
                 'count' => (int)($counts['unread'] ?? 0),
-                'links' => ['self' => corebb_api_url('api/v1/pm/inbox')],
+                'links' => ['self' => corebb_public_join_base_path('api/v1/pm/inbox')],
             ],
             [
                 'key' => 'read',
                 'title' => 'Read Items',
                 'count' => (int)($counts['read'] ?? 0),
-                'links' => ['self' => corebb_api_url('api/v1/pm/read')],
+                'links' => ['self' => corebb_public_join_base_path('api/v1/pm/read')],
             ],
             [
                 'key' => 'sent',
                 'title' => 'Sent Items',
                 'count' => (int)($counts['sent'] ?? 0),
-                'links' => ['self' => corebb_api_url('api/v1/pm/sent')],
+                'links' => ['self' => corebb_public_join_base_path('api/v1/pm/sent')],
             ],
         ],
     ];
@@ -634,8 +622,8 @@ function corebb_api_pm_summary(array $message): array
             'raw' => (string)($message['date_sent'] ?? ''),
         ],
         'links' => [
-            'self' => corebb_api_url('api/v1/pm/messages/' . $id . '?folder=' . rawurlencode($method)),
-            'web' => corebb_api_url('private-messages/message/' . $id . '/' . rawurlencode($method) . '/'),
+            'self' => corebb_public_join_base_path('api/v1/pm/messages/' . $id . '?folder=' . rawurlencode($method)),
+            'web' => corebb_public_join_base_path('private-messages/message/' . $id . '/' . rawurlencode($method) . '/'),
         ],
     ];
 }
@@ -697,7 +685,7 @@ function corebb_api_pm_message(array $model): array
             'canReport' => $method !== 'sent',
         ],
         'links' => [
-            'web' => corebb_api_url('private-messages/message/' . $id . '/' . rawurlencode($method) . '/'),
+            'web' => corebb_public_join_base_path('private-messages/message/' . $id . '/' . rawurlencode($method) . '/'),
             'reply' => (string)($model['reply_url'] ?? ''),
             'report' => (string)($model['report_url'] ?? ''),
         ],
@@ -759,7 +747,7 @@ function corebb_api_mod_result(array $result): array
         'status' => !empty($result['ok']) ? 'success' : 'error',
         'message' => (string)($result['message'] ?? ''),
         'links' => [
-            'web' => $redirect !== '' ? corebb_api_url($redirect) : '',
+            'web' => $redirect !== '' ? corebb_public_join_base_path($redirect) : '',
         ],
     ];
 }
@@ -809,11 +797,11 @@ function corebb_api_viewer_payload(): array
             'id' => $userId,
             'username' => (string)($viewer['username'] ?? ''),
             'accessLevel' => (int)($viewer['accesslevel'] ?? 0),
-            'level' => LoadUserLevel((int)($viewer['accesslevel'] ?? 0)),
+            'level' => corebb_user_level_label((int)($viewer['accesslevel'] ?? 0)),
             'isBanned' => (string)($viewer['status'] ?? '') === '2',
             'canModerate' => corebb_mod_can_moderate(),
             'links' => [
-                'profile' => corebb_api_url('profile/' . $userId . '/'),
+                'profile' => corebb_public_join_base_path('profile/' . $userId . '/'),
             ],
         ],
     ];

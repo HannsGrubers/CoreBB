@@ -27,18 +27,18 @@ if (!defined('COREBB_VN_EOL_CHROME_HELPERS_LOADED')) {
  * Usage: Build the classic-theme chrome links for VN EOL layouts.
  * Referenced by: public layout view model and legacy admin header/footer.
  *
- * @param string $fallbackSiteUrl Legacy site URL, retained for call compatibility.
- * @param string $fallbackSiteName Legacy site name, retained for call compatibility.
- * @param string $fallbackBoardUrl Legacy board URL, retained for call compatibility.
- * @param string $fallbackBoardName Legacy board name, retained for call compatibility.
+ * @param string $siteUrlOverride Site URL supplied by the active installation.
+ * @param string $siteNameOverride Site name supplied by the active installation.
+ * @param string $boardUrlOverride Board URL supplied by the active installation.
+ * @param string $boardNameOverride Board name supplied by the active installation.
  * @return array<string, string> Chrome URLs and labels.
  */
-function corebb_vn_eol_chrome_links(string $fallbackSiteUrl = '', string $fallbackSiteName = '', string $fallbackBoardUrl = '', string $fallbackBoardName = ''): array
+function corebb_vn_eol_chrome_links(string $siteUrlOverride = '', string $siteNameOverride = '', string $boardUrlOverride = '', string $boardNameOverride = ''): array
 {
-    $siteUrl = trim($fallbackSiteUrl) !== '' ? rtrim($fallbackSiteUrl, '/') : corebb_theme_url('index.php');
-    $siteName = trim($fallbackSiteName) !== '' ? trim($fallbackSiteName) : 'CoreBB';
-    $boardUrl = trim($fallbackBoardUrl) !== '' ? rtrim($fallbackBoardUrl, '/') : corebb_theme_url('index.php');
-    $boardName = trim($fallbackBoardName) !== '' ? trim($fallbackBoardName) : 'CoreBB Forum';
+    $siteUrl = trim($siteUrlOverride) !== '' ? rtrim($siteUrlOverride, '/') : corebb_theme_url('/');
+    $siteName = trim($siteNameOverride) !== '' ? trim($siteNameOverride) : 'CoreBB';
+    $boardUrl = trim($boardUrlOverride) !== '' ? rtrim($boardUrlOverride, '/') : corebb_theme_url('/');
+    $boardName = trim($boardNameOverride) !== '' ? trim($boardNameOverride) : 'CoreBB Forum';
 
     return [
         'site_url' => $siteUrl,

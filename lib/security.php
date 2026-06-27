@@ -20,6 +20,8 @@ if (!defined('COREBB_SECURITY_LOADED')) {
     define('COREBB_SECURITY_LOADED', true);
 }
 
+require_once __DIR__ . '/corebb_route_helpers.php';
+
 /**
  * Usage: Determine whether the current request should receive secure cookies.
  * Referenced by: corebb_security_bootstrap() and corebb_security_set_cookie().
@@ -67,7 +69,7 @@ function corebb_security_trust_proxy_headers(): bool
 
 /**
  * Usage: Apply shared browser security headers and session cookie policy.
- * Referenced by: CookieEngine.php and lib/api/bootstrap.php.
+ * Referenced by: lib/bootstrap.php and lib/api/bootstrap.php.
  */
 function corebb_security_bootstrap(): void
 {
@@ -93,7 +95,7 @@ function corebb_security_bootstrap(): void
 
 /**
  * Usage: Start the legacy output filter that normalizes local URLs and CSRF fields.
- * Referenced by: CookieEngine.php before public/admin routes render output.
+ * Referenced by: lib/bootstrap.php before public/admin routes render output.
  */
 function corebb_security_start_output_filter(): void
 {
@@ -217,7 +219,7 @@ function corebb_security_reject_bad_csrf(): never
 
 /**
  * Usage: Reject normal POST requests before route code mutates state.
- * Referenced by: CookieEngine.php after the session starts.
+ * Referenced by: lib/bootstrap.php after the session starts.
  */
 function corebb_security_enforce_csrf_if_needed(): void
 {
@@ -468,9 +470,7 @@ function corebb_security_pretty_href_url(string $url): string
             $page = isset($params['p']) ? max(1, (int)$params['p']) : max(1, (int)($params['page'] ?? 1));
             $boardId = isset($params['brd']) ? (int)$params['brd'] : (isset($params['boardid']) ? (int)$params['boardid'] : 0);
             if ($action === 'thread' && $id > 0) {
-                $pretty = function_exists('corebb_thread_url')
-                    ? corebb_thread_url($id, $boardId, $page, '')
-                    : '/topic/' . $id . ($page > 1 ? '/p' . $page : '') . '/';
+                $pretty = corebb_thread_url($id, $boardId, $page, '');
                 $query = ltrim(corebb_security_query_without($params, ['action', 'id', 'p', 'page', 'brd', 'boardid']), '?');
             } elseif ($action === 'favorite') {
                 $boardId = $boardId > 0 ? $boardId : $id;
@@ -481,9 +481,7 @@ function corebb_security_pretty_href_url(string $url): string
             } else {
                 $boardId = $id > 0 ? $id : $boardId;
                 if ($boardId > 0) {
-                    $pretty = function_exists('corebb_board_url')
-                        ? corebb_board_url($boardId, $page, '')
-                        : '/board/' . $boardId . ($page > 1 ? '/p' . $page : '') . '/';
+                    $pretty = corebb_board_url($boardId, $page, '');
                     $query = ltrim(corebb_security_query_without($params, ['action', 'id', 'brd', 'boardid', 'p', 'page']), '?');
                 }
             }
@@ -594,9 +592,7 @@ function corebb_security_root_relative_url(string $url): string
     // paths keep page, asset, and form links working from root or /forum installs.
     $url = preg_replace('~^\./+~', '', $url) ?? $url;
     $rootPath = '/' . ltrim($url, '/');
-    return function_exists('corebb_public_join_base_path')
-        ? corebb_public_join_base_path($rootPath)
-        : $rootPath;
+    return corebb_public_join_base_path($rootPath);
 }
 
 /**
@@ -756,7 +752,7 @@ function corebb_security_sign_login_cookie(array $payload): array
 
 /**
  * Usage: Verify that a persistent-login cookie payload was issued by CoreBB.
- * Referenced by: CookieEngine.php and API bootstrap login loading.
+ * Referenced by: auth session helpers and API bootstrap login loading.
  */
 function corebb_security_verify_login_cookie(array $payload): bool
 {

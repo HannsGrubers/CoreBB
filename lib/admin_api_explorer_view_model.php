@@ -21,18 +21,6 @@ require_once __DIR__ . '/admin_user_tools_view_model.php';
 require_once __DIR__ . '/corebb_url_helpers.php';
 
 /**
- * Usage: Build an API Explorer endpoint path under the active forum base path.
- * Referenced by: corebb_admin_api_explorer_model().
- *
- * @param string $path API path relative to the forum root.
- * @return string Root-relative API URL for root or subdirectory installs.
- */
-function corebb_admin_api_explorer_url(string $path): string
-{
-    return corebb_public_join_base_path('/' . ltrim($path, '/'));
-}
-
-/**
  * Usage: Build and process the api explorer admin page model.
  * Referenced by: admin route handlers and helper chains in this file.
  *
@@ -43,16 +31,16 @@ function corebb_admin_api_explorer_url(string $path): string
 function corebb_admin_api_explorer_model(array $viewer, array $request): array
 {
     $model = corebb_admin_require_model_base($viewer, 'API Explorer', $request);
-    $model['api_base_path'] = rtrim(corebb_admin_api_explorer_url('/api/v1'), '/');
-    $model['default_endpoint'] = corebb_admin_api_explorer_url('/api/v1/health');
+    $model['api_base_path'] = rtrim(corebb_public_join_base_path('/api/v1'), '/');
+    $model['default_endpoint'] = corebb_public_join_base_path('/api/v1/health');
     $model['endpoints'] = [
-        ['label' => 'Health', 'path' => corebb_admin_api_explorer_url('/api/v1/health')],
-        ['label' => 'Auth CSRF', 'path' => corebb_admin_api_explorer_url('/api/v1/auth/csrf')],
-        ['label' => 'Current Viewer', 'path' => corebb_admin_api_explorer_url('/api/v1/me')],
-        ['label' => 'Board Index', 'path' => corebb_admin_api_explorer_url('/api/v1/index')],
-        ['label' => 'Board Topics', 'path' => corebb_admin_api_explorer_url('/api/v1/boards/1')],
-        ['label' => 'Thread Posts', 'path' => corebb_admin_api_explorer_url('/api/v1/threads/1')],
-        ['label' => 'Profile', 'path' => corebb_admin_api_explorer_url('/api/v1/profiles/1')],
+        ['label' => 'Health', 'path' => corebb_public_join_base_path('/api/v1/health')],
+        ['label' => 'Auth CSRF', 'path' => corebb_public_join_base_path('/api/v1/auth/csrf')],
+        ['label' => 'Current Viewer', 'path' => corebb_public_join_base_path('/api/v1/me')],
+        ['label' => 'Board Index', 'path' => corebb_public_join_base_path('/api/v1/index')],
+        ['label' => 'Board Topics', 'path' => corebb_public_join_base_path('/api/v1/boards/1')],
+        ['label' => 'Thread Posts', 'path' => corebb_public_join_base_path('/api/v1/threads/1')],
+        ['label' => 'Profile', 'path' => corebb_public_join_base_path('/api/v1/profiles/1')],
     ];
     return $model;
 }

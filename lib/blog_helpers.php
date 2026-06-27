@@ -17,6 +17,8 @@
  |  migration.                                           |
  +-------------------------------------------------------+*/
 
+require_once __DIR__ . '/corebb_url_helpers.php';
+
 /**
  * Usage: Escape blog text in legacy PHP contexts.
  * Referenced by: older blog/admin snippets that do not render through Twig.
@@ -153,7 +155,7 @@ function corebb_blog_title(array $entry): string {
  */
 function corebb_blog_can_modify(array $entry): bool {
     global $MyData, $userlogindata_a;
-    if (!function_exists('loggedin') || !loggedin()) {
+    if (!corebb_load_logged_in_user()) {
         return false;
     }
     $userId = (int)($MyData['id'] ?? ($userlogindata_a['id'] ?? 0));
@@ -181,7 +183,7 @@ function corebb_blog_is_locked(int $userId): bool {
 function corebb_blog_insert_entry(int $posterId, string $title, string $body) {
     corebb_blog_ensure_schema();
     $title = corebb_blog_limit_text(trim($title) !== '' ? trim($title) : 'Untitled Blog Entry', 255);
-    $body = corebb_blog_limit_text(CleanPostDataForPrepared($body), 65535);
+    $body = corebb_blog_limit_text(corebb_prepare_post_data($body), 65535);
     if (trim($body) === '') {
         $body = '(no message)';
     }
@@ -223,7 +225,7 @@ function corebb_blog_insert_entry(int $posterId, string $title, string $body) {
 function corebb_blog_update_entry(int $entryId, string $title, string $body): bool {
     corebb_blog_ensure_schema();
     $title = corebb_blog_limit_text(trim($title) !== '' ? trim($title) : 'Untitled Blog Entry', 255);
-    $body = corebb_blog_limit_text(CleanPostDataForPrepared($body), 65535);
+    $body = corebb_blog_limit_text(corebb_prepare_post_data($body), 65535);
     if (trim($body) === '') {
         $body = '(no message)';
     }
@@ -255,21 +257,18 @@ function corebb_blog_delete_entry(int $entryId): bool {
  */
 function corebb_blog_sidebar_links(): array {
     global $MyData;
-    if (function_exists('loggedin') && loggedin()) {
+    if (corebb_load_logged_in_user()) {
         $userId = (int)($MyData['id'] ?? 0);
-        $blogUrl = static function (string $path): string {
-            return function_exists('corebb_public_url') ? corebb_public_url($path) : $path;
-        };
         return [
-            ['label' => 'View My Blog', 'url' => $blogUrl('/blogs/my/')],
-            ['label' => 'Post Blog Message', 'url' => $blogUrl('/blogs/new/')],
-            ['label' => 'Edit/Delete Blog Messages', 'url' => $blogUrl('/blogs/user/' . $userId . '/')],
-            ['label' => 'Close my Blog', 'url' => $blogUrl('/blogs/modify/'), 'post' => true, 'method' => 'Lock'],
-            ['label' => 'Open my Blog', 'url' => $blogUrl('/blogs/modify/'), 'post' => true, 'method' => 'Open'],
+            ['label' => 'View My Blog', 'url' => corebb_public_join_base_path('/blogs/my/')],
+            ['label' => 'Post Blog Message', 'url' => corebb_public_join_base_path('/blogs/new/')],
+            ['label' => 'Edit/Delete Blog Messages', 'url' => corebb_public_join_base_path('/blogs/user/' . $userId . '/')],
+            ['label' => 'Close my Blog', 'url' => corebb_public_join_base_path('/blogs/modify/'), 'post' => true, 'method' => 'Lock'],
+            ['label' => 'Open my Blog', 'url' => corebb_public_join_base_path('/blogs/modify/'), 'post' => true, 'method' => 'Open'],
         ];
     }
-    $registerUrl = function_exists('corebb_public_url') ? corebb_public_url('auth.php?action=register') : '/register/';
-    $loginUrl = function_exists('corebb_public_url') ? corebb_public_url('auth.php?action=login') : '/login/';
+    $registerUrl = corebb_public_join_base_path('/register/');
+    $loginUrl = corebb_public_join_base_path('/login/');
     return [
         ['label' => 'Register', 'url' => $registerUrl],
         ['label' => 'Login', 'url' => $loginUrl, 'suffix' => 'to create your own blog!'],

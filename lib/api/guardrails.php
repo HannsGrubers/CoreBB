@@ -52,19 +52,6 @@ function corebb_api_public_method_url(string $method, string $path): string
 }
 
 /**
- * Resolve the client IP used for guest API rate limiting.
- *
- * Usage: identify unauthenticated request budgets.
- * Referenced by: corebb_api_rate_limit_identity().
- *
- * @return string Client IP string capped by the shared security helper.
- */
-function corebb_api_client_ip(): string
-{
-    return corebb_security_client_ip();
-}
-
-/**
  * Build the current API rate-limit identity.
  *
  * Usage: rate authenticated users by account and guests by IP.
@@ -79,7 +66,7 @@ function corebb_api_rate_limit_identity(): string
     if ($userId > 0) {
         return 'api:user:' . $userId;
     }
-    return 'api:ip:' . corebb_api_client_ip();
+    return 'api:ip:' . corebb_security_client_ip();
 }
 
 /**
@@ -94,7 +81,7 @@ function corebb_api_rate_limit_identity(): string
  */
 function corebb_api_rate_limit_rules(string $resource): array
 {
-    $loggedIn = loggedin();
+    $loggedIn = corebb_load_logged_in_user();
     $identity = corebb_api_rate_limit_identity();
     $prefix = $loggedIn ? 'api_auth' : 'api_guest';
 
@@ -162,7 +149,7 @@ function corebb_api_apply_rate_limit(string $resource): void
  */
 function corebb_api_max_page(): int
 {
-    return loggedin() ? COREBB_API_AUTH_PAGE_MAX : COREBB_API_GUEST_PAGE_MAX;
+    return corebb_load_logged_in_user() ? COREBB_API_AUTH_PAGE_MAX : COREBB_API_GUEST_PAGE_MAX;
 }
 
 /**
@@ -189,7 +176,7 @@ function corebb_api_limited_page(array $source): int
  */
 function corebb_api_boundary(): array
 {
-    $loggedIn = loggedin();
+    $loggedIn = corebb_load_logged_in_user();
     return [
         'authenticated' => $loggedIn,
         'guestPageMax' => COREBB_API_GUEST_PAGE_MAX,

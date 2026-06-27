@@ -72,7 +72,7 @@ function corebb_admin_latest_users_status_text($status, $approved = null): strin
  */
 function corebb_admin_latest_users_archive_where(): array
 {
-    $columns = function_exists('corebb_admin_table_columns') ? corebb_admin_table_columns('users') : [];
+    $columns = corebb_admin_table_columns('users');
     $where = [];
     $params = [];
     $hasArchiveMarker = false;
@@ -104,7 +104,7 @@ function corebb_admin_latest_users_archive_where(): array
  */
 function corebb_admin_latest_users_optional_select(): string
 {
-    $columns = function_exists('corebb_admin_table_columns') ? corebb_admin_table_columns('users') : [];
+    $columns = corebb_admin_table_columns('users');
     $wanted = [
         'id' => 'id',
         'username' => 'username',
@@ -151,7 +151,7 @@ function corebb_admin_latest_users_summary(array $row): array
         'ip_check_url' => '/admin/?act=user_ip_check&userid=' . $id,
         'ban_url' => '/admin/?act=moderation&mode=ban&q=' . rawurlencode((string)($row['username'] ?? '')),
         'accesslevel' => $level,
-        'level_name' => function_exists('LoadUserLevel') ? LoadUserLevel($level) : (string)$level,
+        'level_name' => corebb_user_level_label($level),
         'posts' => (int)($row['posts'] ?? 0),
         'registered' => (string)($row['regdate'] ?? ''),
         'registered_display' => corebb_admin_latest_users_format_date((string)($row['regdate'] ?? '')),

@@ -21,7 +21,7 @@ if ($action === 'error') {
     exit;
 }
 
-include $root . '/CookieEngine.php';
+require_once $root . '/lib/bootstrap.php';
 require_once $root . '/lib/view.php';
 require_once $root . '/lib/layout_view_model.php';
 

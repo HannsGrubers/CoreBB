@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/admin_log_helpers.php';
 /*                        ''~``
                          ( o o )
  +------------------.oooO--(_)--Oooo.--------------------+
@@ -300,8 +301,8 @@ function corebb_admin_notes_add(array $viewer, int $userId, string $note, string
         return [false, 'Error adding admin note: ' . db_error()];
     }
 
-    if (function_exists('addlogentry')) {
-        addlogentry((string)($viewer['username'] ?? $viewer['id'] ?? 'Unknown'), (int)($viewer['accesslevel'] ?? 0), 'Added admin note for user #' . $userId);
+    {
+        corebb_adminlog_entry((string)($viewer['username'] ?? $viewer['id'] ?? 'Unknown'), (int)($viewer['accesslevel'] ?? 0), 'Added admin note for user #' . $userId);
     }
 
     return [true, 'Admin note added.'];

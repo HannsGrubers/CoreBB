@@ -2,7 +2,7 @@
 /*-------------------------------------------------------
  | install.php - Standalone CoreBB installer controller.
  |
- | This route intentionally avoids CookieEngine.php and
+ | This route intentionally avoids browser bootstrap and
  | config.php because a fresh install has no private
  | configuration yet.
  +-------------------------------------------------------*/

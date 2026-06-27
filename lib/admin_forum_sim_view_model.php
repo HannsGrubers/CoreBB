@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/corebb_date_helpers.php';
+require_once __DIR__ . '/admin_log_helpers.php';
 /*                        ''~``
                          ( o o )
  +------------------.oooO--(_)--Oooo.--------------------+
@@ -18,6 +20,7 @@
  +-------------------------------------------------------+*/
 
 require_once __DIR__ . '/admin_user_tools_view_model.php';
+require_once __DIR__ . '/admin_helpers.php';
 require_once __DIR__ . '/auth_password_helpers.php';
 require_once __DIR__ . '/moderation_helpers.php';
 require_once __DIR__ . '/performance_helpers.php';
@@ -171,18 +174,6 @@ function corebb_forum_sim_reply_count(int $maxReplies): int
 }
 
 /**
- * Usage: Read table columns through the shared admin schema helper.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @param string $table Database table name.
- * @return array Data prepared for the admin template or caller.
- */
-function corebb_forum_sim_table_columns(string $table): array
-{
-    return function_exists('corebb_admin_table_columns') ? corebb_admin_table_columns($table) : [];
-}
-
-/**
  * Usage: Build a quoted column reference when a simulator column exists.
  * Referenced by: admin route handlers and helper chains in this file.
  *
@@ -229,8 +220,8 @@ function corebb_forum_sim_non_archive_conditions(string $alias, array $columns):
  */
 function corebb_forum_sim_available_boards(): array
 {
-    $forumColumns = corebb_forum_sim_table_columns('forums');
-    $categoryColumns = corebb_forum_sim_table_columns('boards');
+    $forumColumns = corebb_admin_table_columns('forums');
+    $categoryColumns = corebb_admin_table_columns('boards');
     $where = ['f.id > 0'];
     $where = array_merge($where, corebb_forum_sim_non_archive_conditions('f', $forumColumns));
     $where = array_merge($where, corebb_forum_sim_non_archive_conditions('b', $categoryColumns));
@@ -311,7 +302,7 @@ function corebb_forum_sim_insert_row(string $table, array $values): int
  */
 function corebb_forum_sim_create_user(string $username, int $level, string $runId, int $index, array $registeredAt): int
 {
-    $columns = corebb_forum_sim_table_columns('users');
+    $columns = corebb_admin_table_columns('users');
     $password = corebb_auth_password_hash(bin2hex(random_bytes(12)));
     $email = strtolower($username) . '@sim.corebb.invalid';
     $date = date('M y', (int)$registeredAt['unix']);
@@ -450,7 +441,7 @@ function corebb_forum_sim_timestamp(int $offset): array
 function corebb_forum_sim_timestamp_from_unix(int $unix): array
 {
     return [
-        'vn_date' => function_exists('convert_to_timestamp_raw') ? convert_to_timestamp_raw($unix) : date('Y-m-d H:i:s', $unix),
+        'vn_date' => convert_to_timestamp_raw($unix),
         'unix' => $unix,
         'short_date' => date('m/d/y', $unix),
     ];
@@ -614,7 +605,7 @@ function corebb_forum_sim_wipe(): array
     @set_time_limit(0);
     corebb_poll_ensure_schema();
 
-    $userColumns = corebb_forum_sim_table_columns('users');
+    $userColumns = corebb_admin_table_columns('users');
     $emailConditions = [];
     foreach (['email', 'privemail', 'privateemail'] as $column) {
         if (isset($userColumns[$column])) {
@@ -769,7 +760,7 @@ function corebb_forum_sim_create_topic(array $board, array $author, string $titl
     $updatesOk = db_run('UPDATE forums SET lastpstdate = ?, lastpstdatets = ? WHERE id = ?', [$now['vn_date'], $now['unix'], $boardId])
         && db_run('UPDATE topics SET lastpost = ?, now = ?, postcount = 1, replycount = 0 WHERE id = ?', [$now['vn_date'], $now['unix'], $topicId])
         && db_run('UPDATE users SET posts = COALESCE(posts, 0) + 1, lastpost = ?, lastpstdate = ? WHERE id = ?', [$now['unix'], $now['vn_date'], $userId]);
-    if ($updatesOk && function_exists('corebb_perf_cache_ready') && corebb_perf_cache_ready()) {
+    if ($updatesOk && corebb_perf_cache_ready()) {
         $updatesOk = db_run('UPDATE forums SET topiccount = COALESCE(topiccount, 0) + 1, postcount = COALESCE(postcount, 0) + 1 WHERE id = ?', [$boardId]);
     }
     if (!$updatesOk || !db_commit()) {
@@ -820,7 +811,7 @@ function corebb_forum_sim_create_reply(int $topicId, int $boardId, array $author
     $updatesOk = db_run('UPDATE forums SET lastpstdate = ?, lastpstdatets = ? WHERE id = ?', [$now['vn_date'], $now['unix'], $boardId])
         && db_run('UPDATE users SET posts = COALESCE(posts, 0) + 1, lastpost = ?, lastpstdate = ? WHERE id = ?', [$now['unix'], $now['vn_date'], $userId])
         && db_run('UPDATE topics SET lastpost = ?, now = ?, postcount = COALESCE(postcount, 0) + 1, replycount = COALESCE(replycount, 0) + 1 WHERE id = ?', [$now['vn_date'], $now['unix'], $topicId]);
-    if ($updatesOk && function_exists('corebb_perf_cache_ready') && corebb_perf_cache_ready()) {
+    if ($updatesOk && corebb_perf_cache_ready()) {
         $updatesOk = db_run('UPDATE forums SET postcount = COALESCE(postcount, 0) + 1 WHERE id = ?', [$boardId]);
     }
     if (!$updatesOk || !db_commit()) {
@@ -854,7 +845,7 @@ function corebb_forum_sim_perform_mod_actions(array $modUsers, array $postIds, a
     for ($i = 0; $i < $editCount && $postIds; $i++) {
         $postId = $postIds[$i % count($postIds)];
         $mod = $modUsers[$i % count($modUsers)];
-        $editDate = function_exists('convert_to_timestamp_raw') ? convert_to_timestamp_raw(time() + 5000 + $i) : date('Y-m-d H:i:s');
+        $editDate = convert_to_timestamp_raw(time() + 5000 + $i);
         $post = corebb_mod_get_post((int)$postId, true);
         if (!$post || (int)($post['is_deleted'] ?? 0) !== 0) {
             continue;
@@ -863,8 +854,8 @@ function corebb_forum_sim_perform_mod_actions(array $modUsers, array $postIds, a
         $body = rtrim((string)($post['body'] ?? '')) . "\n\n[i]Moderator simulation edit {$runId}-" . ($i + 1) . '[/i]';
         if (corebb_mod_update_post_with_edit_metadata((int)$postId, $title, $body, (int)$mod['id'], $editDate)) {
             $summary['edits']++;
-            if (function_exists('addlogentry')) {
-                addlogentry((string)$mod['id'], 3, 'Sim-test moderator edited post ' . (int)$postId, 'forum_sim', 'Forum sim-test moderator edit.');
+            {
+                corebb_adminlog_entry((string)$mod['id'], 3, 'Sim-test moderator edited post ' . (int)$postId, 'forum_sim', 'Forum sim-test moderator edit.');
             }
         }
     }
@@ -876,8 +867,8 @@ function corebb_forum_sim_perform_mod_actions(array $modUsers, array $postIds, a
         $sticky = ($i % 3) === 0 ? 1 : 0;
         if (db_run('UPDATE topics SET locked = ?, sticky = ? WHERE id = ?', [$locked, $sticky, (int)$topicId])) {
             $summary['topic_actions']++;
-            if (function_exists('addlogentry')) {
-                addlogentry((string)$mod['id'], 3, 'Sim-test moderator updated topic ' . (int)$topicId, 'forum_sim', 'Forum sim-test lock/sticky update.');
+            {
+                corebb_adminlog_entry((string)$mod['id'], 3, 'Sim-test moderator updated topic ' . (int)$topicId, 'forum_sim', 'Forum sim-test lock/sticky update.');
             }
         }
     }
@@ -1011,8 +1002,8 @@ function corebb_forum_sim_run(array $viewer, array $settings): array
     }
 
     $modSummary = corebb_forum_sim_perform_mod_actions($modUsers, $postIds, $topicIds, $editCount, $topicActionCount, $runId);
-    if (function_exists('addlogentry')) {
-        addlogentry(
+    {
+        corebb_adminlog_entry(
             (string)($viewer['username'] ?? 'Unknown'),
             (int)($viewer['accesslevel'] ?? 0),
             'Ran forum sim-test ' . $runId,

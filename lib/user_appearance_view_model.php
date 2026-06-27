@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/admin_log_helpers.php';
 /*                        ''~``
                          ( o o )
  +------------------.oooO--(_)--Oooo.--------------------+
@@ -124,7 +125,7 @@ function corebb_user_appearance_form_model(array $user, string $formAction, stri
             'id' => (int)($user['id'] ?? 0),
             'username' => (string)($user['username'] ?? ''),
             'accesslevel' => (int)($user['accesslevel'] ?? 0),
-            'level_name' => function_exists('LoadUserLevel') ? LoadUserLevel((int)($user['accesslevel'] ?? 0)) : 'Level ' . (int)($user['accesslevel'] ?? 0),
+            'level_name' => corebb_user_level_label((int)($user['accesslevel'] ?? 0)),
             'profile_url' => '/profile/' . (int)($user['id'] ?? 0) . '/',
         ],
         'values' => $values,
@@ -192,15 +193,7 @@ function corebb_admin_user_appearance_target_error(array $viewer, ?array $target
     if (!$target) {
         return 'Unknown user.';
     }
-    if (function_exists('corebb_admin_target_content_error')) {
-        return corebb_admin_target_content_error($viewer, $target);
-    }
-    if ((int)($viewer['id'] ?? 0) > 0 && (int)($viewer['id'] ?? 0) === (int)($target['id'] ?? 0)) {
-        return '';
-    }
-    $viewerLevel = (int)($viewer['accesslevel'] ?? 0);
-    $targetLevel = (int)($target['accesslevel'] ?? 0);
-    return $targetLevel >= $viewerLevel ? 'You cannot edit a user with equal or higher rights.' : '';
+    return corebb_admin_target_content_error($viewer, $target);
 }
 
 /**
@@ -222,8 +215,8 @@ function corebb_admin_user_appearance_save(array $viewer, array $target, array $
         return ['ok' => false, 'message' => $error];
     }
     $result = corebb_vip_style_save_user((int)$target['id'], $post, false);
-    if (!empty($result['ok']) && function_exists('addlogentry')) {
-        addlogentry(
+    if (!empty($result['ok']) ) {
+        corebb_adminlog_entry(
             (string)($viewer['username'] ?? $viewer['id'] ?? 'Unknown'),
             (int)($viewer['accesslevel'] ?? 0),
             'Changed username appearance for ' . (string)($target['username'] ?? ('user #' . (int)$target['id'])),

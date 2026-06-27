@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/admin_log_helpers.php';
 /*                        ''~``
                          ( o o )
  +------------------.oooO--(_)--Oooo.--------------------+
@@ -45,8 +46,8 @@ function corebb_admin_maintenance_model(array $viewer, array $request, array $po
             @set_time_limit(0);
             $messages = corebb_perf_rebuild_cached_counts();
 
-            if (function_exists('addlogentry')) {
-                addlogentry(
+            {
+                corebb_adminlog_entry(
                     (string)($viewer['username'] ?? 'Unknown'),
                     (int)($viewer['accesslevel'] ?? 0),
                     'Rebuilt forum counts from Database Tools',
@@ -57,12 +58,10 @@ function corebb_admin_maintenance_model(array $viewer, array $request, array $po
         } elseif ($action === 'prepare_search_indexes') {
             $ranAction = 'prepare_search_indexes';
             @set_time_limit(0);
-            $messages = function_exists('corebb_perf_prepare_search_indexes')
-                ? corebb_perf_prepare_search_indexes()
-                : ['Search index helper is unavailable.'];
+            $messages = corebb_perf_prepare_search_indexes();
 
-            if (function_exists('addlogentry')) {
-                addlogentry(
+            {
+                corebb_adminlog_entry(
                     (string)($viewer['username'] ?? 'Unknown'),
                     (int)($viewer['accesslevel'] ?? 0),
                     'Prepared search indexes from Database Tools',
@@ -76,8 +75,8 @@ function corebb_admin_maintenance_model(array $viewer, array $request, array $po
             if (!empty($backupResult['ok'])) {
                 $messages[] = (string)($backupResult['message'] ?? 'Database backup created.');
 
-                if (function_exists('addlogentry')) {
-                    addlogentry(
+                {
+                    corebb_adminlog_entry(
                         (string)($viewer['username'] ?? 'Unknown'),
                         (int)($viewer['accesslevel'] ?? 0),
                         'Created database backup from Database Tools',
@@ -99,10 +98,10 @@ function corebb_admin_maintenance_model(array $viewer, array $request, array $po
         'messages' => $messages,
         'errors' => $errors,
         'ran_action' => $ranAction,
-        'cache_ready' => function_exists('corebb_perf_cache_ready') ? corebb_perf_cache_ready() : false,
-        'cache_rebuilt_at' => function_exists('corebb_perf_get_setting') ? corebb_perf_get_setting('perf_cache_rebuilt_at', 'never') : 'unknown',
-        'search_ready' => function_exists('corebb_perf_search_fulltext_ready') ? corebb_perf_search_fulltext_ready() : false,
-        'search_prepared_at' => function_exists('corebb_perf_get_setting') ? corebb_perf_get_setting('search_fulltext_prepared_at', 'never') : 'unknown',
+        'cache_ready' => corebb_perf_cache_ready(),
+        'cache_rebuilt_at' => corebb_perf_get_setting('perf_cache_rebuilt_at', 'never'),
+        'search_ready' => corebb_perf_search_fulltext_ready(),
+        'search_prepared_at' => corebb_perf_get_setting('search_fulltext_prepared_at', 'never'),
         'backup_directory' => corebb_db_backup_directory(),
         'backup_recent' => corebb_db_backup_recent(5),
         'backup_result' => $backupResult,

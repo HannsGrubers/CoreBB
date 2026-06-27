@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/corebb_date_helpers.php';
 /*                        ''~``
                          ( o o )
  +------------------.oooO--(_)--Oooo.--------------------+
@@ -22,6 +23,8 @@ if (!defined('COREBB_NOTIFICATION_HELPERS_LOADED')) {
 }
 
 require_once __DIR__ . '/pagination_helpers.php';
+require_once __DIR__ . '/corebb_route_helpers.php';
+require_once __DIR__ . '/private_board_helpers.php';
 
 /**
  * Usage: Validate and quote a database identifier used by notification helpers.
@@ -228,7 +231,7 @@ function corebb_notifications_normalize_url(string $url): string
  */
 function corebb_notifications_now(): string
 {
-    return function_exists('convert_to_timestamp_raw') ? convert_to_timestamp_raw(time()) : date('Y-m-d H:i:s');
+    return convert_to_timestamp_raw(time());
 }
 
 /**
@@ -411,7 +414,7 @@ function corebb_notifications_fetch_mutes(int $userId): array
         $row['subject_id'] = (int)($row['subject_id'] ?? 0);
         $row['label'] = corebb_notifications_silence_label($row['notification_type'], $row['subject_type'], $row['subject_id'], (string)($row['topic_title'] ?? ''));
         $createdAt = (string)($row['created_at'] ?? '');
-        $row['created_display'] = $createdAt !== '' && function_exists('convert_to_vndate') ? convert_to_vndate($createdAt) : $createdAt;
+        $row['created_display'] = $createdAt !== '' ? convert_to_vndate($createdAt) : $createdAt;
     }
     unset($row);
     return $rows;
@@ -707,7 +710,7 @@ function corebb_notifications_fetch(int $userId, int $limit = 100): array
         }
         $row['silence_label'] = corebb_notifications_silence_label($row['notification_type'], $row['subject_type'], $row['subject_id'], $topicTitle);
         $createdAt = (string)($row['created_at'] ?? '');
-        $row['created_display'] = $createdAt !== '' && function_exists('convert_to_vndate') ? convert_to_vndate($createdAt) : $createdAt;
+        $row['created_display'] = $createdAt !== '' ? convert_to_vndate($createdAt) : $createdAt;
         $row['actor_username'] = (string)($row['actor_username'] ?? '');
     }
     unset($row);
@@ -729,7 +732,7 @@ function corebb_notifications_reply_target_url(int $topicId, int $boardId, int $
 {
     $page = 1;
     if ($postId > 0) {
-        $perPage = function_exists('corebb_current_thread_posts_per_page') ? corebb_current_thread_posts_per_page() : 25;
+        $perPage = corebb_current_thread_posts_per_page();
         $position = (int)db_value(
             'SELECT COUNT(*) FROM posts WHERE threadid = ? AND is_deleted = 0 AND id <= ?',
             [$topicId, $postId],
@@ -737,10 +740,7 @@ function corebb_notifications_reply_target_url(int $topicId, int $boardId, int $
         );
         $page = max(1, (int)ceil(max(1, $position) / max(1, $perPage)));
     }
-    if (function_exists('corebb_thread_url')) {
-        return corebb_thread_url($topicId, $boardId, $page, $boardName, $postId);
-    }
-    return '/topic/' . (int)$topicId . '/p' . $page . '/' . ($postId > 0 ? '#post' . (int)$postId : '');
+    return corebb_thread_url($topicId, $boardId, $page, $boardName, $postId);
 }
 
 
@@ -917,9 +917,6 @@ function corebb_notifications_user_can_see_board(int $boardId, int $userId, int 
     if ($boardId <= 0 || $userId <= 0) {
         return false;
     }
-    if (!function_exists('corebb_private_user_can_view_board_id')) {
-        require_once __DIR__ . '/private_board_helpers.php';
-    }
     return corebb_private_user_can_view_board_id($boardId, $userId, $accessLevel);
 }
 
@@ -936,10 +933,7 @@ function corebb_notifications_board_url(int $boardId, string $boardName = ''): s
     if ($boardId <= 0) {
         return '/';
     }
-    if (function_exists('corebb_board_url')) {
-        return corebb_board_url($boardId, 1, $boardName);
-    }
-    return '/board/' . (int)$boardId . '/';
+    return corebb_board_url($boardId, 1, $boardName);
 }
 
 /**
@@ -1023,10 +1017,6 @@ function corebb_notifications_add_many(array $userIds, string $type, string $tit
 function corebb_notifications_broadcast_all(string $type, string $title, string $body = '', string $targetUrl = '', int $actorUserId = 0, int $boardId = 0, string $subjectType = '', int $subjectId = 0): int
 {
     corebb_notifications_ensure_schema();
-    if (!function_exists('corebb_private_board_row')) {
-        require_once __DIR__ . '/private_board_helpers.php';
-    }
-
     $type = corebb_notifications_clean_type($type);
     $subjectType = corebb_notifications_clean_subject_type($subjectType);
     $subjectId = max(0, $subjectId);
@@ -1163,7 +1153,7 @@ function corebb_notifications_notify_moderated_post(array $post, string $action,
     if ($subject === '') {
         $subject = 'your post';
     }
-    $board = $boardId > 0 && function_exists('corebb_private_board_row') ? corebb_private_board_row($boardId) : false;
+    $board = $boardId > 0 ? corebb_private_board_row($boardId) : false;
     $boardName = is_array($board) ? (string)($board['name'] ?? '') : '';
     $firstPostId = $topicId > 0 ? (int)db_value('SELECT id FROM posts WHERE threadid = ? ORDER BY id ASC LIMIT 1', [$topicId], 0) : 0;
     $isThreadStarter = $firstPostId > 0 && $firstPostId === (int)($post['id'] ?? 0);

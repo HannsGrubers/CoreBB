@@ -61,7 +61,7 @@ function corebb_db_backup_directory(): string
         return rtrim(str_replace('\\', '/', dirname((string)COREBB_PRIVATE_CONFIG_FILE)), '/') . '/database_backups';
     }
 
-    if (defined('COREBB_APP_ROOT') && function_exists('corebb_config_private_base_dir')) {
+    if (defined('COREBB_APP_ROOT')) {
         return rtrim(corebb_config_private_base_dir((string)COREBB_APP_ROOT), '/') . '/database_backups';
     }
 

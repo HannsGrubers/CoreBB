@@ -8,8 +8,7 @@
 
 $root = dirname(__DIR__);
 
-include $root . '/CookieEngine.php';
-include_once $root . '/functions.php';
+require_once $root . '/lib/bootstrap.php';
 require_once $root . '/lib/view.php';
 require_once $root . '/lib/layout_view_model.php';
 require_once $root . '/lib/usercp_view_model.php';
@@ -27,14 +26,12 @@ require_once $root . '/lib/notifications_view_model.php';
  */
 function corebb_usercp_controller_redirect(string $url): void
 {
-    if (function_exists('corebb_public_url')) {
-        $url = corebb_public_url($url);
-    }
+    $url = corebb_public_join_base_path($url);
     header('Location: ' . $url);
     exit;
 }
 
-if (!loggedin()) {
+if (!corebb_load_logged_in_user()) {
     corebb_usercp_controller_redirect('/login/?msg=' . urlencode('You must be logged in to access the User CP.'));
 }
 
@@ -52,7 +49,7 @@ if (!in_array($action, $allowedActions, true)) {
 switch ($action) {
     case 'profile':
         if (($_GET['act'] ?? '') === 'submit' && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
-            if (corebb_usercp_save_profile($uid)) {
+            if (corebb_usercp_save_profile_from_array($uid, $_POST)) {
                 corebb_usercp_controller_redirect('/user-cp/profile/?msg=Profile+Successfully+Updated!');
             }
             corebb_usercp_controller_redirect('/user-cp/profile/?msg=' . urlencode('Error Updating Profile: ' . db_error()));

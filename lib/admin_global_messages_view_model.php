@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/admin_log_helpers.php';
 /*                        ''~``
                          ( o o )
  +------------------.oooO--(_)--Oooo.--------------------+
@@ -86,8 +87,8 @@ function corebb_admin_global_message_add_model(array $viewer, array $get, array 
         } else {
             $poster = (string)($viewer['username'] ?? 'System');
             if (db_run('INSERT INTO globalmessages (message, poster) VALUES (?, ?)', [$message, $poster])) {
-                if (function_exists('addlogentry')) {
-                    addlogentry((string)($viewer['username'] ?? ''), (int)($viewer['accesslevel'] ?? 0), 'Added global message');
+                {
+                    corebb_adminlog_entry((string)($viewer['username'] ?? ''), (int)($viewer['accesslevel'] ?? 0), 'Added global message');
                 }
                 $model['messages'][] = 'Successfully created global message.';
                 $model['message_value'] = '';
@@ -126,8 +127,8 @@ function corebb_admin_global_message_edit_model(array $viewer, array $get, array
             $model['messages'][] = 'Global message must be 255 characters or less.';
         } else {
             if (db_run('UPDATE globalmessages SET message = ? WHERE id = ?', [$message, $id])) {
-                if (function_exists('addlogentry')) {
-                    addlogentry((string)($viewer['username'] ?? ''), (int)($viewer['accesslevel'] ?? 0), 'Edited global message: ' . $id);
+                {
+                    corebb_adminlog_entry((string)($viewer['username'] ?? ''), (int)($viewer['accesslevel'] ?? 0), 'Edited global message: ' . $id);
                 }
                 $model['messages'][] = 'Global message updated.';
             } else {
@@ -165,8 +166,8 @@ function corebb_admin_global_message_remove_model(array $viewer, array $get, arr
             $model['messages'][] = 'Choose a message to remove.';
         } else {
             if (db_run('DELETE FROM globalmessages WHERE id = ?', [$id])) {
-                if (function_exists('addlogentry')) {
-                    addlogentry((string)($viewer['username'] ?? ''), (int)($viewer['accesslevel'] ?? 0), 'Removed global message: ' . $id);
+                {
+                    corebb_adminlog_entry((string)($viewer['username'] ?? ''), (int)($viewer['accesslevel'] ?? 0), 'Removed global message: ' . $id);
                 }
                 $model['messages'][] = 'Global message removed.';
             } else {

@@ -21,35 +21,7 @@ require_once __DIR__ . '/performance_helpers.php';
 require_once __DIR__ . '/private_board_helpers.php';
 require_once __DIR__ . '/public_style_helpers.php';
 require_once __DIR__ . '/google_auth_helpers.php';
-require_once __DIR__ . '/../functions.php';
-
-/**
- * Convert an internal route/path into a public URL.
- *
- * Usage: central URL wrapper for public layout links.
- * Referenced by: chrome, menu, breadcrumb, viewer, and footer model builders.
- *
- * @param string $path Legacy script path, pretty path, asset path, or absolute URL.
- * @return string Public URL.
- */
-function corebb_layout_url(string $path): string
-{
-    return corebb_public_url($path);
-}
-
-/**
- * Convert an asset path into a browser-safe public asset URL.
- *
- * Usage: expose non-theme assets needed by the public layout.
- * Referenced by: corebb_public_layout_model().
- *
- * @param string $path Asset path.
- * @return string Public asset URL.
- */
-function corebb_layout_asset(string $path): string
-{
-    return corebb_public_asset($path);
-}
+require_once __DIR__ . '/corebb_browser_helpers.php';
 
 /**
  * Return the current entry script filename.
@@ -83,24 +55,10 @@ function corebb_layout_debug_rows(array $viewer): array
 {
     $rows = [];
     $style = corebb_layout_public_style_file($viewer);
-    $userStyle = loggedin() ? corebb_public_style_resolve_user_value((string)($viewer['userstyle'] ?? '')) : '';
+    $userStyle = corebb_load_logged_in_user() ? corebb_public_style_resolve_user_value((string)($viewer['userstyle'] ?? '')) : '';
     $source = $userStyle !== '' ? 'User custom style' : 'Default style';
     $rows[] = ['label' => 'System Style Init', 'value' => $source . ': ' . $style];
     return $rows;
-}
-
-/**
- * Validate a configured public stylesheet filename.
- *
- * Usage: keep public style loading limited to local CSS files.
- * Referenced by: corebb_layout_public_style_file().
- *
- * @param string $style Configured stylesheet path.
- * @return string Safe stylesheet path or the default VN EOL stylesheet.
- */
-function corebb_layout_normalize_public_style(string $style): string
-{
-    return corebb_public_style_normalize_file($style);
 }
 
 /**
@@ -114,14 +72,14 @@ function corebb_layout_normalize_public_style(string $style): string
  */
 function corebb_layout_public_style_file(array $viewer): string
 {
-    if (loggedin() && !empty($viewer['userstyle'])) {
+    if (corebb_load_logged_in_user() && !empty($viewer['userstyle'])) {
         $userStyle = corebb_public_style_resolve_user_value((string)$viewer['userstyle']);
         if ($userStyle !== '') {
             return $userStyle;
         }
     }
 
-    return corebb_layout_normalize_public_style((string)db_value('SELECT setting FROM systemsettings WHERE id = ?', [1], 'style_vn_eol.css'));
+    return corebb_public_style_normalize_file((string)db_value('SELECT setting FROM systemsettings WHERE id = ?', [1], 'style_vn_eol.css'));
 }
 
 /**
@@ -151,40 +109,6 @@ function corebb_layout_public_stylesheets(array $viewer): array
     }
 
     return $urls;
-}
-
-/**
- * Build the classic public chrome link model.
- *
- * Usage: hand public layout templates the site/board labels and URLs.
- * Referenced by: corebb_public_layout_model().
- *
- * @param string $siteUrl Legacy fallback site URL.
- * @param string $siteName Legacy fallback site name.
- * @param string $boardUrl Legacy fallback board URL.
- * @param string $boardName Legacy fallback board name.
- * @return array<string, string> Chrome link model.
- */
-function corebb_layout_chrome_links(string $siteUrl = '', string $siteName = '', string $boardUrl = '', string $boardName = ''): array
-{
-    return corebb_vn_eol_chrome_links($siteUrl, $siteName, $boardUrl, $boardName);
-}
-
-/**
- * Normalize a breadcrumb target into a public link.
- *
- * Usage: preserve absolute URLs and convert relative CoreBB paths.
- * Referenced by: corebb_layout_breadcrumbs().
- *
- * @param string $path Breadcrumb path.
- * @return string Public breadcrumb URL.
- */
-function corebb_layout_breadcrumb_link_url(string $path): string
-{
-    if (str_starts_with($path, '/') || preg_match('~^[a-z][a-z0-9+.-]*:~i', $path)) {
-        return $path;
-    }
-    return corebb_layout_url($path);
 }
 
 /**
@@ -273,7 +197,7 @@ function corebb_layout_breadcrumbs(array $vars, string $boardName): array
                 $category = db_one('SELECT id, name FROM boards WHERE id = ? LIMIT 1', [(int)($board['categoryid'] ?? 0)]);
                 $QueryCount++;
                 if ($category) {
-                    $crumbs[] = ['label' => (string)$category['name'], 'url' => corebb_layout_breadcrumb_link_url('index.php?b=' . (int)$category['id']), 'current' => false];
+                    $crumbs[] = ['label' => (string)$category['name'], 'url' => corebb_public_join_base_path('/?b=' . (int)$category['id']), 'current' => false];
                 }
                 if ($isBoardRoute) {
                     $tail = (string)($board['name'] ?? 'Board');
@@ -420,7 +344,7 @@ function corebb_layout_mobile_fallback_payload(): array
  */
 function corebb_layout_viewer(array $viewer): array
 {
-    $loggedIn = loggedin();
+    $loggedIn = corebb_load_logged_in_user();
     $userId = (int)($viewer['id'] ?? 0);
     $styleCss = '';
     if ($loggedIn && (int)($viewer['accesslevel'] ?? 0) >= 2) {
@@ -430,7 +354,7 @@ function corebb_layout_viewer(array $viewer): array
         'logged_in' => $loggedIn,
         'id' => $userId,
         'username' => (string)($viewer['username'] ?? 'User'),
-        'profile_url' => $userId > 0 ? corebb_layout_url('content.php?action=profile&id=' . $userId) : '',
+        'profile_url' => $userId > 0 ? corebb_public_join_base_path('/profile/' . $userId . '/') : '',
         'style_css' => $styleCss,
         'access_level' => (int)($viewer['accesslevel'] ?? 0),
     ];
@@ -458,7 +382,7 @@ function corebb_public_layout_model(array $vars = [], array $context = []): arra
 
     $viewerRow = is_array($userlogindata_a ?? null) ? $userlogindata_a : [];
     $viewer = corebb_layout_viewer($viewerRow);
-    $chrome = corebb_layout_chrome_links((string)($SiteURL ?? ''), (string)($SiteName ?? ''), (string)($BoardURL ?? ''), (string)($BoardName ?? ''));
+    $chrome = corebb_vn_eol_chrome_links((string)($SiteURL ?? ''), (string)($SiteName ?? ''), (string)($BoardURL ?? ''), (string)($BoardName ?? ''));
     $SiteURL = $chrome['site_url'];
     $SiteName = $chrome['site_name'];
     $BoardURL = $chrome['board_url'];
@@ -478,7 +402,7 @@ function corebb_public_layout_model(array $vars = [], array $context = []): arra
 
     $notificationCount = $loggedIn ? corebb_notifications_uncleared_count((int)$viewer['id'], false) : 0;
     $pmUnread = $loggedIn ? corebb_pm_count((int)$viewer['id'], 'unread') : 0;
-    $contactModsUrl = corebb_layout_url('support.php?action=contact');
+    $contactModsUrl = corebb_public_join_base_path('/contact-mods/');
     $contactModsLabel = 'Contact Mods';
     $flash = ['messages' => [], 'errors' => []];
     if ($loggedIn) {
@@ -513,7 +437,7 @@ function corebb_public_layout_model(array $vars = [], array $context = []): arra
     }
 
     $stats = '';
-    if (LoadBoardSetting('showbasicstats')) {
+    if (corebb_board_setting_enabled('showbasicstats')) {
         $today = date('m/d/y');
         $stats = number_format((int)corebb_perf_total_forums()) . ' Boards | '
             . number_format((int)corebb_perf_total_posts()) . ' Messages ('
@@ -546,7 +470,7 @@ function corebb_public_layout_model(array $vars = [], array $context = []): arra
             'stylesheets' => corebb_layout_public_stylesheets($viewerRow),
             'scripts' => $publicScripts,
             'mobile_fallback' => corebb_layout_mobile_fallback_payload(),
-            'mobile_url' => corebb_layout_url('/mobile/'),
+            'mobile_url' => corebb_public_join_base_path('/mobile/'),
             'body_class' => 'wb-vn-eol' . $modernBodyClass,
             'staging' => defined('COREBB_ENV') && (string)COREBB_ENV === 'staging',
         ],
@@ -564,7 +488,7 @@ function corebb_public_layout_model(array $vars = [], array $context = []): arra
                 'header_right' => corebb_theme_asset('HeaderRightVN.png'),
                 'spacer' => corebb_theme_asset('spacer.gif'),
                 'pixy' => corebb_theme_asset('pixy.gif'),
-                'notification' => corebb_layout_asset('images/notification.gif'),
+                'notification' => corebb_public_join_base_path('images/notification.gif'),
             ],
         ],
         'viewer' => $viewer,
@@ -579,16 +503,16 @@ function corebb_public_layout_model(array $vars = [], array $context = []): arra
             'pm_unread' => $pmUnread,
             'notification_count' => $notificationCount,
             'admin_visible' => $adminVisible,
-            'login_url' => corebb_layout_url('auth.php?action=login'),
-            'register_url' => corebb_layout_url('auth.php?action=register'),
-            'logout_url' => corebb_layout_url('auth.php?action=logout'),
-            'pm_url' => corebb_layout_url('messages.php?action=folder&folder=unread'),
-            'search_url' => corebb_layout_url('content.php?action=search'),
-            'usercp_url' => corebb_layout_url('usercp.php?action=index'),
-            'admin_url' => corebb_layout_url('admin.php'),
-            'blogs_url' => corebb_layout_url('blogs.php'),
-            'rules_url' => corebb_layout_url('support.php?action=faq'),
-            'security_url' => corebb_layout_url('support.php?action=security'),
+            'login_url' => corebb_public_join_base_path('/login/'),
+            'register_url' => corebb_public_join_base_path('/register/'),
+            'logout_url' => corebb_public_join_base_path('/logoff/'),
+            'pm_url' => corebb_public_join_base_path('/private-messages/'),
+            'search_url' => corebb_public_join_base_path('/search/'),
+            'usercp_url' => corebb_public_join_base_path('/user-cp/'),
+            'admin_url' => corebb_public_join_base_path('/admin/'),
+            'blogs_url' => corebb_public_join_base_path('/blogs/'),
+            'rules_url' => corebb_public_join_base_path('/board-rules-faq/'),
+            'security_url' => corebb_public_join_base_path('/security/'),
             'contact_mods_url' => $contactModsUrl,
             'contact_mods_label' => $contactModsLabel,
         ],
@@ -596,12 +520,12 @@ function corebb_public_layout_model(array $vars = [], array $context = []): arra
         'alerts' => $alerts,
         'footer' => [
             'stats' => $stats,
-            'version_label' => function_exists('corebb_version_label') ? corebb_version_label() : 'CoreBB Initial Release v1.0.0',
+            'version_label' => corebb_version_label(),
             'copyright_start' => 2005,
             'copyright_year' => date('Y'),
             'copyright_name' => 'CoreBB',
-            'rules_url' => corebb_layout_url('support.php?action=faq') . '#tos',
-            'security_url' => corebb_layout_url('support.php?action=security'),
+            'rules_url' => corebb_public_join_base_path('/board-rules-faq/') . '#tos',
+            'security_url' => corebb_public_join_base_path('/security/'),
             'debug_allowed' => (int)($viewerRow['accesslevel'] ?? 0) >= 5 && (string)($_GET['debug'] ?? '') === 'yes',
             'debug_rows' => corebb_layout_debug_rows($viewerRow),
         ],
