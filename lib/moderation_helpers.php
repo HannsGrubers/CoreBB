@@ -456,6 +456,11 @@ function corebb_mod_update_post_with_edit_metadata(int $postId, string $subject,
 {
     corebb_mod_ensure_schema();
 
+    $post = corebb_mod_get_post($postId);
+    if (!$post) {
+        return false;
+    }
+
     $editorLevel = corebb_mod_actor_level();
     if ($editorId > 0 && $editorId !== corebb_mod_current_user_id()) {
         $editorLevel = (int)db_value('SELECT accesslevel FROM users WHERE id = ? LIMIT 1', [$editorId], $editorLevel);
@@ -464,7 +469,16 @@ function corebb_mod_update_post_with_edit_metadata(int $postId, string $subject,
         return false;
     }
 
-    return db_run(
+    $pdo = corebb_db_connection();
+    $startedTransaction = false;
+    if ($pdo instanceof PDO && !$pdo->inTransaction()) {
+        if (!db_begin()) {
+            return false;
+        }
+        $startedTransaction = true;
+    }
+
+    $postUpdated = db_run(
         'UPDATE posts '
         . 'SET title = ?, body = ?, '
         . 'editcount = CASE WHEN wasedited = 1 AND COALESCE(editcount, 0) < 1 THEN 2 ELSE COALESCE(editcount, 0) + 1 END, '
@@ -472,6 +486,48 @@ function corebb_mod_update_post_with_edit_metadata(int $postId, string $subject,
         . 'WHERE id = ?',
         [$subject, $body, $editorId, $editDate, $postId]
     );
+    if (!$postUpdated) {
+        if ($startedTransaction) {
+            db_rollback();
+        }
+        return false;
+    }
+
+    $topicId = (int)($post['threadid'] ?? 0);
+    if ($topicId <= 0) {
+        if ($startedTransaction && !db_commit()) {
+            return false;
+        }
+        return true;
+    }
+
+    $firstPostId = (int)db_value(
+        'SELECT id FROM posts WHERE threadid = ? AND is_deleted = 0 ORDER BY id ASC LIMIT 1',
+        [$topicId],
+        0
+    );
+    if ($firstPostId !== $postId) {
+        if ($startedTransaction && !db_commit()) {
+            return false;
+        }
+        return true;
+    }
+
+    $topicUpdated = db_run(
+        'UPDATE topics SET title = ?, body = ? WHERE id = ?',
+        [$subject, $body, $topicId]
+    );
+    if (!$topicUpdated) {
+        if ($startedTransaction) {
+            db_rollback();
+        }
+        return false;
+    }
+
+    if ($startedTransaction && !db_commit()) {
+        return false;
+    }
+    return true;
 }
 
 /**
