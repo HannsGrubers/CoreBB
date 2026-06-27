@@ -137,7 +137,9 @@ function corebb_layout_public_style_file(array $viewer): string
 function corebb_layout_public_stylesheets(array $viewer): array
 {
     $style = corebb_layout_public_style_file($viewer);
-    if ($style === 'style_modern_2.css' || $style === 'style_modern.css') {
+    if ($style === 'style_emberline.css') {
+        $stylesheets = ['style_vn_eol.css', 'style_theme.css', 'style_emberline.css'];
+    } elseif ($style === 'style_modern_2.css' || $style === 'style_modern.css') {
         $stylesheets = ['style_vn_eol.css', 'style_theme.css', 'style_modern_4.css'];
     } else {
         $stylesheets = [$style, 'style_theme.css'];
@@ -519,12 +521,14 @@ function corebb_public_layout_model(array $vars = [], array $context = []): arra
     }
 
     $activeStyle = corebb_layout_public_style_file($viewerRow);
-    $compactHeaderStyles = ['style_modern.css', 'style_modern_2.css'];
+    $compactHeaderStyles = ['style_modern.css', 'style_modern_2.css', 'style_emberline.css'];
     $modernBodyClass = '';
     if ($activeStyle === 'style_modern_2.css') {
         $modernBodyClass = ' wb-modern-4';
     } elseif ($activeStyle === 'style_modern.css') {
         $modernBodyClass = ' wb-modern-static';
+    } elseif ($activeStyle === 'style_emberline.css') {
+        $modernBodyClass = ' wb-emberline';
     }
     $publicScripts = [
         corebb_theme_url('scripts/minmax.js'),

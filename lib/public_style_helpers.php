@@ -74,6 +74,7 @@ function corebb_public_style_builtin_options(): array
         'style_vn_eol.css' => 'CoreBB VN EOL',
         'style_modern.css' => 'CoreBB Modern 1',
         'style_modern_2.css' => 'CoreBB Modern 2',
+        'style_emberline.css' => 'CoreBB Emberline',
     ];
 }
 

@@ -1,0 +1,413 @@
+/* CoreBB Emberline public theme.
+   A dark release-workspace skin with warm amber actions and cool blue state accents. */
+
+html {
+    background: #1f201e;
+}
+
+body.wb-vn-eol.wb-emberline {
+    --ember-bg: #1f201e;
+    --ember-top: #292925;
+    --ember-side: #2b2c28;
+    --ember-panel: #242522;
+    --ember-panel-2: #2b2c28;
+    --ember-panel-3: #30312d;
+    --ember-line: #3f3d37;
+    --ember-line-2: #625d52;
+    --ember-text: #ead9b8;
+    --ember-muted: #a49270;
+    --ember-dim: #706754;
+    --ember-accent: #ff7e23;
+    --ember-accent-2: #ff9844;
+    --ember-blue: #2d4f78;
+    --ember-blue-2: #4e79b5;
+    --ember-danger: #ff6b57;
+    --ember-ok: #9ed38d;
+    --corebb-page-bg: var(--ember-bg);
+    --corebb-page-text: var(--ember-text);
+    --corebb-menu-bg: rgba(43, 44, 40, .96);
+    --corebb-menu-text: var(--ember-text);
+    --corebb-menu-link: #ffe2af;
+    --corebb-menu-alt: var(--ember-accent);
+    --corebb-column-bg: rgba(43, 44, 40, .98);
+    --corebb-column-text: #ffdca7;
+    --corebb-column-link: #ffdca7;
+    --corebb-category-link: #ffe2af;
+    --corebb-category-toggle: var(--ember-accent);
+    --corebb-row-a-bg: rgba(36, 37, 34, .96);
+    --corebb-row-b-bg: rgba(43, 44, 40, .94);
+    --corebb-row-text: var(--ember-text);
+    --corebb-row-hover-bg: rgba(48, 49, 45, .98);
+    --corebb-row-hover-border: rgba(255, 126, 35, .32);
+    --corebb-link: #ffdca7;
+    --corebb-link-visited: #d8bf95;
+    --corebb-link-hover: #fff3d6;
+    --corebb-username-link: #ffcc8a;
+    --corebb-muted-text: var(--ember-muted);
+    --corebb-note-text: #ffdca7;
+    --corebb-signature-text: #bda983;
+    --corebb-input-bg: #1e1f1d;
+    --corebb-input-text: #fff5db;
+    --corebb-button-bg: var(--ember-accent);
+    --corebb-button-hover-bg: var(--ember-accent-2);
+    --corebb-button-border-light: var(--ember-accent-2);
+    --corebb-button-border-dark: #9d4e16;
+    --corebb-button-text: #20140c;
+    --corebb-divider: rgba(255, 220, 167, .12);
+    --corebb-code-bg: #181916;
+    --corebb-code-text: #ffe8bc;
+    --corebb-accent-blue: #6f9dd7;
+    --corebb-accent-ink: #fff1d0;
+    --corebb-accent-gold: #ffce70;
+    --corebb-accent-pink: #ff9b84;
+    --corebb-accent-teal: #7dc5bb;
+    --corebb-surface-glass: rgba(36, 37, 34, .93);
+    --corebb-surface-panel: rgba(43, 44, 40, .94);
+    --corebb-header-bg: rgba(43, 42, 38, .98);
+    --corebb-header-border: var(--ember-line);
+    --corebb-header-account-bg: rgba(255, 126, 35, .08);
+    --corebb-nav-bg: rgba(41, 41, 37, .98);
+    --corebb-thread-head-bg: rgba(43, 44, 40, .98);
+    --corebb-thread-body-bg: rgba(36, 37, 34, .96);
+    --corebb-thread-action-bg: rgba(43, 44, 40, .96);
+    --corebb-form-border: var(--ember-line-2);
+    --corebb-pill-bg: rgba(255, 126, 35, .09);
+    --corebb-pill-border: rgba(255, 126, 35, .2);
+    --corebb-current-page-text: #fff2cf;
+    --corebb-stage-bg: #3b2d21;
+    --corebb-stage-text: #ffe7b5;
+    --corebb-shadow-soft: 0 18px 44px rgba(0, 0, 0, .3);
+    --corebb-shadow-list: 0 12px 30px rgba(0, 0, 0, .24);
+    --corebb-focus-ring: 0 0 0 2px rgba(255, 126, 35, .2);
+    background:
+        radial-gradient(circle at 28px 28px, rgba(255, 255, 255, .035) 1px, transparent 1px) 0 0 / 40px 40px,
+        linear-gradient(180deg, #242520 0%, #1f201e 42%, #1b1c1a 100%) !important;
+    color: var(--ember-text);
+    color-scheme: dark;
+    font: 13px "Segoe UI", Tahoma, Arial, sans-serif;
+    min-height: 100vh;
+}
+
+body.wb-vn-eol.wb-emberline a,
+body.wb-vn-eol.wb-emberline a:link,
+body.wb-vn-eol.wb-emberline a:visited {
+    color: var(--corebb-link);
+}
+
+body.wb-vn-eol.wb-emberline a:hover {
+    color: var(--corebb-link-hover);
+}
+
+body.wb-vn-eol.wb-emberline #Container {
+    background: transparent;
+    margin: 0 auto 24px;
+    max-width: 1180px;
+    width: min(calc(100% - 28px), 1180px) !important;
+}
+
+body.wb-vn-eol.wb-emberline .wb-modern-compact-header {
+    border-bottom: 1px solid var(--ember-line);
+    margin: 0 0 10px;
+}
+
+body.wb-vn-eol.wb-emberline .wb-modern-compact-header-cell {
+    background: var(--ember-top) !important;
+    border: 1px solid var(--ember-line);
+    border-radius: 0;
+    box-shadow: none;
+}
+
+body.wb-vn-eol.wb-emberline .wb-modern-compact-header-inner {
+    align-items: center;
+    min-height: 42px;
+    padding: 0 14px;
+}
+
+body.wb-vn-eol.wb-emberline .wb-modern-compact-brand {
+    color: #ffe8bc !important;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0;
+    text-decoration: none;
+}
+
+body.wb-vn-eol.wb-emberline .wb-modern-compact-brand::before {
+    border: 1px solid var(--ember-line-2);
+    border-radius: 5px;
+    color: var(--ember-accent);
+    content: "CB";
+    display: inline-grid;
+    font-size: 9px;
+    height: 20px;
+    margin-right: 9px;
+    place-items: center;
+    vertical-align: 1px;
+    width: 24px;
+}
+
+body.wb-vn-eol.wb-emberline .wb-modern-compact-context,
+body.wb-vn-eol.wb-emberline .wb-modern-compact-account-label {
+    color: var(--ember-muted);
+    font-size: 12px;
+}
+
+body.wb-vn-eol.wb-emberline .wb-modern-compact-account {
+    background: rgba(255, 255, 255, .035);
+    border: 1px solid var(--ember-line);
+    border-radius: 6px;
+    color: var(--ember-muted);
+    padding: 5px 9px;
+}
+
+body.wb-vn-eol.wb-emberline .wb-modern-compact-user {
+    color: #ffe2af !important;
+    font-weight: 700;
+}
+
+body.wb-vn-eol.wb-emberline .wb-vn-header-nav-spacer,
+body.wb-vn-eol.wb-emberline .wb-vn-header-content-spacer,
+body.wb-vn-eol.wb-emberline .wb-vn-chrome-bg {
+    background: transparent !important;
+}
+
+body.wb-vn-eol.wb-emberline .wb-bg-vn-chrome {
+    background-image: none !important;
+}
+
+body.wb-vn-eol.wb-emberline .wb-table.wb-cellspace-1 {
+    border-spacing: 0 4px;
+}
+
+body.wb-vn-eol.wb-emberline .MainMenuRow,
+body.wb-vn-eol.wb-emberline .MainMenuRowAlt {
+    background: rgba(43, 44, 40, .96) !important;
+    border: 1px solid var(--ember-line);
+    color: var(--ember-text);
+    font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+    font-size: 12px;
+    padding: 8px 10px !important;
+}
+
+body.wb-vn-eol.wb-emberline .MainMenuRowAlt {
+    color: #ffd273;
+}
+
+body.wb-vn-eol.wb-emberline .MainMenuLink,
+body.wb-vn-eol.wb-emberline .MainMenuFont {
+    color: var(--ember-text) !important;
+    font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+    font-size: 12px;
+}
+
+body.wb-vn-eol.wb-emberline .MainMenuLink {
+    color: #ffe2af !important;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+body.wb-vn-eol.wb-emberline .MainMenuLink:hover,
+body.wb-vn-eol.wb-emberline .MainMenuFont[href]:hover {
+    color: #fff3d6 !important;
+}
+
+body.wb-vn-eol.wb-emberline .BoardColumn {
+    background: var(--ember-top) !important;
+    border: 1px solid var(--ember-line);
+    color: #ffdca7;
+    font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 8px 10px !important;
+}
+
+body.wb-vn-eol.wb-emberline .BoardColumnLink,
+body.wb-vn-eol.wb-emberline .BoardCategoryLink {
+    color: #ffe2af !important;
+    text-decoration: none;
+}
+
+body.wb-vn-eol.wb-emberline .BoardCategoryToggle {
+    color: var(--ember-accent);
+}
+
+body.wb-vn-eol.wb-emberline .BoardRowA,
+body.wb-vn-eol.wb-emberline .BoardRowB {
+    border: 1px solid rgba(63, 61, 55, .72);
+    color: var(--ember-text);
+    font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+    font-size: 12px;
+    line-height: 1.45;
+    padding: 8px 10px !important;
+}
+
+body.wb-vn-eol.wb-emberline .BoardRowA {
+    background: rgba(36, 37, 34, .96) !important;
+}
+
+body.wb-vn-eol.wb-emberline .BoardRowB {
+    background: rgba(43, 44, 40, .94) !important;
+}
+
+body.wb-vn-eol.wb-emberline .wb-board-index-row .BoardRowA,
+body.wb-vn-eol.wb-emberline .wb-board-index-row .BoardRowB,
+body.wb-vn-eol.wb-emberline tr.wb-board-index-row > td,
+body.wb-vn-eol.wb-emberline tr.wb-topic-list-row > td {
+    transition: background-color .14s ease, border-color .14s ease;
+}
+
+body.wb-vn-eol.wb-emberline tr.wb-board-index-row:hover > td,
+body.wb-vn-eol.wb-emberline tr.wb-topic-list-row:hover > td {
+    background: var(--ember-panel-3) !important;
+    border-color: rgba(255, 126, 35, .34);
+}
+
+body.wb-vn-eol.wb-emberline .BoardRowALink,
+body.wb-vn-eol.wb-emberline .BoardRowBLink,
+body.wb-vn-eol.wb-emberline .BoardRowBLinkB,
+body.wb-vn-eol.wb-emberline .AuthorLink {
+    color: #ffdca7 !important;
+    text-decoration: none;
+}
+
+body.wb-vn-eol.wb-emberline .BoardRowBLinkB,
+body.wb-vn-eol.wb-emberline .AuthorLink {
+    font-weight: 700;
+}
+
+body.wb-vn-eol.wb-emberline .BoardRowALink:hover,
+body.wb-vn-eol.wb-emberline .BoardRowBLink:hover,
+body.wb-vn-eol.wb-emberline .BoardRowBLinkB:hover,
+body.wb-vn-eol.wb-emberline .AuthorLink:hover {
+    color: #fff3d6 !important;
+}
+
+body.wb-vn-eol.wb-emberline .SmallText,
+body.wb-vn-eol.wb-emberline .VersionText,
+body.wb-vn-eol.wb-emberline .InputNotes {
+    color: var(--ember-muted) !important;
+    font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+}
+
+body.wb-vn-eol.wb-emberline .InputSection {
+    color: #ffdca7 !important;
+    font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+    font-size: 12px;
+}
+
+body.wb-vn-eol.wb-emberline input,
+body.wb-vn-eol.wb-emberline select,
+body.wb-vn-eol.wb-emberline textarea {
+    background: #1e1f1d !important;
+    border: 1px solid var(--ember-line-2) !important;
+    border-radius: 6px;
+    color: #fff5db !important;
+    font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+    outline: none;
+}
+
+body.wb-vn-eol.wb-emberline textarea {
+    font-family: "Cascadia Mono", Consolas, "Courier New", monospace;
+}
+
+body.wb-vn-eol.wb-emberline input:focus,
+body.wb-vn-eol.wb-emberline select:focus,
+body.wb-vn-eol.wb-emberline textarea:focus {
+    border-color: var(--ember-accent) !important;
+    box-shadow: var(--corebb-focus-ring);
+}
+
+body.wb-vn-eol.wb-emberline input[type="submit"],
+body.wb-vn-eol.wb-emberline input[type="button"],
+body.wb-vn-eol.wb-emberline button,
+body.wb-vn-eol.wb-emberline .formsubmit,
+body.wb-vn-eol.wb-emberline .markupButton,
+body.wb-vn-eol.wb-emberline .corebb-board-action-link {
+    background: #2a2b27 !important;
+    border: 1px solid var(--ember-line-2) !important;
+    border-radius: 7px;
+    color: var(--ember-text) !important;
+    font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+body.wb-vn-eol.wb-emberline input[type="submit"]:hover,
+body.wb-vn-eol.wb-emberline input[type="button"]:hover,
+body.wb-vn-eol.wb-emberline button:hover,
+body.wb-vn-eol.wb-emberline .formsubmit:hover,
+body.wb-vn-eol.wb-emberline .markupButton:hover,
+body.wb-vn-eol.wb-emberline .corebb-board-action-link:hover {
+    border-color: var(--ember-accent) !important;
+    color: #fff0d0 !important;
+}
+
+body.wb-vn-eol.wb-emberline input[type="submit"],
+body.wb-vn-eol.wb-emberline button[type="submit"],
+body.wb-vn-eol.wb-emberline .corebb-board-action-link.is-primary {
+    background: var(--ember-accent) !important;
+    border-color: var(--ember-accent) !important;
+    color: #20140c !important;
+}
+
+body.wb-vn-eol.wb-emberline .wb-link-submit {
+    background: transparent !important;
+    border: 0 !important;
+    color: #ffe2af !important;
+    padding: 0;
+}
+
+body.wb-vn-eol.wb-emberline .bbcode-code-content,
+body.wb-vn-eol.wb-emberline pre,
+body.wb-vn-eol.wb-emberline code {
+    background: #181916 !important;
+    border-color: var(--ember-line) !important;
+    color: #ffe8bc !important;
+}
+
+body.wb-vn-eol.wb-emberline .wb-stage-banner {
+    background: #3b2d21;
+    border-bottom: 1px solid var(--ember-line-2);
+    color: #ffe7b5;
+}
+
+body.wb-vn-eol.wb-emberline .wb-thread-topic-title {
+    color: var(--ember-muted);
+}
+
+body.wb-vn-eol.wb-emberline .wb-public-form-workspace,
+body.wb-vn-eol.wb-emberline .wb-usercp-workspace,
+body.wb-vn-eol.wb-emberline .wb-profile-content-workspace,
+body.wb-vn-eol.wb-emberline .wb-security-page {
+    border: 1px solid var(--ember-line);
+    box-shadow: var(--corebb-shadow-list);
+}
+
+body.wb-vn-eol.wb-emberline .wb-text-center {
+    color: inherit;
+}
+
+body.wb-vn-eol.wb-emberline ::selection {
+    background: rgba(255, 126, 35, .36);
+    color: #fff8e8;
+}
+
+@media (max-width: 760px) {
+    body.wb-vn-eol.wb-emberline #Container {
+        width: calc(100% - 12px) !important;
+    }
+
+    body.wb-vn-eol.wb-emberline .wb-modern-compact-header-inner {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 8px;
+        padding: 10px 12px;
+    }
+
+    body.wb-vn-eol.wb-emberline .MainMenuRow,
+    body.wb-vn-eol.wb-emberline .BoardRowA,
+    body.wb-vn-eol.wb-emberline .BoardRowB,
+    body.wb-vn-eol.wb-emberline .BoardColumn {
+        font-size: 12px;
+        padding: 7px !important;
+    }
+}

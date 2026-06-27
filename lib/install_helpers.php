@@ -646,6 +646,8 @@ function corebb_install_seed_database(PDO $pdo, array $form, string $adminPasswo
             ->execute([2, 'CoreBB Modern 1', 'style_modern.css']);
         $pdo->prepare('INSERT INTO systemstyles (id, name, file) VALUES (?, ?, ?)')
             ->execute([3, 'CoreBB Modern 2', 'style_modern_2.css']);
+        $pdo->prepare('INSERT INTO systemstyles (id, name, file) VALUES (?, ?, ?)')
+            ->execute([4, 'CoreBB Emberline', 'style_emberline.css']);
 
         $pdo->prepare('INSERT INTO boards (name, private, secure_archive, position, default_open) VALUES (?, 0, 0, 1, 1)')
             ->execute(['Community']);
