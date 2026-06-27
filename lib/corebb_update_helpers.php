@@ -15,14 +15,25 @@ require_once __DIR__ . '/admin_helpers.php';
 
 const COREBB_UPDATE_MANIFEST_URL = 'https://corebb.net/security/updates.json';
 
-/**
- * Initial signature verifier placeholder for future signed manifests.
- */
 class CoreBB_UpdateSignatureVerifier
 {
+    private const PUBLIC_KEY = <<<'PEM'
+-----BEGIN PUBLIC KEY-----
+MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEAjvN9ZtNSbaeGfGNDDgff
+zZpB4SSmIhInts5u3kfELdivqTr3chp2Ttl75BnvQmu3MV9yppDa5587NY9Rj1op
+h9+RKjFSQikAlf7jj5hUWLGcBwHTvsoj6gGMtuqsHBCXkPCQ+v2IMJSCxJWfHgoL
+8rO+Q8zGhpcGhrHVHm8NoupVFuVU6M6Y1L9MdbIU8j2mVdo3fuYitcsDvCXENOcs
+pKBJJWI0zZvL/TqPEQE8NRHjPiXHc3J5BfOpzUmiz4OxQUc5bECVuuq6XgTkF3gz
+Ov1dtAfHVM7gseFPsgrSJ70f4bfZ7aG1TAbIDY5IPjTTphGN54KzArCnOIG7RxqY
+y7PYq/Nge+eb88FmLecmFoOiLj0wJ9LgNKow7KFEjbo88re9ofbRAcBSYFjZyCpW
+MBMQaHsKHDWHexaQNO82EAQSJD/HQ2jePg1C13D64sVrVXtWdQ9bJucwf0h3U5XK
+nU3hWSzWStCciU0Vyo2Y3n2cuABQTW+d9014FLaip/bzAgMBAAE=
+-----END PUBLIC KEY-----
+PEM;
+
     public function isConfigured(): bool
     {
-        return false;
+        return extension_loaded('openssl') && trim(self::PUBLIC_KEY) !== '';
     }
 
     /**
@@ -30,11 +41,54 @@ class CoreBB_UpdateSignatureVerifier
      */
     public function verify(string $manifestBody, string $signatureBody = ''): array
     {
-        unset($manifestBody, $signatureBody);
+        if (!$this->isConfigured()) {
+            return [
+                'ok' => false,
+                'status' => 'signature_unconfigured',
+                'message' => 'Manifest signature verification is not configured.',
+            ];
+        }
+
+        $signatureBody = preg_replace('/\s+/', '', $signatureBody) ?? '';
+        if ($signatureBody === '') {
+            return [
+                'ok' => false,
+                'status' => 'signature_missing',
+                'message' => 'Update manifest signature is missing.',
+            ];
+        }
+
+        $signature = base64_decode($signatureBody, true);
+        if (!is_string($signature)) {
+            return [
+                'ok' => false,
+                'status' => 'signature_invalid',
+                'message' => 'Update manifest signature is not valid base64.',
+            ];
+        }
+
+        $publicKey = openssl_pkey_get_public(self::PUBLIC_KEY);
+        if ($publicKey === false) {
+            return [
+                'ok' => false,
+                'status' => 'signature_key_invalid',
+                'message' => 'Update manifest public key is invalid.',
+            ];
+        }
+
+        $result = openssl_verify($manifestBody, $signature, $publicKey, OPENSSL_ALGO_SHA256);
+        if ($result === 1) {
+            return [
+                'ok' => true,
+                'status' => 'verified',
+                'message' => 'Update manifest signature verified.',
+            ];
+        }
+
         return [
-            'ok' => true,
-            'status' => 'unsigned',
-            'message' => 'Manifest signature verification is not configured.',
+            'ok' => false,
+            'status' => 'signature_invalid',
+            'message' => 'Update manifest signature verification failed.',
         ];
     }
 }
@@ -120,6 +174,38 @@ function corebb_update_json_body(string $body): string
     return ltrim($body, "\x00..\x1F");
 }
 
+function corebb_update_cache_bust_url(string $url): string
+{
+    if (str_starts_with($url, 'http://') || str_starts_with($url, 'https://')) {
+        return $url . (str_contains($url, '?') ? '&' : '?') . 'corebb_cache_bust=' . rawurlencode((string)time());
+    }
+    return $url;
+}
+
+function corebb_update_signature_url(string $manifestUrl): string
+{
+    $parts = explode('?', $manifestUrl, 2);
+    return $parts[0] . '.sig' . (isset($parts[1]) ? '?' . $parts[1] : '');
+}
+
+function corebb_update_fetch_url(string $url, string $accept): string|false
+{
+    $context = stream_context_create([
+        'http' => [
+            'method' => 'GET',
+            'timeout' => 8,
+            'ignore_errors' => true,
+            'header' => "Accept: $accept\r\nCache-Control: no-cache\r\nPragma: no-cache\r\n",
+        ],
+        'ssl' => [
+            'verify_peer' => true,
+            'verify_peer_name' => true,
+        ],
+    ]);
+
+    return @file_get_contents(corebb_update_cache_bust_url($url), false, $context);
+}
+
 function corebb_update_version_valid(string $version): bool
 {
     return preg_match('/^\d+(?:\.\d+){1,3}(?:[-+][A-Za-z0-9.]+)?$/', $version) === 1;
@@ -164,25 +250,7 @@ function corebb_update_validate_manifest(string $body): array
  */
 function corebb_update_fetch_manifest(string $url = COREBB_UPDATE_MANIFEST_URL): array
 {
-    $fetchUrl = $url;
-    if (str_starts_with($fetchUrl, 'http://') || str_starts_with($fetchUrl, 'https://')) {
-        $fetchUrl .= (str_contains($fetchUrl, '?') ? '&' : '?') . 'corebb_cache_bust=' . rawurlencode((string)time());
-    }
-
-    $context = stream_context_create([
-        'http' => [
-            'method' => 'GET',
-            'timeout' => 8,
-            'ignore_errors' => true,
-            'header' => "Accept: application/json\r\nCache-Control: no-cache\r\nPragma: no-cache\r\n",
-        ],
-        'ssl' => [
-            'verify_peer' => true,
-            'verify_peer_name' => true,
-        ],
-    ]);
-
-    $body = @file_get_contents($fetchUrl, false, $context);
+    $body = corebb_update_fetch_url($url, 'application/json');
     $now = date('Y-m-d H:i:s');
     corebb_update_set_setting('last_update_check_at', $now);
 
@@ -203,7 +271,15 @@ function corebb_update_fetch_manifest(string $url = COREBB_UPDATE_MANIFEST_URL):
     }
 
     $verifier = new CoreBB_UpdateSignatureVerifier();
-    $signature = $verifier->verify($body);
+    $signatureBody = corebb_update_fetch_url(corebb_update_signature_url($url), 'text/plain');
+    $signature = $verifier->verify($body, is_string($signatureBody) ? $signatureBody : '');
+    if (!$signature['ok']) {
+        corebb_update_set_setting('last_update_check_status', $signature['status']);
+        corebb_update_set_setting('last_update_check_error', $signature['message']);
+        corebb_update_set_setting('update_manifest_signature_status', $signature['status']);
+        return ['ok' => false, 'message' => $signature['message'], 'manifest' => null];
+    }
+
     corebb_update_set_setting('last_update_manifest', $body);
     corebb_update_set_setting('last_successful_update_check_at', $now);
     corebb_update_set_setting('last_update_check_status', $signature['status']);
@@ -212,9 +288,7 @@ function corebb_update_fetch_manifest(string $url = COREBB_UPDATE_MANIFEST_URL):
 
     return [
         'ok' => true,
-        'message' => $signature['status'] === 'verified'
-            ? 'Update manifest fetched and verified.'
-            : 'Update manifest fetched. Signature verification is not configured yet.',
+        'message' => 'Update manifest fetched and verified.',
         'manifest' => $validation['manifest'],
     ];
 }
