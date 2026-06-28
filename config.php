@@ -327,10 +327,9 @@ if (!defined('COREBB_CONFIG_LOADED')) {
 
     $BoardLockdown = $BoardLockdown ?? '0';
     $ShortPHP = $ShortPHP ?? '.php';
-    $corebbDefaultGoogleClientID = '300486906161-3k8fk13srkbecahq1pfck0atr5gv4cct.apps.googleusercontent.com';
     $GoogleClientID = trim((string)($GoogleClientID ?? '')) !== ''
         ? trim((string)$GoogleClientID)
-        : trim((string)(getenv('COREBB_GOOGLE_CLIENT_ID') ?: $corebbDefaultGoogleClientID));
+        : trim((string)(getenv('COREBB_GOOGLE_CLIENT_ID') ?: ''));
 
     // Convenience globals used by newer helper code.
     $GLOBALS['COREBB_DB_HOST'] = $GLOBALS['MySQL_Host'];
