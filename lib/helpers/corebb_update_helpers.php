@@ -211,6 +211,41 @@ function corebb_update_version_valid(string $version): bool
     return preg_match('/^\d+(?:\.\d+){1,3}(?:[-+][A-Za-z0-9.]+)?$/', $version) === 1;
 }
 
+function corebb_update_version_range_matches(string $range, string $version): bool
+{
+    $range = trim($range);
+    if ($range === '') {
+        return false;
+    }
+    foreach (preg_split('/\s+/', $range) ?: [] as $part) {
+        if ($part === '') {
+            continue;
+        }
+        if (preg_match('/^(>=|>|<=|<|=)?(\d+(?:\.\d+){1,3}(?:[-+][A-Za-z0-9.]+)?)$/', $part, $m) !== 1) {
+            return false;
+        }
+        $op = $m[1] !== '' ? $m[1] : '=';
+        if (!version_compare($version, $m[2], $op)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+function corebb_update_version_range_valid(string $range): bool
+{
+    $range = trim($range);
+    if ($range === '') {
+        return false;
+    }
+    foreach (preg_split('/\s+/', $range) ?: [] as $part) {
+        if ($part !== '' && preg_match('/^(>=|>|<=|<|=)?\d+(?:\.\d+){1,3}(?:[-+][A-Za-z0-9.]+)?$/', $part) !== 1) {
+            return false;
+        }
+    }
+    return true;
+}
+
 /**
  * @return array{ok: bool, manifest: array<string, mixed>|null, error: string}
  */
@@ -240,6 +275,24 @@ function corebb_update_validate_manifest(string $body): array
     }
     if (isset($manifest['advisories']) && !is_array($manifest['advisories'])) {
         return ['ok' => false, 'manifest' => null, 'error' => 'Update manifest advisories must be an array.'];
+    }
+    if (isset($manifest['upgrade_path'])) {
+        if (!is_array($manifest['upgrade_path'])) {
+            return ['ok' => false, 'manifest' => null, 'error' => 'Update manifest upgrade_path must be an array.'];
+        }
+        foreach ($manifest['upgrade_path'] as $step) {
+            if (!is_array($step)) {
+                return ['ok' => false, 'manifest' => null, 'error' => 'Update manifest upgrade_path entries must be objects.'];
+            }
+            $from = trim((string)($step['from'] ?? ''));
+            $next = trim((string)($step['next'] ?? ''));
+            if (!corebb_update_version_range_valid($from)) {
+                return ['ok' => false, 'manifest' => null, 'error' => 'Update manifest upgrade_path has an invalid from range.'];
+            }
+            if (!corebb_update_version_valid($next)) {
+                return ['ok' => false, 'manifest' => null, 'error' => 'Update manifest upgrade_path has an invalid next version.'];
+            }
+        }
     }
 
     return ['ok' => true, 'manifest' => $manifest, 'error' => ''];
@@ -344,6 +397,41 @@ function corebb_update_advisory_summary(?array $manifest, string $installedVersi
 
 /**
  * @param array<string, mixed>|null $manifest
+ * @return array{version: string, from: string, found: bool}
+ */
+function corebb_update_recommended_step(?array $manifest, string $installedVersion): array
+{
+    $empty = ['version' => '', 'from' => '', 'found' => false];
+    if (!$manifest) {
+        return $empty;
+    }
+
+    foreach (($manifest['upgrade_path'] ?? []) as $step) {
+        if (!is_array($step)) {
+            continue;
+        }
+        $from = trim((string)($step['from'] ?? ''));
+        $next = trim((string)($step['next'] ?? ''));
+        if ($next === '' || !corebb_update_version_valid($next) || version_compare($installedVersion, $next, '>=')) {
+            continue;
+        }
+        if ($from !== '' && corebb_update_version_range_matches($from, $installedVersion)) {
+            $found = false;
+            foreach (($manifest['releases'] ?? []) as $release) {
+                if (is_array($release) && (string)($release['version'] ?? '') === $next) {
+                    $found = true;
+                    break;
+                }
+            }
+            return ['version' => $next, 'from' => $from, 'found' => $found];
+        }
+    }
+
+    return $empty;
+}
+
+/**
+ * @param array<string, mixed>|null $manifest
  * @return array<string, mixed>
  */
 function corebb_update_status(?array $manifest = null): array
@@ -364,6 +452,7 @@ function corebb_update_status(?array $manifest = null): array
     $minimumSafe = is_array($manifest) ? trim((string)($manifest['minimum_safe_version'] ?? '')) : '';
     $manifestGenerated = is_array($manifest) ? trim((string)($manifest['generated_at'] ?? '')) : '';
     $latest = $latestSecurity !== '' ? $latestSecurity : $latestStable;
+    $recommended = corebb_update_recommended_step($manifest, $installed);
 
     $state = 'unknown';
     $headline = 'Update status has not been checked.';
@@ -402,6 +491,13 @@ function corebb_update_status(?array $manifest = null): array
         $severity = 'success';
     }
 
+    if ($recommended['version'] !== '') {
+        $detail .= ' Recommended next package: CoreBB ' . $recommended['version'] . '.';
+        if (!$recommended['found']) {
+            $detail .= ' That bridge package is not listed in the current manifest.';
+        }
+    }
+
     return [
         'state' => $state,
         'severity' => $severity,
@@ -413,6 +509,8 @@ function corebb_update_status(?array $manifest = null): array
         'latest_stable' => $latestStable,
         'latest_security' => $latestSecurity,
         'minimum_safe_version' => $minimumSafe,
+        'recommended_next_version' => $recommended['version'],
+        'recommended_next_found' => $recommended['found'],
         'manifest_generated_at' => $manifestGenerated,
         'last_checked' => corebb_update_format_date($lastCheck),
         'last_successful_check' => corebb_update_format_date($lastSuccess),
@@ -429,6 +527,8 @@ function corebb_update_status(?array $manifest = null): array
 function corebb_update_release_rows(?array $manifest = null): array
 {
     $manifest = $manifest ?? corebb_update_cached_manifest();
+    $recommended = corebb_update_recommended_step($manifest, corebb_update_installed_version());
+    $recommendedVersion = $recommended['version'];
     $rows = [];
     foreach (($manifest['releases'] ?? []) as $release) {
         if (!is_array($release)) {
@@ -444,6 +544,31 @@ function corebb_update_release_rows(?array $manifest = null): array
         ];
         if (count($rows) >= 5) {
             break;
+        }
+    }
+    if ($recommendedVersion !== '') {
+        $hasRecommended = false;
+        foreach ($rows as $row) {
+            if (($row['version'] ?? '') === $recommendedVersion) {
+                $hasRecommended = true;
+                break;
+            }
+        }
+        if (!$hasRecommended) {
+            foreach (($manifest['releases'] ?? []) as $release) {
+                if (is_array($release) && (string)($release['version'] ?? '') === $recommendedVersion) {
+                    $rows[] = [
+                        'version' => (string)($release['version'] ?? ''),
+                        'type' => (string)($release['type'] ?? ''),
+                        'date' => (string)($release['date'] ?? ''),
+                        'download_url' => (string)($release['download_url'] ?? ''),
+                        'changelog_url' => (string)($release['changelog_url'] ?? ''),
+                        'sha256' => (string)($release['sha256'] ?? ''),
+                        'recommended' => '1',
+                    ];
+                    break;
+                }
+            }
         }
     }
     return $rows;

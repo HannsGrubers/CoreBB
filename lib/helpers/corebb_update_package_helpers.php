@@ -233,15 +233,7 @@ function corebb_update_read_package_json(string $root): array
 
 function corebb_update_validate_version_range(string $range, string $version): bool
 {
-    $range = trim($range);
-    if ($range === '') {
-        return true;
-    }
-    if (preg_match('/^(>=|>|<=|<|=)?\s*(\d+(?:\.\d+){1,3}(?:[-+][A-Za-z0-9.]+)?)$/', $range, $m) !== 1) {
-        return false;
-    }
-    $op = $m[1] !== '' ? $m[1] : '=';
-    return version_compare($version, $m[2], $op);
+    return trim($range) === '' || corebb_update_version_range_matches($range, $version);
 }
 
 /**

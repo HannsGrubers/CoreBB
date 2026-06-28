@@ -108,6 +108,9 @@
                 <tr><th>Latest Stable</th><td>{{ status.latest_stable|default('Unknown') ?: 'Unknown' }}</td></tr>
                 <tr><th>Latest Security</th><td>{{ status.latest_security|default('Unknown') ?: 'Unknown' }}</td></tr>
                 <tr><th>Minimum Safe</th><td>{{ status.minimum_safe_version|default('Unknown') ?: 'Unknown' }}</td></tr>
+                {% if status.recommended_next_version|default('') != '' %}
+                    <tr><th>Recommended Next</th><td>CoreBB {{ status.recommended_next_version }}{% if not status.recommended_next_found|default(false) %} (not listed in manifest){% endif %}</td></tr>
+                {% endif %}
                 {% if status.manifest_generated_at|default('') != '' %}
                     <tr><th>Manifest Generated</th><td>{{ status.manifest_generated_at }}</td></tr>
                 {% endif %}
@@ -272,7 +275,7 @@
                 <tbody>
                     {% for release in releases %}
                         <tr>
-                            <td>{{ release.version }}</td>
+                            <td>{{ release.version }}{% if release.recommended|default('') == '1' %} <span class="corebb-admin-modern-help">recommended next</span>{% endif %}</td>
                             <td>{{ release.type }}</td>
                             <td>{{ release.date }}</td>
                             <td>
