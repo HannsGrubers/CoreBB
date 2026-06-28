@@ -19,6 +19,9 @@ RewriteRule \.twig$ - [R=404,L,NC]
 RewriteCond %{THE_REQUEST} \s/+controllers(?:/|\?|\s) [NC]
 RewriteRule ^controllers(?:/|$) - [R=404,L]
 
+# Library and core files are server-side PHP source, not public endpoints.
+RewriteRule ^(?:lib|core)(?:/|$) - [R=404,L]
+
 # Error helper route from the old app. In .htaccess context the match does not
 # start with a leading slash.
 RewriteRule ^err/([^/]+)/([^/]+)/?$ controllers/support.php?action=error&$1=$2 [L,QSA]

@@ -19,14 +19,14 @@
 require_once dirname(__DIR__, 2) . '/lib/api/bootstrap.php';
 require_once dirname(__DIR__, 2) . '/lib/api/auth.php';
 require_once dirname(__DIR__, 2) . '/lib/api/serializers.php';
-require_once dirname(__DIR__, 2) . '/lib/auth_view_model.php';
-require_once dirname(__DIR__, 2) . '/lib/index_view_model.php';
-require_once dirname(__DIR__, 2) . '/lib/board_view_model.php';
-require_once dirname(__DIR__, 2) . '/lib/thread_view_model.php';
-require_once dirname(__DIR__, 2) . '/lib/profile_view_model.php';
-require_once dirname(__DIR__, 2) . '/lib/post_view_model.php';
-require_once dirname(__DIR__, 2) . '/lib/pm_view_model.php';
-require_once dirname(__DIR__, 2) . '/lib/moderation_helpers.php';
+require_once dirname(__DIR__, 2) . '/lib/models/auth_view_model.php';
+require_once dirname(__DIR__, 2) . '/lib/models/index_view_model.php';
+require_once dirname(__DIR__, 2) . '/lib/models/board_view_model.php';
+require_once dirname(__DIR__, 2) . '/lib/models/thread_view_model.php';
+require_once dirname(__DIR__, 2) . '/lib/models/profile_view_model.php';
+require_once dirname(__DIR__, 2) . '/lib/models/post_view_model.php';
+require_once dirname(__DIR__, 2) . '/lib/models/pm_view_model.php';
+require_once dirname(__DIR__, 2) . '/lib/helpers/moderation_helpers.php';
 
 $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
 if ($method === 'OPTIONS') {

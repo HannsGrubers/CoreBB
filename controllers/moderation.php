@@ -8,10 +8,10 @@
 
 $root = dirname(__DIR__);
 
-require_once $root . '/lib/bootstrap.php';
-require_once $root . '/lib/view.php';
-require_once $root . '/lib/layout_view_model.php';
-require_once $root . '/lib/moderator_view_model.php';
+require_once $root . '/lib/helpers/bootstrap.php';
+require_once $root . '/lib/helpers/view.php';
+require_once $root . '/lib/models/layout_view_model.php';
+require_once $root . '/lib/models/moderator_view_model.php';
 
 corebb_mod_ensure_schema();
 

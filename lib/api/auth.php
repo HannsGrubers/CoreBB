@@ -16,7 +16,7 @@
  |  auth.php  - JSON API authentication helpers.         |
  +-------------------------------------------------------+*/
 
-require_once dirname(__DIR__) . '/email_verification_helpers.php';
+require_once dirname(__DIR__) . '/helpers/email_verification_helpers.php';
 
 /**
  * Normalize an API login expiry duration.

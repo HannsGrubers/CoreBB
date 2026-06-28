@@ -18,9 +18,9 @@
 
 define('IN_ADMIN', true);
 
-require_once __DIR__ . '/lib/bootstrap.php';
-include_once 'lib/view.php';
-include_once 'lib/admin_routes.php';
+require_once __DIR__ . '/lib/helpers/bootstrap.php';
+include_once 'lib/helpers/view.php';
+include_once 'lib/helpers/admin_routes.php';
 
 $requestedAct = (string)($_GET['act'] ?? '');
 $route = corebb_admin_resolve_route($requestedAct);

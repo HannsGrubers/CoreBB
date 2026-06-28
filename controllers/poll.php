@@ -8,9 +8,9 @@
 
 $root = dirname(__DIR__);
 
-require_once $root . '/lib/bootstrap.php';
-require_once $root . '/lib/poll_helpers.php';
-require_once $root . '/lib/private_board_helpers.php';
+require_once $root . '/lib/helpers/bootstrap.php';
+require_once $root . '/lib/helpers/poll_helpers.php';
+require_once $root . '/lib/helpers/private_board_helpers.php';
 
 /**
  * Usage: Redirect back to the topic poll with a compact poll status code.

@@ -9,8 +9,8 @@
 
 $root = dirname(__DIR__);
 
-require_once $root . '/lib/install_helpers.php';
-require_once $root . '/lib/view.php';
+require_once $root . '/lib/helpers/install_helpers.php';
+require_once $root . '/lib/helpers/view.php';
 
 $model = corebb_install_model($_POST, $_SERVER);
 

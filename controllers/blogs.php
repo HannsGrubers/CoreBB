@@ -8,10 +8,10 @@
 
 $root = dirname(__DIR__);
 
-require_once $root . '/lib/bootstrap.php';
-require_once $root . '/lib/view.php';
-require_once $root . '/lib/layout_view_model.php';
-require_once $root . '/lib/blog_view_model.php';
+require_once $root . '/lib/helpers/bootstrap.php';
+require_once $root . '/lib/helpers/view.php';
+require_once $root . '/lib/models/layout_view_model.php';
+require_once $root . '/lib/models/blog_view_model.php';
 
 /**
  * Usage: Send blog routes to their next public page after a read or write action.

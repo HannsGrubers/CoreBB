@@ -13,7 +13,7 @@ if (!in_array($action, $allowedActions, true)) {
     $action = 'board';
 }
 
-require_once $root . '/lib/bootstrap.php';
+require_once $root . '/lib/helpers/bootstrap.php';
 
 /**
  * Usage: Redirect the favorite-board action back to the forum index with a status message.
@@ -31,10 +31,10 @@ function corebb_forum_favorite_redirect(string $message): void
 
 switch ($action) {
     case 'thread':
-        require_once $root . '/lib/view.php';
-        require_once $root . '/lib/layout_view_model.php';
-        require_once $root . '/lib/thread_view_model.php';
-        require_once $root . '/lib/mobile_helpers.php';
+        require_once $root . '/lib/helpers/view.php';
+        require_once $root . '/lib/models/layout_view_model.php';
+        require_once $root . '/lib/models/thread_view_model.php';
+        require_once $root . '/lib/helpers/mobile_helpers.php';
 
         $topicId = (int)($_GET['id'] ?? 0);
         $page = max(1, (int)($_GET['p'] ?? ($_GET['page'] ?? 1)));
@@ -46,7 +46,7 @@ switch ($action) {
         break;
 
     case 'favorite':
-        require_once $root . '/lib/private_board_helpers.php';
+        require_once $root . '/lib/helpers/private_board_helpers.php';
 
         if (!corebb_load_logged_in_user()) {
             corebb_forum_favorite_redirect('Please log in.');
@@ -85,12 +85,12 @@ switch ($action) {
 
     case 'board':
     default:
-        require_once $root . '/lib/view.php';
-        require_once $root . '/lib/layout_view_model.php';
-        require_once $root . '/lib/board_view_model.php';
-        require_once $root . '/lib/performance_helpers.php';
-        require_once $root . '/lib/moderation_helpers.php';
-        require_once $root . '/lib/mobile_helpers.php';
+        require_once $root . '/lib/helpers/view.php';
+        require_once $root . '/lib/models/layout_view_model.php';
+        require_once $root . '/lib/models/board_view_model.php';
+        require_once $root . '/lib/helpers/performance_helpers.php';
+        require_once $root . '/lib/helpers/moderation_helpers.php';
+        require_once $root . '/lib/helpers/mobile_helpers.php';
 
         corebb_mod_ensure_schema();
 

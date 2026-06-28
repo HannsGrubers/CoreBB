@@ -20,7 +20,7 @@ if (!defined('IN_BOARDS')) {
     define('IN_BOARDS', true);
 }
 require_once(__DIR__ . '/config.php');
-require_once(__DIR__ . '/lib/db.php');
+require_once(__DIR__ . '/lib/helpers/db.php');
 
 $link = db_connect($MySQL_Host, $MySQL_User, $MySQL_Pass, $MySQL_Database);
 if (!$link) {

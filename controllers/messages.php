@@ -8,13 +8,13 @@
 
 $root = dirname(__DIR__);
 
-require_once $root . '/lib/bootstrap.php';
-include_once $root . '/lib/pm_helpers.php';
-include_once $root . '/lib/pm_view_model.php';
-include_once $root . '/lib/pm_send_view_model.php';
-include_once $root . '/lib/view.php';
-require_once $root . '/lib/layout_view_model.php';
-include_once $root . '/lib/mobile_helpers.php';
+require_once $root . '/lib/helpers/bootstrap.php';
+include_once $root . '/lib/helpers/pm_helpers.php';
+include_once $root . '/lib/models/pm_view_model.php';
+include_once $root . '/lib/models/pm_send_view_model.php';
+include_once $root . '/lib/helpers/view.php';
+require_once $root . '/lib/models/layout_view_model.php';
+include_once $root . '/lib/helpers/mobile_helpers.php';
 
 /**
  * Usage: Redirect a private-message action to its next public URL.

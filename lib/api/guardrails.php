@@ -16,8 +16,8 @@
  |  guardrails.php  - JSON API limits and boundaries.    |
  +-------------------------------------------------------+*/
 
-require_once dirname(__DIR__) . '/rate_limit_helpers.php';
-require_once dirname(__DIR__) . '/corebb_url_helpers.php';
+require_once dirname(__DIR__) . '/helpers/rate_limit_helpers.php';
+require_once dirname(__DIR__) . '/helpers/corebb_url_helpers.php';
 
 const COREBB_API_GUEST_PAGE_MAX = 100;
 const COREBB_API_AUTH_PAGE_MAX = 500;

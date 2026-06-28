@@ -16,10 +16,10 @@
  |  serializers.php  - JSON API model serializers.       |
  +-------------------------------------------------------+*/
 
-require_once dirname(__DIR__) . '/user_display_helpers.php';
-require_once dirname(__DIR__) . '/content_format_helpers.php';
-require_once dirname(__DIR__) . '/corebb_route_helpers.php';
-require_once dirname(__DIR__) . '/corebb_url_helpers.php';
+require_once dirname(__DIR__) . '/helpers/user_display_helpers.php';
+require_once dirname(__DIR__) . '/helpers/content_format_helpers.php';
+require_once dirname(__DIR__) . '/helpers/corebb_route_helpers.php';
+require_once dirname(__DIR__) . '/helpers/corebb_url_helpers.php';
 
 /**
  * Convert formatted content into compact plain text.

@@ -12,7 +12,7 @@ release documentation into a shippable source tree.
 
 ### Added
 
-- Added the fresh-install web installer with bundled `lib/install_schema.sql`, first-admin creation, default forum seeding, and starter setup notes.
+- Added the fresh-install web installer with bundled `lib/helpers/install_schema.sql`, first-admin creation, default forum seeding, and starter setup notes.
 - Added a public README, release-oriented `.gitignore`, and Git attributes for the clean source repository.
 - Added GNU GPL version 2 only project licensing to prevent closed-source redistribution of CoreBB derivatives.
 - Added documented developer guidance for installation, data flow, API contracts, content formatting boundaries, schema deployment, and open-source readability.

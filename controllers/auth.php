@@ -9,9 +9,9 @@
 
 $root = dirname(__DIR__);
 
-require_once $root . '/lib/bootstrap.php';
-require_once $root . '/lib/auth_flow_helpers.php';
-require_once $root . '/lib/google_auth_helpers.php';
+require_once $root . '/lib/helpers/bootstrap.php';
+require_once $root . '/lib/helpers/auth_flow_helpers.php';
+require_once $root . '/lib/helpers/google_auth_helpers.php';
 
 $action = strtolower(trim((string)($_GET['action'] ?? 'login')));
 $allowedActions = ['login', 'login_submit', 'logout', 'register', 'recover', 'reset', 'verify', 'resend', 'google', 'google_complete'];
@@ -37,10 +37,10 @@ if ($action === 'google') {
     corebb_auth_redirect(corebb_google_handle_callback($_POST));
 }
 
-require_once $root . '/lib/view.php';
-require_once $root . '/lib/layout_view_model.php';
-require_once $root . '/lib/auth_view_model.php';
-require_once $root . '/lib/mobile_helpers.php';
+require_once $root . '/lib/helpers/view.php';
+require_once $root . '/lib/models/layout_view_model.php';
+require_once $root . '/lib/models/auth_view_model.php';
+require_once $root . '/lib/helpers/mobile_helpers.php';
 
 switch ($action) {
     case 'register':

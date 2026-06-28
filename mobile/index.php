@@ -20,7 +20,7 @@ if (!defined('IN_BOARDS')) {
     define('IN_BOARDS', true);
 }
 require_once dirname(__DIR__) . '/config.php';
-require_once dirname(__DIR__) . '/lib/corebb_url_helpers.php';
+require_once dirname(__DIR__) . '/lib/helpers/corebb_url_helpers.php';
 
 $screen = preg_replace('/[^a-z0-9_-]/i', '', (string)($_GET['screen'] ?? 'index')) ?: 'index';
 $defaultReturnUrl = corebb_public_base_path();

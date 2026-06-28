@@ -15,11 +15,11 @@
  +-------------------------------------------------------+
  |  index.php  - Template backed index initializer.      |
  +-------------------------------------------------------+*/
-require_once __DIR__ . '/lib/bootstrap.php';
-require_once('lib/view.php');
-require_once('lib/layout_view_model.php');
-require_once('lib/index_view_model.php');
-require_once('lib/mobile_helpers.php');
+require_once __DIR__ . '/lib/helpers/bootstrap.php';
+require_once('lib/helpers/view.php');
+require_once('lib/models/layout_view_model.php');
+require_once('lib/models/index_view_model.php');
+require_once('lib/helpers/mobile_helpers.php');
 
 corebb_mobile_redirect('index');
 

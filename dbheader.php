@@ -44,7 +44,7 @@ if ( !defined('IN_BOARDS') )
 
 /* INCLUDE THE CONFIGURATION FILE */
 include_once __DIR__ . '/config.php';
-require_once(__DIR__ . '/lib/db.php');
+require_once(__DIR__ . '/lib/helpers/db.php');
 
 /* BOARD IS SET TO LOCK DOWN MODE */
 if($BoardLockdown != 0){

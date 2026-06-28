@@ -8,14 +8,14 @@
 
 $root = dirname(__DIR__);
 
-require_once $root . '/lib/bootstrap.php';
-require_once $root . '/lib/view.php';
-require_once $root . '/lib/layout_view_model.php';
-require_once $root . '/lib/usercp_view_model.php';
-require_once $root . '/lib/usercp_settings_view_model.php';
-require_once $root . '/lib/avatar_view_model.php';
-require_once $root . '/lib/user_appearance_view_model.php';
-require_once $root . '/lib/notifications_view_model.php';
+require_once $root . '/lib/helpers/bootstrap.php';
+require_once $root . '/lib/helpers/view.php';
+require_once $root . '/lib/models/layout_view_model.php';
+require_once $root . '/lib/models/usercp_view_model.php';
+require_once $root . '/lib/models/usercp_settings_view_model.php';
+require_once $root . '/lib/models/avatar_view_model.php';
+require_once $root . '/lib/models/user_appearance_view_model.php';
+require_once $root . '/lib/models/notifications_view_model.php';
 
 /**
  * Usage: Redirect a User CP action to its next public URL.

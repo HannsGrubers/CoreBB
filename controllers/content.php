@@ -39,14 +39,14 @@ Post ID<br>
     exit;
 }
 
-require_once $root . '/lib/bootstrap.php';
-require_once $root . '/lib/view.php';
-require_once $root . '/lib/layout_view_model.php';
+require_once $root . '/lib/helpers/bootstrap.php';
+require_once $root . '/lib/helpers/view.php';
+require_once $root . '/lib/models/layout_view_model.php';
 
 switch ($action) {
     case 'profile':
-        require_once $root . '/lib/profile_view_model.php';
-        require_once $root . '/lib/mobile_helpers.php';
+        require_once $root . '/lib/models/profile_view_model.php';
+        require_once $root . '/lib/helpers/mobile_helpers.php';
 
         $userId = (int)($_GET['id'] ?? 0);
         corebb_mobile_redirect('profile', ['id' => $userId]);
@@ -57,7 +57,7 @@ switch ($action) {
         break;
 
     case 'profile_content':
-        require_once $root . '/lib/profile_content_view_model.php';
+        require_once $root . '/lib/models/profile_content_view_model.php';
 
         $userId = (int)($_GET['id'] ?? 0);
         $type = (string)($_GET['type'] ?? 'topics');
@@ -70,7 +70,7 @@ switch ($action) {
 
     case 'search':
     default:
-        require_once $root . '/lib/search_view_model.php';
+        require_once $root . '/lib/models/search_view_model.php';
 
         $GLOBALS['corebb_layout_script'] = 'content:search';
         $model = corebb_search_model($_GET);
