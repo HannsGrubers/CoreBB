@@ -22,6 +22,7 @@ require_once __DIR__ . '/../helpers/poll_helpers.php';
 require_once __DIR__ . '/../helpers/pagination_helpers.php';
 require_once __DIR__ . '/../helpers/moderation_helpers.php';
 require_once __DIR__ . '/../helpers/private_board_helpers.php';
+require_once __DIR__ . '/../helpers/forum_statistics_helpers.php';
 
 /**
  * Usage: Build board-scoped admin moderation links for moderators.
@@ -77,6 +78,7 @@ function corebb_board_fetch_model(int $boardId, int $page): array
             'message' => 'Board does not exist.',
         ];
     }
+    corebb_forum_stats_record_event($boardId, 'board_visit');
 
     $archiveReadOnly = !corebb_secure_archive_user_can_write_board_row($board, (int)($userlogindata_a['accesslevel'] ?? 0));
 
@@ -99,8 +101,13 @@ function corebb_board_fetch_model(int $boardId, int $page): array
         $QueryCount++;
     }
 
-    $rawTopics = [];
-    $topicSql = "SELECT t.* FROM topics t WHERE t.boardid = ? AND t.is_deleted = 0 AND EXISTS (SELECT 1 FROM posts p WHERE p.threadid = t.id AND p.is_deleted = 0 LIMIT 1) ORDER BY t.sticky DESC, t.lastpost DESC LIMIT " . (int)$offset . ', ' . (int)$perPage;
+    // Legacy lastpost strings may omit the leading zero on a month or day.
+    $activityDate = corebb_perf_sql_date_expr('t.lastpost');
+    $topicSql = "SELECT t.* FROM topics t
+        WHERE t.boardid = ? AND t.is_deleted = 0
+          AND EXISTS (SELECT 1 FROM posts p WHERE p.threadid = t.id AND p.is_deleted = 0)
+        ORDER BY t.sticky DESC, {$activityDate} DESC, t.id DESC
+        LIMIT " . (int)$offset . ', ' . (int)$perPage;
     $rawTopics = db_all($topicSql, [$boardId]);
     $QueryCount++;
 

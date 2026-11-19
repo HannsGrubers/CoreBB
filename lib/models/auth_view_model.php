@@ -21,6 +21,7 @@ require_once __DIR__ . '/../helpers/view.php';
 require_once __DIR__ . '/../helpers/email_verification_helpers.php';
 require_once __DIR__ . '/../helpers/password_recovery_helpers.php';
 require_once __DIR__ . '/../helpers/tos_helpers.php';
+require_once __DIR__ . '/../helpers/rate_limit_helpers.php';
 
 /**
  * Usage: Build the login-page state from the optional message query string.
@@ -211,14 +212,49 @@ function corebb_registration_tos_model(): array
 }
 
 /**
+ * Usage: Record a handled signup POST for incident review. Store UTC and the created user ID only alongside route and outcome.
+ * Referenced by: corebb_registration_model().
+ */
+function corebb_registration_record_event(string $route, string $outcome, ?int $userId): void
+{
+    $insert = 'INSERT INTO corebb_registration_events (occurred_at, route, outcome, user_id) VALUES (UTC_TIMESTAMP(), ?, ?, ?)';
+    $params = [$route, $outcome, $userId];
+    if (db_run($insert, $params)) {
+        return;
+    }
+
+    // Older installations acquire the table on their first signup after this update.
+    if (str_contains(db_error(), '42S02')) {
+        $schema = <<<'SQL'
+CREATE TABLE IF NOT EXISTS `corebb_registration_events` (
+  `id` bigint unsigned NOT NULL AUTO_INCREMENT,
+  `occurred_at` datetime NOT NULL,
+  `route` varchar(12) NOT NULL,
+  `outcome` varchar(32) NOT NULL,
+  `user_id` int unsigned DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_registration_time` (`occurred_at`),
+  KEY `idx_registration_user` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+SQL;
+        if (db_run($schema) && db_run($insert, $params)) {
+            return;
+        }
+    }
+
+    error_log(sprintf('CoreBB signup audit unavailable: utc=%s route=%s outcome=%s user_id=%s', gmdate('c'), $route, $outcome, $userId ?? '-'));
+}
+
+/**
  * Usage: Validate a registration attempt and return all template-facing state.
  * Referenced by: controllers/auth.php action=register and api/v1/index.php.
  *
  * @param array<string, mixed> $post Submitted registration fields.
  * @param string $method HTTP request method used for the current request.
- * @return array<string, mixed> Errors, success state, preserved form fields, and TOS data.
+ * @param string $route Server-selected browser or API entry point.
+ * @return array<string, mixed> Form state and the registration rate decision for this request.
  */
-function corebb_registration_model(array $post = [], string $method = 'GET'): array
+function corebb_registration_model(array $post = [], string $method = 'GET', string $route = 'browser'): array
 {
     $errors = [];
     $success = false;
@@ -228,7 +264,13 @@ function corebb_registration_model(array $post = [], string $method = 'GET'): ar
         'email' => '',
     ];
 
-    if (strtoupper($method) === 'POST') {
+    $rate = strtoupper($method) === 'POST' ? corebb_rate_limit_registration_attempt() : null;
+    $userId = null;
+    $outcome = 'rejected';
+    if ($rate !== null && empty($rate['allowed'])) {
+        $errors[] = corebb_rate_limit_message($rate, 'registration attempts');
+        $outcome = 'rate_limited';
+    } elseif ($rate !== null) {
         $old['username'] = trim((string)($post['username'] ?? ''));
         $old['email'] = trim((string)($post['email'] ?? ''));
         $pass1 = (string)($post['pass1'] ?? '');
@@ -265,10 +307,12 @@ function corebb_registration_model(array $post = [], string $method = 'GET'): ar
         if (!$errors) {
             $create = corebb_create_user($old['username'], $old['email'], $pass1);
             if ($create['ok']) {
-                $userid = (int)$create['id'];
-                $mailResult = corebb_email_verification_send($userid, $old['username'], $old['email']);
+                $userId = (int)$create['id'];
+                $mailResult = corebb_email_verification_send($userId, $old['username'], $old['email']);
                 $success = true;
+                $outcome = 'created';
                 if (empty($mailResult['sent'])) {
+                    $outcome = 'created_mail_failed';
                     $mailWarning = 'Account created, but the verification email could not be sent: ' . (string)($mailResult['error'] ?? 'unknown mail error');
                 }
                 $old = ['username' => '', 'email' => ''];
@@ -278,9 +322,14 @@ function corebb_registration_model(array $post = [], string $method = 'GET'): ar
         }
     }
 
+    if ($rate !== null) {
+        corebb_registration_record_event($route, $outcome, $userId);
+    }
+
     return [
         'errors' => $errors,
         'success' => $success,
+        'rate' => $rate,
         'mailWarning' => $mailWarning,
         'old' => $old,
         'tos' => corebb_registration_tos_model(),

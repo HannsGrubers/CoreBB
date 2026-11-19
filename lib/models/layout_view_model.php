@@ -21,6 +21,7 @@ require_once __DIR__ . '/../helpers/performance_helpers.php';
 require_once __DIR__ . '/../helpers/private_board_helpers.php';
 require_once __DIR__ . '/../helpers/public_style_helpers.php';
 require_once __DIR__ . '/../helpers/google_auth_helpers.php';
+require_once __DIR__ . '/../helpers/oauth_provider_helpers.php';
 require_once __DIR__ . '/../helpers/corebb_browser_helpers.php';
 
 /**
@@ -252,6 +253,7 @@ function corebb_layout_breadcrumbs(array $vars, string $boardName): array
         'auth:verify' => 'Email Verification',
         'auth:register' => 'Member Registration',
         'auth:google_complete' => 'Complete Google Sign-In',
+        'auth:oauth_complete' => 'Complete External Sign-In',
         'content:search' => 'Search',
         'content:profile_content' => trim((string)($model['username_plain'] ?? 'User')) . "'s " . ((string)($model['type'] ?? 'topics') === 'posts' ? 'posts' : 'topics'),
         'moderation:main' => 'Moderation',
@@ -472,6 +474,7 @@ function corebb_public_layout_model(array $vars = [], array $context = []): arra
             'mobile_fallback' => corebb_layout_mobile_fallback_payload(),
             'mobile_url' => corebb_public_join_base_path('/mobile/'),
             'body_class' => 'wb-vn-eol' . $modernBodyClass,
+            'theme_mode_fixed' => $activeStyle === 'style_emberline.css',
             'staging' => defined('COREBB_ENV') && (string)COREBB_ENV === 'staging',
         ],
         'chrome' => [
@@ -493,11 +496,8 @@ function corebb_public_layout_model(array $vars = [], array $context = []): arra
         ],
         'viewer' => $viewer,
         'auth' => [
-            'google' => [
-                'enabled' => corebb_google_enabled(),
-                'client_id' => corebb_google_client_id(),
-                'login_url' => corebb_google_login_url(),
-            ],
+            'google' => corebb_google_button_model(),
+            'oauth_providers' => corebb_oauth_button_model(),
         ],
         'menu' => [
             'pm_unread' => $pmUnread,

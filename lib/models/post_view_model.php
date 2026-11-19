@@ -26,6 +26,7 @@ require_once __DIR__ . '/../helpers/private_board_helpers.php';
 require_once __DIR__ . '/../helpers/notification_helpers.php';
 require_once __DIR__ . '/../helpers/pagination_helpers.php';
 require_once __DIR__ . '/../helpers/post_image_upload_helpers.php';
+require_once __DIR__ . '/../helpers/forum_statistics_helpers.php';
 
 /**
  * Usage: Thin wrapper around db_one() for post-flow reads.
@@ -497,6 +498,11 @@ function corebb_post_process_reply(array $post, array $user): array
         corebb_post_cleanup_uploaded_image($uploadedImagePath);
         return corebb_post_result_model('error', 'Error finalizing reply: ' . db_error());
     }
+    corebb_forum_stats_record_event($boardId, 'reply_created', [
+        'topicid' => $topicId,
+        'postid' => (int)$newPostId,
+        'userid' => $userId,
+    ]);
 
     $board = corebb_post_fetch_board($boardId) ?: [];
     $boardName = (string)($board['name'] ?? 'the board');
@@ -619,6 +625,11 @@ function corebb_post_process_new_topic(array $post, array $user): array
         corebb_post_cleanup_uploaded_image($uploadedImagePath);
         return corebb_post_result_model('error', 'Error finalizing topic: ' . db_error());
     }
+    corebb_forum_stats_record_event($boardId, 'topic_created', [
+        'topicid' => (int)$topicId,
+        'postid' => (int)$firstPostId,
+        'userid' => $userId,
+    ]);
 
     $board = corebb_post_fetch_board($boardId) ?: [];
     $boardName = (string)($board['name'] ?? 'the board');
@@ -830,7 +841,7 @@ function corebb_post_new_form_model(int $boardId, array $user, bool $pollMode = 
         'subject' => '',
         'body' => $cookieBody,
         'showSticky' => ((int)($user['accesslevel'] ?? 0) >= 4),
-        'showPollControls' => $pollMode,
+        'showPollControls' => true,
         'pollChecked' => $pollMode,
         'pollQuestion' => '',
         'pollOptions' => array_fill(0, 10, ''),

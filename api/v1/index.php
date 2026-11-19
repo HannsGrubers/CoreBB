@@ -76,14 +76,6 @@ if ($resource === 'auth') {
     corebb_api_require_csrf($data);
 
     if ($action === 'register') {
-        $rate = corebb_rate_limit_registration_attempt();
-        corebb_api_rate_limit_headers($rate);
-        if (empty($rate['allowed'])) {
-            corebb_api_error('registration_rate_limited', corebb_rate_limit_message($rate, 'registration attempts'), 429, [
-                'retryAfter' => (int)($rate['retry_after'] ?? 60),
-            ]);
-        }
-
         $model = corebb_registration_model([
             'username' => (string)($data['username'] ?? ''),
             'email' => (string)($data['email'] ?? ''),
@@ -92,7 +84,15 @@ if ($resource === 'auth') {
             'agree_tos' => !empty($data['agreeTos']) || !empty($data['agree_tos']) ? '1' : '',
             'confirm_age_13' => !empty($data['confirmAge13']) || !empty($data['confirm_age_13']) ? '1' : '',
             'website' => (string)($data['website'] ?? ''),
-        ], 'POST');
+        ], 'POST', 'api');
+        $rate = $model['rate'];
+        corebb_api_rate_limit_headers($rate);
+        if (empty($rate['allowed'])) {
+            corebb_api_error('registration_rate_limited', corebb_rate_limit_message($rate, 'registration attempts'), 429, [
+                'retryAfter' => (int)($rate['retry_after'] ?? 60),
+            ]);
+        }
+
         $payload = corebb_api_registration_result($model) + ['limits' => corebb_api_boundary()];
         if (empty($model['success'])) {
             corebb_api_error('registration_failed', 'Registration could not be completed.', 400, $payload);

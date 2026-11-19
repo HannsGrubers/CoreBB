@@ -1,0 +1,16 @@
+{% if providers|default([]) is not empty %}
+    <div class="corebb-oauth-providers">
+        {% for provider in providers %}
+            <a class="corebb-oauth-provider-button corebb-oauth-provider-button--{{ provider.key }}" href="{{ provider.start_url }}">
+                <span class="corebb-oauth-provider-mark" aria-hidden="true">
+                    {% if provider.icon_path|default('') %}
+                        <img src="{{ asset(provider.icon_path) }}" alt="">
+                    {% else %}
+                        {{ provider.label|slice(0, 1) }}
+                    {% endif %}
+                </span>
+                <span>Continue with {{ provider.label }}</span>
+            </a>
+        {% endfor %}
+    </div>
+{% endif %}

@@ -14,6 +14,7 @@
             </div>
         </div>
         <div class="corebb-board-manager-toolbar-actions">
+            <a class="corebb-board-toolbar-link" href="/admin/?act=forum_statistics">Forum Statistics</a>
             <a class="corebb-board-toolbar-link" href="/admin/?act=add_category">Add Category</a>
             <a class="corebb-board-toolbar-link" href="/admin/">Admin Home</a>
         </div>
@@ -155,6 +156,7 @@
                             </td>
                             <td class="corebb-board-actions-cell">
                                 <div class="corebb-board-actions">
+                                    <a class="corebb-board-action-link" href="/admin/?act=forum_statistics&amp;boardid={{ boardId }}">Stats</a>
                                     <a class="corebb-board-action-link" href="/admin/?act=modifyboard&amp;id={{ boardId }}&amp;method=edit">Edit Details</a>
                                     {% if board.can_manage_access|default(false) %}
                                         <a class="corebb-board-action-link" href="/admin/?act=modifyboard&amp;id={{ boardId }}&amp;method=access">Access</a>

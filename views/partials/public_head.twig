@@ -3,7 +3,8 @@
 <script>
 (function(){
     try {
-        if (window.localStorage && localStorage.getItem('corebbThemeMode') === 'dark') {
+        var fixedTheme = {{ layout.head.theme_mode_fixed|default(false)|json_encode|raw }};
+        if (!fixedTheme && window.localStorage && localStorage.getItem('corebbThemeMode') === 'dark') {
             document.documentElement.className = document.documentElement.className
                 ? document.documentElement.className + ' corebb-dark-mode'
                 : 'corebb-dark-mode';
@@ -52,12 +53,12 @@
     } catch (e) {}
 }());
 </script>
-{% if layout.auth.google.enabled|default(false) %}
-<script src="https://accounts.google.com/gsi/client" async defer></script>
-{% endif %}
 {% for stylesheet in layout.head.stylesheets|default([]) %}
 <link rel="stylesheet" href="{{ stylesheet }}" media="screen">
 {% endfor %}
+{% if layout.auth.google.enabled|default(false) %}
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+{% endif %}
 {% for script in layout.head.scripts|default([]) %}
     {% if 'prism-corebb' in script %}
         <script data-manual src="{{ script }}"></script>

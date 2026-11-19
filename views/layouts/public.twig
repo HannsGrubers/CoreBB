@@ -3,7 +3,7 @@
 <head>
     {% include 'partials/public_head.twig' with {layout: layout} only %}
 </head>
-<body class="{{ layout.head.body_class|default('wb-vn-eol') }}">
+<body class="{{ layout.head.body_class|default('wb-vn-eol') }}"{% if layout.head.theme_mode_fixed|default(false) %} data-corebb-theme-fixed="true"{% endif %}>
 {% if layout.head.staging|default(false) %}
     <div class="wb-stage-banner">COREBB STAGING SITE &mdash; NOT LIVE</div>
 {% endif %}

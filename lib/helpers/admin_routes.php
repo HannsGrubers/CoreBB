@@ -63,6 +63,7 @@ function corebb_admin_route_require_model(string $act): void
         'assign_title' => 'admin_assign_title_view_model.php',
         'edit_profile' => 'admin_edit_profile_view_model.php',
         'user_appearance' => 'user_appearance_view_model.php',
+        'forum_statistics' => 'admin_forum_statistics_view_model.php',
         'manageboards' => 'admin_boards_view_model.php',
         'movebrd' => 'admin_boards_view_model.php',
         'movecat' => 'admin_boards_view_model.php',
@@ -274,6 +275,11 @@ function corebb_admin_route_definitions(): array
             'label' => 'User Appearance',
             'view' => 'pages/admin_user_appearance.twig',
             'handler' => static fn(array $viewer): array => corebb_admin_user_appearance_model($viewer, $_GET, $_POST),
+        ],
+        'forum_statistics' => [
+            'label' => 'Forum Statistics',
+            'view' => 'pages/admin_forum_statistics.twig',
+            'handler' => static fn(array $viewer): array => corebb_admin_forum_statistics_model($viewer, $_GET),
         ],
         'manageboards' => [
             'label' => 'Manage Boards',

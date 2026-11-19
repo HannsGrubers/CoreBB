@@ -5,6 +5,7 @@
         : 'corebbThemeMode';
     var darkColor = '#363636';
     var select = document.getElementById('corebbThemeMode');
+    var fixedTheme = document.body && document.body.getAttribute('data-corebb-theme-fixed') === 'true';
     function storedMode(){
         try {
             return window.localStorage ? localStorage.getItem(storageKey) : '';
@@ -48,6 +49,10 @@
     }
     function defaultMode(){
         return document.body && document.body.getAttribute('data-corebb-theme-default') === 'dark' ? 'dark' : 'light';
+    }
+    if (fixedTheme) {
+        applyMode('light');
+        return;
     }
     var stored = storedMode();
     var mode = stored === 'dark' || stored === 'light' ? stored : defaultMode();

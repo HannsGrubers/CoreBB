@@ -705,6 +705,8 @@ function corebb_install_config_contents(array $form, string $dbPassword, array $
         '$BoardLockdown = ' . var_export('0', true) . ';',
         '$ShortPHP = ' . var_export('.php', true) . ';',
         '$GoogleClientID = ' . var_export('', true) . ';',
+        '// Optional external-login credentials can also be set as COREBB_OAUTH_* environment variables.',
+        '// define(' . var_export('COREBB_OAUTH_GOOGLE_CLIENT_SECRET', true) . ', ' . var_export('', true) . ');',
         '',
     ];
     return implode("\n", $lines);

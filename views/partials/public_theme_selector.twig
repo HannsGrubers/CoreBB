@@ -1,6 +1,8 @@
+{% if layout.head.theme_mode_fixed|default(false) == false %}
 <span class="VersionText" style="white-space:nowrap; margin-left:8px;">
     <select id="corebbThemeMode" class="VersionText" style="font-size:8pt;" aria-label="Theme mode">
         <option value="light">light</option>
         <option value="dark">dark</option>
     </select>
 </span>
+{% endif %}

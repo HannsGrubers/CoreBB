@@ -1,0 +1,249 @@
+{% set summary = model.summary|default({}) %}
+{% set boardRows = model.board_rows|default([]) %}
+{% set dailyRows = model.daily_rows|default([]) %}
+{% set metricChart = model.metric_chart|default([]) %}
+{% set trendChart = model.trend_chart|default({}) %}
+{% set topBoardRows = model.top_board_rows|default([]) %}
+
+<div class="corebb-admin-modern-page">
+    <div class="corebb-admin-modern-header">
+        <div>
+            <div class="corebb-admin-modern-eyebrow">Content</div>
+            <h2>Forum Statistics</h2>
+            <div class="corebb-admin-modern-meta">
+                <span>{{ model.days|default(30) }} day window</span>
+                {% if model.boardid|default(0) > 0 %}
+                    <span>Filtered to board #{{ model.boardid }}</span>
+                {% else %}
+                    <span>All boards</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="corebb-admin-modern-actions">
+            <a class="corebb-board-action-link" href="/admin/?act=manageboards">Manage Boards</a>
+            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
+        </div>
+    </div>
+
+    <div class="corebb-admin-modern-panel">
+        <form class="corebb-admin-modern-form" method="get" action="/admin/">
+            <input type="hidden" name="act" value="forum_statistics">
+            <div class="corebb-admin-modern-grid">
+                <label for="corebbStatsBoard">Board</label>
+                <select id="corebbStatsBoard" name="boardid">
+                    <option value="0"{% if model.boardid|default(0) == 0 %} selected{% endif %}>All Boards</option>
+                    {% for board in model.board_options|default([]) %}
+                        <option value="{{ board.id }}"{% if board.id == model.boardid|default(0) %} selected{% endif %}>
+                            {% if board.category_name|default('') != '' %}{{ board.category_name }} / {% endif %}{{ board.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+
+                <label for="corebbStatsDays">Window</label>
+                <select id="corebbStatsDays" name="days">
+                    {% for days in model.day_options|default([7, 30, 90, 365]) %}
+                        <option value="{{ days }}"{% if days == model.days|default(30) %} selected{% endif %}>{{ days }} days</option>
+                    {% endfor %}
+                </select>
+
+                <div class="corebb-admin-modern-submit corebb-admin-modern-full">
+                    <button class="corebb-board-action-link" type="submit">Apply</button>
+                    <a class="corebb-board-action-link" href="/admin/?act=forum_statistics">Clear</a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="corebb-admin-modern-panel">
+        <div class="corebb-admin-section-title">Snapshot</div>
+        <table class="corebb-admin-modern-table corebb-admin-snapshot-table wb-table">
+            <thead>
+                <tr>
+                    <th>Visits</th>
+                    <th>Board Visits</th>
+                    <th>Topic Views</th>
+                    <th>Posts</th>
+                    <th>Topics</th>
+                    <th>Engagements</th>
+                    <th>Poll Votes</th>
+                    <th>Favorites</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>{{ summary.visits|default(0)|number_format }}</td>
+                    <td>{{ summary.board_visits|default(0)|number_format }}</td>
+                    <td>{{ summary.topic_views|default(0)|number_format }}</td>
+                    <td>{{ summary.posts|default(0)|number_format }}</td>
+                    <td>{{ summary.topics|default(0)|number_format }}</td>
+                    <td>{{ summary.engagements|default(0)|number_format }}</td>
+                    <td>{{ summary.poll_votes|default(0)|number_format }}</td>
+                    <td>{{ summary.favorites_added|default(0)|number_format }}</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="corebb-admin-modern-panel corebb-admin-chart-panel">
+        <div class="corebb-admin-chart-head">
+            <div>
+                <div class="corebb-admin-section-title">Traffic and Engagement</div>
+                <div class="corebb-admin-chart-subtitle">Daily visits compared with posting, poll, and favorite activity.</div>
+            </div>
+            <div class="corebb-admin-stats-legend">
+                <span><i class="corebb-admin-stats-legend-swatch is-visits"></i>Visits</span>
+                <span><i class="corebb-admin-stats-legend-swatch is-engagements"></i>Engagements</span>
+            </div>
+        </div>
+        <svg class="corebb-admin-trend-chart" viewBox="0 0 {{ trendChart.width|default(680) }} {{ trendChart.height|default(240) }}" role="img" aria-label="Daily visits and engagements trend">
+            <line class="corebb-admin-trend-grid" x1="{{ trendChart.plot_left|default(44) }}" y1="{{ trendChart.plot_top|default(18) }}" x2="{{ trendChart.plot_right|default(662) }}" y2="{{ trendChart.plot_top|default(18) }}"></line>
+            <line class="corebb-admin-trend-grid" x1="{{ trendChart.plot_left|default(44) }}" y1="{{ ((trendChart.plot_top|default(18)) + (trendChart.plot_bottom|default(206))) / 2 }}" x2="{{ trendChart.plot_right|default(662) }}" y2="{{ ((trendChart.plot_top|default(18)) + (trendChart.plot_bottom|default(206))) / 2 }}"></line>
+            <line class="corebb-admin-trend-axis" x1="{{ trendChart.plot_left|default(44) }}" y1="{{ trendChart.plot_bottom|default(206) }}" x2="{{ trendChart.plot_right|default(662) }}" y2="{{ trendChart.plot_bottom|default(206) }}"></line>
+            <text class="corebb-admin-trend-ylabel" x="8" y="{{ trendChart.plot_top|default(18) + 4 }}">{{ trendChart.max_value|default(0)|number_format }}</text>
+            <text class="corebb-admin-trend-ylabel" x="8" y="{{ (((trendChart.plot_top|default(18)) + (trendChart.plot_bottom|default(206))) / 2) + 4 }}">{{ trendChart.half_value|default(0)|number_format }}</text>
+            {% if trendChart.engagements_area|default('') != '' %}
+                <path class="corebb-admin-trend-area is-engagements" d="{{ trendChart.engagements_area }}"></path>
+            {% endif %}
+            {% if trendChart.visits_area|default('') != '' %}
+                <path class="corebb-admin-trend-area is-visits" d="{{ trendChart.visits_area }}"></path>
+            {% endif %}
+            <polyline class="corebb-admin-trend-line is-engagements" points="{{ trendChart.engagements_points|default('') }}"></polyline>
+            <polyline class="corebb-admin-trend-line is-visits" points="{{ trendChart.visits_points|default('') }}"></polyline>
+            {% for marker in trendChart.visit_markers|default([]) %}
+                <circle class="corebb-admin-trend-marker is-visits" cx="{{ marker.x }}" cy="{{ marker.y }}" r="2.4"></circle>
+            {% endfor %}
+            {% for marker in trendChart.engagement_markers|default([]) %}
+                <circle class="corebb-admin-trend-marker is-engagements" cx="{{ marker.x }}" cy="{{ marker.y }}" r="2.4"></circle>
+            {% endfor %}
+            {% for label in trendChart.labels|default([]) %}
+                <text class="corebb-admin-trend-xlabel" x="{{ label.x }}" y="{{ (trendChart.plot_bottom|default(206)) + 22 }}">{{ label.label }}</text>
+            {% endfor %}
+        </svg>
+    </div>
+
+    <div class="corebb-admin-chart-grid">
+        <div class="corebb-admin-modern-panel corebb-admin-chart-panel">
+            <div class="corebb-admin-section-title">Activity Mix</div>
+            <div class="corebb-admin-donut-wrap">
+                <svg class="corebb-admin-donut-chart" viewBox="0 0 180 180" role="img" aria-label="Activity mix">
+                    <circle class="corebb-admin-donut-base" cx="90" cy="90" r="58"></circle>
+                    {% for segment in metricChart.segments|default([]) %}
+                        {% if segment.percent|default(0) > 0 %}
+                            <circle class="corebb-admin-donut-segment {{ segment.class|default('') }}" cx="90" cy="90" r="58" pathLength="100" stroke-dasharray="{{ segment.percent }} {{ 100 - segment.percent }}" stroke-dashoffset="{{ segment.offset }}" transform="rotate(-90 90 90)"></circle>
+                        {% endif %}
+                    {% endfor %}
+                    <text class="corebb-admin-donut-total" x="90" y="86">{{ metricChart.total|default(0)|number_format }}</text>
+                    <text class="corebb-admin-donut-label" x="90" y="104">events</text>
+                </svg>
+                <div class="corebb-admin-donut-legend">
+                    {% for segment in metricChart.segments|default([]) %}
+                        <div class="corebb-admin-donut-legend-row">
+                            <span class="corebb-admin-donut-dot {{ segment.class|default('') }}"></span>
+                            <span>{{ segment.label }}</span>
+                            <strong>{{ segment.value|default(0)|number_format }}</strong>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="corebb-admin-modern-panel corebb-admin-chart-panel">
+            <div class="corebb-admin-section-title">Board Reach</div>
+            <div class="corebb-admin-board-rank-chart">
+                {% for row in topBoardRows %}
+                    <div class="corebb-admin-board-rank-row">
+                        <div class="corebb-admin-board-rank-label">
+                            <span>{{ loop.index }}</span>
+                            <a class="corebb-admin-text-link" href="{{ row.url }}">{{ row.name }}</a>
+                        </div>
+                        <div class="corebb-admin-board-rank-track">
+                            <span class="is-visits" style="--corebb-chart-width: {{ row.visit_width|default(0) }}%;"></span>
+                            <span class="is-engagements" style="--corebb-chart-width: {{ row.engagement_width|default(0) }}%;"></span>
+                        </div>
+                        <div class="corebb-admin-board-rank-value">{{ row.visits|default(0)|number_format }} visits</div>
+                    </div>
+                {% else %}
+                    <div class="corebb-admin-modern-empty">No boards are available.</div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="corebb-admin-modern-panel-fixed-scroll">
+        <div class="corebb-admin-section-title">Daily Activity</div>
+        <table class="corebb-admin-modern-table wb-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Visits</th>
+                    <th>Board Visits</th>
+                    <th>Topic Views</th>
+                    <th>New Topics</th>
+                    <th>Replies</th>
+                    <th>Engagements</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in dailyRows %}
+                    <tr>
+                        <td>{{ row.date }}</td>
+                        <td>{{ row.visits|number_format }}</td>
+                        <td>{{ row.board_visits|number_format }}</td>
+                        <td>{{ row.topic_views|number_format }}</td>
+                        <td>{{ row.topics|number_format }}</td>
+                        <td>{{ row.replies|number_format }}</td>
+                        <td>{{ row.engagements|number_format }}</td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="7" class="corebb-admin-modern-empty">No activity has been tracked yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="corebb-admin-modern-panel-fixed-scroll">
+        <div class="corebb-admin-section-title">Boards</div>
+        <table class="corebb-admin-modern-table wb-table">
+            <thead>
+                <tr>
+                    <th>Board</th>
+                    <th>Visits</th>
+                    <th>Topic Views</th>
+                    <th>Content</th>
+                    <th>Engagements</th>
+                    <th>Poll Votes</th>
+                    <th>Favorites</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in boardRows %}
+                    <tr>
+                        <td>
+                            <a class="corebb-admin-text-link" href="{{ row.url }}">{{ row.name }}</a><br>
+                            <span class="corebb-admin-modern-help">#{{ row.id }}</span>
+                        </td>
+                        <td>{{ row.visits|number_format }}</td>
+                        <td>{{ row.topic_views|number_format }}</td>
+                        <td>{{ row.topiccount|number_format }} topics<br>{{ row.postcount|number_format }} posts</td>
+                        <td>
+                            <div class="corebb-admin-stats-table-bar">
+                                <span style="--corebb-chart-width: {{ row.engagement_width|default(0) }}%;"></span>
+                            </div>
+                            {{ row.engagements|number_format }} total<br>
+                            <span class="corebb-admin-modern-help">{{ row.topics_created|number_format }} topics, {{ row.replies_created|number_format }} replies</span>
+                        </td>
+                        <td>{{ row.poll_votes|number_format }}</td>
+                        <td>{{ row.favorites_added|number_format }}</td>
+                        <td>
+                            <a class="corebb-board-action-link" href="{{ row.url }}">Stats</a>
+                            <a class="corebb-board-action-link" href="{{ row.public_url }}">Open</a>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="8" class="corebb-admin-modern-empty">No boards are available.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>

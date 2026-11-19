@@ -1,25 +1,46 @@
-<table class="wb-cellspace-1 wb-cellpad-0 wb-table" style="width: 100%;">
-    <tr>
-        <td class="BoardColumn"><b>Resend Verification Email</b></td>
-    </tr>
-    <tr class="BoardRowB">
-        <td style="padding: 10px;">
-            {% if model.submitted|default(false) %}
-                <p>{{ model.message|default('') }}</p>
-                {% if model.mail_error|default('') != '' %}
-                    <p class="ErrorFont">{{ model.mail_error }}</p>
-                {% endif %}
-                <p><a class="BoardRowBLink" href="{{ url('auth.php?action=login') }}">Return to Login</a></p>
-            {% else %}
-                <p>Enter the email address you used during registration. If it belongs to an unverified account, a new verification link will be emailed to you.</p>
-                <form method="post" action="{{ url('auth.php?action=resend') }}">
-                    {% include 'partials/csrf_field.twig' %}
-                    <span class="InputSection">Email Address:</span><br>
-                    <input type="email" name="email" size="35" maxlength="255" autocomplete="email"><br><br>
-                    <input type="submit" value=" Send Verification Email ">
-                </form>
-                <p><a class="BoardRowBLink" href="{{ url('auth.php?action=login') }}">Return to Login</a></p>
+<div class="corebb-login-page wb-public-form-workspace">
+    <div class="corebb-login-header">
+        <div>
+            <div class="corebb-login-eyebrow">Account Access</div>
+            <h2>Resend Verification Email</h2>
+        </div>
+    </div>
+
+    <div class="corebb-login-panel corebb-auth-single">
+        {% if model.submitted|default(false) %}
+            <div class="corebb-login-section-head">
+                <h3>Verification Request Received</h3>
+                <span>{{ model.message|default('') }}</span>
+            </div>
+
+            {% if model.mail_error|default('') != '' %}
+                <div class="corebb-login-alert">
+                    <span class="ErrorFont">{{ model.mail_error }}</span>
+                </div>
             {% endif %}
-        </td>
-    </tr>
-</table>
+
+            <div class="corebb-login-actions corebb-login-actions--start">
+                <a class="corebb-login-create-button" href="{{ url('auth.php?action=login') }}">Return to Login</a>
+            </div>
+        {% else %}
+            <form class="corebb-login-form" method="post" action="{{ url('auth.php?action=resend') }}">
+                {% include 'partials/csrf_field.twig' %}
+
+                <div class="corebb-login-section-head">
+                    <h3>Need a New Verification Link?</h3>
+                    <span>Enter the email address you used during registration. If it belongs to an unverified account, a new verification link will be emailed to you.</span>
+                </div>
+
+                <label class="corebb-login-field">
+                    <span>Email Address</span>
+                    <input type="email" name="email" maxlength="255" autocomplete="email">
+                </label>
+
+                <div class="corebb-login-actions corebb-login-actions--start">
+                    <input class="formsubmit corebb-login-submit" type="submit" value="Send Verification Email">
+                    <a class="corebb-login-create-button" href="{{ url('auth.php?action=login') }}">Return to Login</a>
+                </div>
+            </form>
+        {% endif %}
+    </div>
+</div>

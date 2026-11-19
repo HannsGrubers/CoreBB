@@ -45,8 +45,15 @@ function corebb_google_config_client_id(): string
     if (defined('COREBB_GOOGLE_CLIENT_ID')) {
         return trim((string)COREBB_GOOGLE_CLIENT_ID);
     }
+    if (defined('COREBB_OAUTH_GOOGLE_CLIENT_ID')) {
+        return trim((string)COREBB_OAUTH_GOOGLE_CLIENT_ID);
+    }
     $configured = trim((string)($GLOBALS['GoogleClientID'] ?? ''));
-    return $configured !== '' ? $configured : trim((string)(getenv('COREBB_GOOGLE_CLIENT_ID') ?: ''));
+    if ($configured !== '') {
+        return $configured;
+    }
+    $oauthEnv = trim((string)(getenv('COREBB_OAUTH_GOOGLE_CLIENT_ID') ?: ''));
+    return $oauthEnv !== '' ? $oauthEnv : trim((string)(getenv('COREBB_GOOGLE_CLIENT_ID') ?: ''));
 }
 
 /**

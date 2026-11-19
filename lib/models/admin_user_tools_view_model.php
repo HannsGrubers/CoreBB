@@ -195,6 +195,7 @@ function corebb_admin_tool_catalog(): array
         ],
         'Manager' => [
             'manage_boards' => ['label' => 'Manage Boards', 'min_level' => 4],
+            'forum_statistics' => ['label' => 'Forum Statistics', 'min_level' => 4],
             'manage_icons' => ['label' => 'Manage Icons', 'min_level' => 3],
             'assign_title' => ['label' => 'Assign Title', 'min_level' => 4],
             'edit_profile' => ['label' => "Edit User's Profile", 'min_level' => 4],

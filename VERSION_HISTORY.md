@@ -1,5 +1,31 @@
 # CoreBB Version History
 
+## CoreBB 1.1.12-rc.4
+
+Date: 2026-11-19
+Type: Board topic ordering
+
+### Changed
+
+- Board pages sort pinned and ordinary topics by their last activity before pagination. Older dates with single-digit months or days now sort chronologically alongside zero-padded dates.
+
+## Unreleased
+
+Date: 2026-11-18
+Type: Registration abuse prevention
+
+### Changed
+
+- Browser and API password signups now share the same per-IP registration limit. Each submission that reaches the registration handler counts once. Both routes return HTTP 429 and a Retry-After header when the limit is reached.
+
+### Added
+
+- The corebb_registration_events table records each handled signup submission with its UTC timestamp, route, and outcome. When a submission creates an account, the event includes the new user ID.
+
+### Verified
+
+- Staging deployment 483 verified the shared limit for commit e2f01f9. After one empty browser submission and one empty API submission, the next browser submission returned HTTP 429 with a 600-second retry interval.
+
 ## CoreBB Initial Release v1.0.0
 
 Date: 2026-06-07

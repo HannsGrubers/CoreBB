@@ -47,6 +47,7 @@ switch ($action) {
 
     case 'favorite':
         require_once $root . '/lib/helpers/private_board_helpers.php';
+        require_once $root . '/lib/helpers/forum_statistics_helpers.php';
 
         if (!corebb_load_logged_in_user()) {
             corebb_forum_favorite_redirect('Please log in.');
@@ -80,6 +81,9 @@ switch ($action) {
 
         $now = convert_to_timestamp_raw(time());
         $ok = db_run('INSERT INTO favoriteboards (boardid, ownerid, adddate) VALUES (?, ?, ?)', [$boardId, $userId, $now]);
+        if ($ok) {
+            corebb_forum_stats_record_event($boardId, 'favorite_added', ['userid' => $userId]);
+        }
 
         corebb_forum_favorite_redirect($ok ? 'Board successfully added to favorites list!' : 'Error adding board to favorites list!');
 

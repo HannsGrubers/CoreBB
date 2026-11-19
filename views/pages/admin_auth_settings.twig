@@ -1,4 +1,4 @@
-{% set values = model.values|default({}) %}
+{% set providers = model.providers|default({}) %}
 {% set effective = model.effective|default({}) %}
 
 <div class="corebb-admin-modern-page">
@@ -9,8 +9,8 @@
             <div class="corebb-admin-modern-eyebrow">System</div>
             <h2>Authentication Settings</h2>
             <div class="corebb-admin-modern-meta">
-                <span>Google: {{ effective.google_enabled|default(false) ? 'enabled' : 'disabled' }}</span>
-                <span>Client ID: {{ effective.google_configured|default(false) ? effective.client_id_source|default('configured') : 'missing' }}</span>
+                <span>{{ effective.enabled_count|default(0) }} enabled provider{{ effective.enabled_count|default(0) == 1 ? '' : 's' }}</span>
+                <span>{{ effective.provider_count|default(0) }} provider template{{ effective.provider_count|default(0) == 1 ? '' : 's' }}</span>
             </div>
         </div>
         <div class="corebb-admin-modern-actions">
@@ -19,41 +19,112 @@
     </div>
 
     <div class="corebb-admin-modern-note">
-        Authentication settings are stored in <strong>systemsettings</strong>. Existing Google client IDs from private config or environment variables still work as a fallback when this page's client ID field is blank.
+        CoreBB accepts external login and registration, then issues its normal forum session cookie. Google uses an Authorized JavaScript origin and client ID; Microsoft, GitHub, and Discord use the callback URL shown in their panels.
     </div>
 
     <form class="corebb-admin-modern-form" method="post" action="{{ url('admin.php?act=auth_settings') }}">
         {% include 'partials/csrf_field.twig' %}
         <input type="hidden" name="action" value="save_auth">
 
+        <div class="corebb-admin-rights-tool-groups">
+            {% for key, provider in providers %}
+                {% set usesRedirect = provider.uses_redirect_flow is not defined or provider.uses_redirect_flow %}
+                {% set needsSecret = provider.requires_client_secret is not defined or provider.requires_client_secret %}
+                <details class="corebb-admin-rights-tool-group">
+                    <summary class="corebb-admin-rights-tool-group-header">
+                        <span class="corebb-admin-rights-tool-group-title">{{ provider.label }} Login</span>
+                        <span class="corebb-admin-rights-tool-group-meta">
+                            {{ provider.enabled|default(false) ? 'Enabled' : 'Disabled' }},
+                            {{ provider.configured|default(false) ? 'configured' : 'missing credentials' }}.
+                        </span>
+                    </summary>
+                    <div class="corebb-admin-oauth-provider-body">
+                        <div class="corebb-admin-modern-grid">
+                            <label>Setup</label>
+                            <span>
+                                <a class="corebb-board-action-link" href="{{ provider.setup_url }}" target="_blank" rel="noopener">Open {{ provider.label }} Setup</a>
+                                <a class="corebb-board-action-link" href="{{ provider.docs_url }}" target="_blank" rel="noopener">Provider Docs</a>
+                                {% if usesRedirect %}
+                                    <a class="corebb-board-action-link" href="{{ provider.debug_url }}" target="_blank" rel="noopener">Debug Auth URL</a>
+                                {% endif %}
+                                {% if provider.configured|default(false) and usesRedirect %}
+                                    <a class="corebb-board-action-link" href="{{ provider.start_url }}">Test Sign-In</a>
+                                {% endif %}
+                            </span>
+
+                            <label>Checklist</label>
+                            <span class="corebb-admin-modern-help">
+                                {% for step in provider.setup_steps|default([]) %}
+                                    {{ loop.index }}. {{ step }}<br>
+                                {% endfor %}
+                            </span>
+
+                            {% if provider.troubleshooting|default([]) is not empty %}
+                                <label>Troubleshooting</label>
+                                <span class="corebb-admin-modern-help">
+                                    {% for note in provider.troubleshooting %}
+                                        &bull; {{ note }}<br>
+                                    {% endfor %}
+                                </span>
+                            {% endif %}
+
+                            <label for="{{ key }}Enabled">Enabled</label>
+                            <label><input id="{{ key }}Enabled" type="checkbox" name="authp[{{ key }}][en]" value="1"{% if provider.enabled|default(false) %} checked{% endif %}> Show and accept {{ provider.label }} sign-in</label>
+
+                            <label for="{{ key }}ClientId">Client ID</label>
+                            <span>
+                                <input id="{{ key }}ClientId" type="text" name="authp[{{ key }}][cid]" value="{{ provider.saved_client_id|default('') }}" size="80" autocomplete="off">
+                                <span class="corebb-admin-modern-help">Source: {{ provider.client_id_source|default('not configured') }}. Leave blank to use private config or environment variables.</span>
+                            </span>
+
+                            {% if needsSecret %}
+                                <label for="{{ key }}ClientSecret">Client Secret</label>
+                                <span>
+                                    <input id="{{ key }}ClientSecret" type="password" name="authp[{{ key }}][ckey]" value="" size="80" autocomplete="new-password">
+                                    <span class="corebb-admin-modern-help">Source: {{ provider.secret_source|default('not configured') }}. Leave blank to keep the existing secret.</span>
+                                </span>
+                            {% endif %}
+
+                            {% if provider.supports_hosted_domain|default(false) %}
+                                <label for="{{ key }}HostedDomain">Hosted Domain</label>
+                                <span>
+                                    <input id="{{ key }}HostedDomain" type="text" name="authp[{{ key }}][hd]" value="{{ provider.hosted_domain|default('') }}" size="45" placeholder="example.com">
+                                    <span class="corebb-admin-modern-help">Optional. Only users from this hosted domain will be accepted.</span>
+                                </span>
+                            {% endif %}
+
+                            <label for="{{ key }}AutoCreate">Account Creation</label>
+                            <label><input id="{{ key }}AutoCreate" type="checkbox" name="authp[{{ key }}][ac]" value="1"{% if provider.allow_auto_create|default(true) %} checked{% endif %}> Allow verified {{ provider.label }} users to complete a new CoreBB account</label>
+
+                            <label>Scopes</label>
+                            <span class="corebb-admin-modern-help">{{ provider.scope }}</span>
+
+                            {% if usesRedirect %}
+                                <label>Callback URL</label>
+                                <span>
+                                    <input type="text" value="{{ provider.redirect_url }}" size="95" readonly onclick="this.select()">
+                                    <span class="corebb-admin-modern-help">Click the field to select it, then copy it into {{ provider.label }}'s redirect/callback URL setting.</span>
+                                    {% if provider.alternate_redirect_url|default('') %}
+                                        <br><span class="corebb-admin-modern-help">Compatibility callback: {{ provider.alternate_redirect_url }}</span>
+                                    {% endif %}
+                                </span>
+                            {% else %}
+                                <label>Authorized Origin</label>
+                                <span>
+                                    <input type="text" value="{{ provider.origin_url }}" size="95" readonly onclick="this.select()">
+                                    <span class="corebb-admin-modern-help">Click the field to select it, then copy it into {{ provider.label }}'s Authorized JavaScript origins.</span>
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </details>
+            {% endfor %}
+        </div>
+
         <div class="corebb-admin-modern-panel">
-            <div class="corebb-admin-section-title">Google Sign-In</div>
-            <div class="corebb-admin-modern-grid">
-                <label for="googleEnabled">Enabled</label>
-                <label><input id="googleEnabled" type="checkbox" name="google_enabled" value="1"{% if values.google_enabled|default(false) %} checked{% endif %}> Show and accept Google sign-in</label>
-
-                <label for="googleClientId">Client ID</label>
-                <span>
-                    <input id="googleClientId" type="text" name="google_client_id" value="{{ values.google_client_id|default('') }}" size="80" autocomplete="off">
-                    <span class="corebb-admin-modern-help">Use the Web client ID from Google Cloud. Leave blank to use the existing private config or environment value.</span>
-                </span>
-
-                <label for="googleHostedDomain">Hosted Domain</label>
-                <span>
-                    <input id="googleHostedDomain" type="text" name="google_hosted_domain" value="{{ values.google_hosted_domain|default('') }}" size="45" placeholder="example.com">
-                    <span class="corebb-admin-modern-help">Optional. Only users from this Google Workspace domain will be accepted.</span>
-                </span>
-
-                <label for="googleAutoCreate">Account Creation</label>
-                <label><input id="googleAutoCreate" type="checkbox" name="google_allow_auto_create" value="1"{% if values.google_allow_auto_create|default(true) %} checked{% endif %}> Allow verified Google users to complete a new CoreBB account</label>
-
-                <label>Callback URL</label>
-                <span class="corebb-admin-modern-help">{{ effective.login_url|default('/login/google/') }}</span>
-
-                <div class="corebb-admin-modern-submit corebb-admin-modern-full">
-                    <button class="corebb-board-action-link" type="submit">Save Authentication Settings</button>
-                    <a class="corebb-board-action-link" href="{{ url('admin.php') }}">Admin Home</a>
-                </div>
+            <div class="corebb-admin-modern-submit">
+                <button class="corebb-board-action-link" type="submit">Save Authentication Settings</button>
+                <a class="corebb-board-action-link" href="{{ url('admin.php') }}">Admin Home</a>
             </div>
         </div>
     </form>

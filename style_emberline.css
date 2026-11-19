@@ -1,5 +1,6 @@
 /* CoreBB Emberline public theme.
    A dark release-workspace skin with warm amber actions and cool blue state accents. */
+/* Staging deployment check: 2026-11-18-emberline. */
 
 html {
     background: #1f201e;
@@ -382,6 +383,347 @@ body.wb-vn-eol.wb-emberline .wb-security-page {
     box-shadow: var(--corebb-shadow-list);
 }
 
+/* Search: keep the shared form structure in Emberline's release-workspace skin. */
+body.wb-vn-eol.wb-emberline .corebb-search-page.corebb-login-page,
+body.wb-vn-eol.wb-emberline .corebb-search-results-page.corebb-login-page {
+    background: var(--ember-panel);
+    border: 1px solid var(--ember-line);
+    border-radius: 8px;
+    box-shadow: var(--corebb-shadow-list);
+    color: var(--ember-text);
+    font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+    font-size: 13px;
+    gap: 10px;
+    padding: 10px;
+}
+
+body.wb-vn-eol.wb-emberline .corebb-search-page .corebb-login-header,
+body.wb-vn-eol.wb-emberline .corebb-search-results-page .corebb-login-header {
+    background: var(--ember-top);
+    border: 1px solid var(--ember-line);
+    border-radius: 6px;
+    color: var(--ember-text);
+    min-height: 56px;
+    padding: 9px 12px;
+}
+
+body.wb-vn-eol.wb-emberline .corebb-search-page .corebb-login-eyebrow,
+body.wb-vn-eol.wb-emberline .corebb-search-results-page .corebb-login-eyebrow {
+    color: var(--ember-accent);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    line-height: 1.2;
+    text-transform: uppercase;
+}
+
+body.wb-vn-eol.wb-emberline .corebb-search-page .corebb-login-header h2,
+body.wb-vn-eol.wb-emberline .corebb-search-results-page .corebb-login-header h2 {
+    color: #ffe8bc;
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.2;
+    margin: 2px 0 0;
+}
+
+body.wb-vn-eol.wb-emberline .corebb-search-page .corebb-login-grid {
+    gap: 10px;
+    grid-template-columns: minmax(0, 1.45fr) minmax(270px, .65fr);
+}
+
+body.wb-vn-eol.wb-emberline .corebb-search-page .corebb-login-panel,
+body.wb-vn-eol.wb-emberline .corebb-search-results-page .corebb-login-panel {
+    background: var(--ember-panel-2);
+    border: 1px solid var(--ember-line);
+    border-radius: 6px;
+    box-shadow: none;
+    color: var(--ember-text);
+    gap: 12px;
+    padding: 14px;
+}
+
+body.wb-vn-eol.wb-emberline .corebb-search-page .corebb-login-form {
+    gap: 12px;
+}
+
+body.wb-vn-eol.wb-emberline .corebb-search-page .corebb-login-section-head,
+body.wb-vn-eol.wb-emberline .corebb-search-results-page .corebb-login-section-head {
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid var(--ember-line);
+    border-radius: 0;
+    gap: 3px;
+    padding: 0 0 10px;
+}
+
+body.wb-vn-eol.wb-emberline .corebb-search-page .corebb-login-section-head h3,
+body.wb-vn-eol.wb-emberline .corebb-search-results-page .corebb-login-section-head h3 {
+    color: #ffe2af;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.25;
+    margin: 0;
+}
+
+body.wb-vn-eol.wb-emberline .corebb-search-page .corebb-login-section-head span,
+body.wb-vn-eol.wb-emberline .corebb-search-results-page .corebb-login-section-head span {
+    color: var(--ember-muted);
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.35;
+}
+
+body.wb-vn-eol.wb-emberline .corebb-search-page .corebb-login-field {
+    gap: 5px;
+}
+
+body.wb-vn-eol.wb-emberline .corebb-search-page .corebb-login-field > span {
+    color: var(--ember-text);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+body.wb-vn-eol.wb-emberline .corebb-search-page .corebb-login-field small,
+body.wb-vn-eol.wb-emberline .corebb-search-results-page .corebb-login-header h2 span {
+    color: var(--ember-muted);
+    font-size: 11px;
+    font-weight: 400;
+    line-height: 1.3;
+}
+
+body.wb-vn-eol.wb-emberline .corebb-search-page .corebb-login-field input[type="text"],
+body.wb-vn-eol.wb-emberline .corebb-search-page .corebb-login-field select {
+    background: var(--corebb-input-bg) !important;
+    border: 1px solid var(--ember-line-2) !important;
+    border-radius: 6px;
+    color: var(--corebb-input-text) !important;
+    font: inherit;
+    min-height: 38px;
+    padding: 7px 9px;
+}
+
+body.wb-vn-eol.wb-emberline .corebb-search-page .corebb-search-choice-row {
+    gap: 7px;
+}
+
+body.wb-vn-eol.wb-emberline .corebb-search-page .corebb-search-choice-row label {
+    background: #2a2b27;
+    border: 1px solid var(--ember-line-2);
+    border-radius: 6px;
+    color: var(--ember-text);
+    gap: 6px;
+    min-height: 36px;
+    padding: 7px 10px;
+    transition: background-color .14s ease, border-color .14s ease;
+}
+
+body.wb-vn-eol.wb-emberline .corebb-search-page .corebb-search-choice-row label:hover,
+body.wb-vn-eol.wb-emberline .corebb-search-page .corebb-search-choice-row label:has(input:checked) {
+    background: rgba(255, 126, 35, .1);
+    border-color: var(--ember-accent);
+    color: #fff0d0;
+}
+
+body.wb-vn-eol.wb-emberline .corebb-search-page .corebb-search-choice-row span {
+    color: inherit;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+body.wb-vn-eol.wb-emberline .corebb-search-page .corebb-search-tip-list {
+    color: var(--ember-text);
+    display: grid;
+    font-size: 12px;
+    gap: 0;
+    line-height: 1.45;
+}
+
+body.wb-vn-eol.wb-emberline .corebb-search-page .corebb-search-tip-list p {
+    border-bottom: 1px solid var(--ember-line);
+    margin: 0;
+    padding: 9px 0;
+}
+
+body.wb-vn-eol.wb-emberline .corebb-search-page .corebb-search-tip-list p:first-child {
+    padding-top: 0;
+}
+
+body.wb-vn-eol.wb-emberline .corebb-search-page .corebb-search-tip-list p:last-child {
+    border-bottom: 0;
+    padding-bottom: 0;
+}
+
+body.wb-vn-eol.wb-emberline .corebb-search-page .corebb-search-tip-list b {
+    color: #ffe2af;
+}
+
+body.wb-vn-eol.wb-emberline .corebb-search-page a,
+body.wb-vn-eol.wb-emberline .corebb-search-results-page a {
+    color: var(--corebb-link);
+}
+
+body.wb-vn-eol.wb-emberline .corebb-search-page a:hover,
+body.wb-vn-eol.wb-emberline .corebb-search-results-page a:hover {
+    color: var(--corebb-link-hover);
+}
+
+body.wb-vn-eol.wb-emberline .corebb-search-page .corebb-login-actions {
+    gap: 7px;
+    margin-top: 2px;
+}
+
+body.wb-vn-eol.wb-emberline .corebb-search-page .corebb-login-submit {
+    background: var(--ember-accent) !important;
+    border: 1px solid var(--ember-accent) !important;
+    border-radius: 6px !important;
+    box-shadow: none;
+    color: #20140c !important;
+    font-family: "Segoe UI", Tahoma, Arial, sans-serif !important;
+    font-size: 12px !important;
+    line-height: 1.25;
+    min-height: 36px;
+    min-width: 104px;
+    padding: 7px 14px !important;
+}
+
+body.wb-vn-eol.wb-emberline .corebb-search-page .corebb-login-submit:hover {
+    background: var(--ember-accent-2) !important;
+    border-color: var(--ember-accent-2) !important;
+    color: #20140c !important;
+}
+
+body.wb-vn-eol.wb-emberline .corebb-search-page .corebb-login-create-button,
+body.wb-vn-eol.wb-emberline .corebb-search-page .corebb-login-create-button:link,
+body.wb-vn-eol.wb-emberline .corebb-search-page .corebb-login-create-button:visited {
+    background: #2a2b27;
+    border: 1px solid var(--ember-line-2);
+    border-radius: 6px;
+    color: #ffe2af;
+    font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.25;
+    min-height: 36px;
+    padding: 7px 12px;
+}
+
+body.wb-vn-eol.wb-emberline .corebb-search-page .corebb-login-create-button:hover {
+    background: var(--ember-panel-3);
+    border-color: var(--ember-accent);
+    color: #fff3d6;
+    text-decoration: none;
+}
+
+body.wb-vn-eol.wb-emberline .corebb-search-results-page {
+    margin-top: 10px;
+}
+
+body.wb-vn-eol.wb-emberline .corebb-search-results-page .corebb-search-results-panel {
+    overflow-x: auto;
+    padding: 10px;
+}
+
+body.wb-vn-eol.wb-emberline .corebb-search-results-page .corebb-search-pagination,
+body.wb-vn-eol.wb-emberline .corebb-search-results-page .corebb-search-empty {
+    background: var(--ember-panel-3);
+    border: 1px solid var(--ember-line);
+    border-radius: 6px;
+    color: var(--ember-text);
+    padding: 8px;
+}
+
+body.wb-vn-eol.wb-emberline .corebb-search-results-page .corebb-search-results-table {
+    border: 1px solid var(--ember-line);
+    border-collapse: separate;
+    border-radius: 6px;
+    border-spacing: 0;
+    font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+    font-size: 12px;
+    overflow: hidden;
+}
+
+body.wb-vn-eol.wb-emberline .corebb-search-results-page .corebb-search-results-table th {
+    background: var(--ember-top);
+    border: 0;
+    border-bottom: 1px solid var(--ember-line);
+    color: #ffe2af;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .03em;
+    padding: 9px 10px;
+    text-transform: uppercase;
+}
+
+body.wb-vn-eol.wb-emberline .corebb-search-results-page .corebb-search-results-table td {
+    background: var(--ember-panel-2);
+    border: 0;
+    border-bottom: 1px solid var(--ember-line);
+    color: var(--ember-text);
+    font-size: 12px;
+    line-height: 1.4;
+    padding: 9px 10px;
+}
+
+body.wb-vn-eol.wb-emberline .corebb-search-results-page .corebb-search-results-table tr:nth-child(even) td {
+    background: var(--ember-panel);
+}
+
+body.wb-vn-eol.wb-emberline .corebb-search-results-page .corebb-search-results-table tbody tr:hover td {
+    background: var(--ember-panel-3);
+}
+
+body.wb-vn-eol.wb-emberline .corebb-search-results-page .corebb-search-results-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+body.wb-vn-eol.wb-emberline .corebb-search-results-page .corebb-search-result-meta,
+body.wb-vn-eol.wb-emberline .corebb-search-results-page .corebb-search-result-excerpt {
+    color: var(--ember-muted);
+    font-size: 11px;
+    margin-top: 3px;
+}
+
+/* Post and blog composer: use the same compact Emberline workspace treatment. */
+body.wb-vn-eol.wb-emberline #frmMain.corebb-post-composer {
+    background: var(--ember-panel-2);
+    border-color: var(--ember-line);
+    box-shadow: var(--corebb-shadow-list);
+    font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+}
+
+body.wb-vn-eol.wb-emberline #frmMain .corebb-post-composer__head {
+    background: var(--ember-top);
+    border-bottom-color: var(--ember-line);
+}
+
+body.wb-vn-eol.wb-emberline #frmMain .corebb-post-composer__kicker {
+    color: var(--ember-accent);
+}
+
+body.wb-vn-eol.wb-emberline #frmMain .corebb-post-composer__board {
+    background: var(--ember-panel-3);
+    border-color: var(--ember-line-2);
+    color: #ffe2af;
+}
+
+body.wb-vn-eol.wb-emberline #frmMain .corebb-post-section {
+    border-bottom-color: var(--ember-line);
+}
+
+body.wb-vn-eol.wb-emberline #frmMain .corebb-post-label,
+body.wb-vn-eol.wb-emberline #frmMain .corebb-post-check {
+    color: var(--ember-text);
+}
+
+body.wb-vn-eol.wb-emberline #frmMain .corebb-post-note,
+body.wb-vn-eol.wb-emberline #frmMain .corebb-post-meta span {
+    color: var(--ember-muted);
+}
+
+body.wb-vn-eol.wb-emberline #frmMain .corebb-post-composer__footer {
+    background: var(--ember-panel);
+}
+
 body.wb-vn-eol.wb-emberline .wb-text-center {
     color: inherit;
 }
@@ -409,5 +751,19 @@ body.wb-vn-eol.wb-emberline ::selection {
     body.wb-vn-eol.wb-emberline .BoardColumn {
         font-size: 12px;
         padding: 7px !important;
+    }
+
+    body.wb-vn-eol.wb-emberline .corebb-search-page .corebb-login-grid {
+        grid-template-columns: 1fr;
+    }
+
+    body.wb-vn-eol.wb-emberline .corebb-search-page.corebb-login-page,
+    body.wb-vn-eol.wb-emberline .corebb-search-results-page.corebb-login-page {
+        padding: 7px;
+    }
+
+    body.wb-vn-eol.wb-emberline .corebb-search-page .corebb-login-panel,
+    body.wb-vn-eol.wb-emberline .corebb-search-results-page .corebb-login-panel {
+        padding: 11px;
     }
 }

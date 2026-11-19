@@ -548,7 +548,7 @@ function corebb_rate_limit_login_success(string $username): void
 
 /**
  * Usage: Apply registration rate limits by IP.
- * Referenced by: api/v1/index.php registration endpoint.
+ * Referenced by: corebb_registration_model() for browser and API submissions.
  *
  * @return array<string, mixed> Rate-limit decision for a registration attempt.
  */

@@ -22,6 +22,7 @@ require_once __DIR__ . '/../helpers/moderation_helpers.php';
 require_once __DIR__ . '/../helpers/pagination_helpers.php';
 require_once __DIR__ . '/../helpers/poll_helpers.php';
 require_once __DIR__ . '/../helpers/private_board_helpers.php';
+require_once __DIR__ . '/../helpers/forum_statistics_helpers.php';
 
 /**
  * Usage: Build the thread page model, including posts, poll state, and pagination.
@@ -61,6 +62,7 @@ function corebb_thread_fetch_model(int $topicId, int $page): array
             'message' => 'The message you requested could not be found or has been removed by a moderator.',
         ];
     }
+    corebb_forum_stats_record_event($boardId, 'topic_view', ['topicid' => $topicId]);
     $locked = (int)($topic['locked'] ?? 0) === 1;
 
     $perPage = corebb_current_thread_posts_per_page();

@@ -79,6 +79,7 @@ function corebb_admin_tool_url(string $toolKey): string
         'remove_global_message' => '/admin/?act=remove_global_message',
         'pm_history' => '/admin/?act=pm_history',
         'manage_boards' => '/admin/?act=manageboards',
+        'forum_statistics' => '/admin/?act=forum_statistics',
         'manage_icons' => '/admin/?act=manage_icons',
         'assign_title' => '/admin/?act=assign_title',
         'edit_profile' => '/admin/?act=edit_profile',
@@ -140,7 +141,7 @@ function corebb_admin_nav_group_definitions(): array
             'change_user_password', 'edit_profile', 'assign_title',
             'admin_notes', 'user_ip_check', 'host_lookup', 'user_appearance_admin',
         ],
-        'Content' => ['manage_boards', 'manage_icons', 'view_message', 'deleted_posts', 'spam_ratings', 'action_log'],
+        'Content' => ['manage_boards', 'forum_statistics', 'manage_icons', 'view_message', 'deleted_posts', 'spam_ratings', 'action_log'],
         'Moderation' => [
             'moderation_ban', 'moderation_unban', 'moderation_requests',
             'mod_requests', 'contact_mods', 'pm_reports', 'pm_history',

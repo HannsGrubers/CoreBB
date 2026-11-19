@@ -248,6 +248,671 @@ input, select, textarea {
     padding-right: 4px;
 }
 
+/* Search: keep the modern layout, but present it like a VNBoards-era table. */
+body.wb-vn-eol .corebb-search-page.corebb-login-page,
+body.wb-vn-eol .corebb-search-results-page.corebb-login-page {
+    background: #c1c2c9;
+    border-top: 1px solid #ffffff;
+    border-left: 1px solid #ffffff;
+    border-right: 1px solid #666666;
+    border-bottom: 1px solid #666666;
+    border-radius: 0;
+    color: #000000;
+    font-family: Verdana, Arial, sans-serif;
+    font-size: 10pt;
+    gap: 4px;
+    padding: 4px;
+}
+
+body.wb-vn-eol .corebb-search-page .corebb-login-header,
+body.wb-vn-eol .corebb-search-results-page .corebb-login-header {
+    background: #666666;
+    border-top: 1px solid #999999;
+    border-left: 1px solid #999999;
+    border-right: 1px solid #333333;
+    border-bottom: 1px solid #333333;
+    border-radius: 0;
+    color: #ffffff;
+    min-height: 0;
+    padding: 3px 6px;
+}
+
+body.wb-vn-eol .corebb-search-page .corebb-login-eyebrow,
+body.wb-vn-eol .corebb-search-results-page .corebb-login-eyebrow {
+    color: #ffcc66;
+    font-size: 7pt;
+    font-weight: bold;
+    line-height: 1.2;
+    text-transform: uppercase;
+}
+
+body.wb-vn-eol .corebb-search-page .corebb-login-header h2,
+body.wb-vn-eol .corebb-search-results-page .corebb-login-header h2 {
+    color: #ffffff;
+    font-size: 10pt;
+    font-weight: bold;
+    line-height: 1.2;
+    margin: 1px 0 0 0;
+}
+
+body.wb-vn-eol .corebb-search-page .corebb-login-grid {
+    gap: 4px;
+}
+
+body.wb-vn-eol .corebb-search-page .corebb-login-panel,
+body.wb-vn-eol .corebb-search-results-page .corebb-login-panel {
+    background: #b1b3bc;
+    border-top: 1px solid #ffffff;
+    border-left: 1px solid #ffffff;
+    border-right: 1px solid #777777;
+    border-bottom: 1px solid #777777;
+    border-radius: 0;
+    color: #000000;
+    gap: 8px;
+    padding: 8px;
+}
+
+body.wb-vn-eol .corebb-search-page .corebb-login-form {
+    gap: 8px;
+}
+
+body.wb-vn-eol .corebb-search-page .corebb-login-section-head,
+body.wb-vn-eol .corebb-search-results-page .corebb-login-section-head {
+    background: #666666;
+    border-top: 1px solid #999999;
+    border-left: 1px solid #999999;
+    border-right: 1px solid #333333;
+    border-bottom: 1px solid #333333;
+    gap: 1px;
+    padding: 3px 5px;
+}
+
+body.wb-vn-eol .corebb-search-page .corebb-login-section-head h3,
+body.wb-vn-eol .corebb-search-results-page .corebb-login-section-head h3 {
+    color: #ffffff;
+    font-size: 10pt;
+    font-weight: bold;
+    line-height: 1.2;
+    margin: 0;
+}
+
+body.wb-vn-eol .corebb-search-page .corebb-login-section-head span,
+body.wb-vn-eol .corebb-search-results-page .corebb-login-section-head span {
+    color: #ffcc66;
+    font-size: 8pt;
+    font-weight: normal;
+    line-height: 1.25;
+}
+
+body.wb-vn-eol .corebb-search-page .corebb-login-field small,
+body.wb-vn-eol .corebb-search-results-page .corebb-login-header h2 span {
+    color: #663333;
+    font-size: 8pt;
+    font-weight: normal;
+    line-height: 1.25;
+}
+
+body.wb-vn-eol .corebb-search-page .corebb-login-field {
+    gap: 3px;
+}
+
+body.wb-vn-eol .corebb-search-page .corebb-login-field > span {
+    color: #000000;
+    font-size: 9pt;
+    font-weight: bold;
+}
+
+body.wb-vn-eol .corebb-search-page .corebb-login-field input[type="text"],
+body.wb-vn-eol .corebb-search-page .corebb-login-field select {
+    background: #ffffff;
+    border-top: 1px solid #666666;
+    border-left: 1px solid #666666;
+    border-right: 1px solid #ffffff;
+    border-bottom: 1px solid #ffffff;
+    border-radius: 0;
+    color: #000000;
+    font-family: Verdana, Arial, sans-serif;
+    font-size: 10pt;
+    min-height: 0;
+    padding: 2px;
+}
+
+body.wb-vn-eol .corebb-search-page .corebb-search-choice-row {
+    gap: 4px;
+}
+
+body.wb-vn-eol .corebb-search-page .corebb-search-choice-row label {
+    background: #d7d7d7;
+    border-top: 1px solid #ffffff;
+    border-left: 1px solid #ffffff;
+    border-right: 1px solid #666666;
+    border-bottom: 1px solid #666666;
+    border-radius: 0;
+    color: #000000;
+    gap: 4px;
+    min-height: 0;
+    padding: 3px 7px;
+}
+
+body.wb-vn-eol .corebb-search-page .corebb-search-choice-row span {
+    font-size: 9pt;
+    font-weight: bold;
+}
+
+body.wb-vn-eol .corebb-search-page .corebb-search-tip-list {
+    color: #000000;
+    display: block;
+    font-size: 8pt;
+    line-height: 1.35;
+}
+
+body.wb-vn-eol .corebb-search-page .corebb-search-tip-list p {
+    margin: 0 0 7px 0;
+}
+
+body.wb-vn-eol .corebb-search-page .corebb-login-actions {
+    gap: 5px;
+}
+
+body.wb-vn-eol .corebb-search-page .corebb-login-submit {
+    border-radius: 0 !important;
+    font-size: 10px !important;
+    line-height: 14px;
+    min-height: 0;
+    min-width: 80px;
+    padding: 1px 12px !important;
+}
+
+body.wb-vn-eol .corebb-search-page .corebb-login-create-button,
+body.wb-vn-eol .corebb-search-page .corebb-login-create-button:link,
+body.wb-vn-eol .corebb-search-page .corebb-login-create-button:visited {
+    background: #d7d7d7;
+    border-top: 1px solid #ffffff;
+    border-left: 1px solid #ffffff;
+    border-right: 1px solid #666666;
+    border-bottom: 1px solid #666666;
+    border-radius: 0;
+    color: #0000cc;
+    font-family: Verdana, Arial, sans-serif;
+    font-size: 10px;
+    font-weight: bold;
+    line-height: 14px;
+    min-height: 0;
+    padding: 1px 8px;
+    text-decoration: none;
+}
+
+body.wb-vn-eol .corebb-search-page .corebb-login-create-button:hover {
+    background: #eeeeee;
+    color: #0000ff;
+    text-decoration: underline;
+}
+
+body.wb-vn-eol .corebb-search-results-page {
+    margin-top: 6px;
+}
+
+body.wb-vn-eol .corebb-search-results-page .corebb-search-results-panel {
+    overflow-x: auto;
+    padding: 4px;
+}
+
+body.wb-vn-eol .corebb-search-results-page .corebb-search-pagination,
+body.wb-vn-eol .corebb-search-results-page .corebb-search-empty {
+    background: #c1c2c9;
+    border-top: 1px solid #ffffff;
+    border-left: 1px solid #ffffff;
+    border-right: 1px solid #777777;
+    border-bottom: 1px solid #777777;
+    border-radius: 0;
+    color: #000000;
+    padding: 3px;
+}
+
+body.wb-vn-eol .corebb-search-results-page .corebb-search-results-table {
+    border-collapse: collapse;
+    border-spacing: 0;
+    font-family: Verdana, Arial, sans-serif;
+    font-size: 9pt;
+}
+
+body.wb-vn-eol .corebb-search-results-page .corebb-search-results-table th {
+    background: #666666;
+    border: 1px solid #333333;
+    color: #ffffff;
+    font-size: 9pt;
+    font-weight: bold;
+    padding: 3px 5px;
+}
+
+body.wb-vn-eol .corebb-search-results-page .corebb-search-results-table td {
+    background: #c1c2c9;
+    border: 1px solid #999999;
+    color: #000000;
+    font-size: 9pt;
+    line-height: 1.25;
+    padding: 4px 5px;
+}
+
+body.wb-vn-eol .corebb-search-results-page .corebb-search-results-table tr:nth-child(even) td {
+    background: #b1b3bc;
+}
+
+body.wb-vn-eol .corebb-search-results-page .corebb-search-result-meta,
+body.wb-vn-eol .corebb-search-results-page .corebb-search-result-excerpt {
+    color: #333333;
+    font-size: 8pt;
+    margin-top: 2px;
+}
+
+html.corebb-dark-mode body.wb-vn-eol .corebb-search-page.corebb-login-page,
+html.corebb-dark-mode body.wb-vn-eol .corebb-search-results-page.corebb-login-page {
+    background: #191c20;
+    border-top-color: #4f565e;
+    border-left-color: #4f565e;
+    border-right-color: #080a0c;
+    border-bottom-color: #080a0c;
+    color: #c9d1d9;
+}
+
+html.corebb-dark-mode body.wb-vn-eol .corebb-search-page .corebb-login-header,
+html.corebb-dark-mode body.wb-vn-eol .corebb-search-results-page .corebb-login-header,
+html.corebb-dark-mode body.wb-vn-eol .corebb-search-page .corebb-login-section-head,
+html.corebb-dark-mode body.wb-vn-eol .corebb-search-results-page .corebb-login-section-head,
+html.corebb-dark-mode body.wb-vn-eol .corebb-search-results-page .corebb-search-results-table th {
+    background: #2d3339;
+    border-top-color: #56606a;
+    border-left-color: #56606a;
+    border-right-color: #0d1013;
+    border-bottom-color: #0d1013;
+    color: #e0e6ec;
+}
+
+html.corebb-dark-mode body.wb-vn-eol .corebb-search-page .corebb-login-header h2,
+html.corebb-dark-mode body.wb-vn-eol .corebb-search-results-page .corebb-login-header h2,
+html.corebb-dark-mode body.wb-vn-eol .corebb-search-page .corebb-login-section-head h3,
+html.corebb-dark-mode body.wb-vn-eol .corebb-search-results-page .corebb-login-section-head h3 {
+    color: #e0e6ec;
+}
+
+html.corebb-dark-mode body.wb-vn-eol .corebb-search-page .corebb-login-eyebrow,
+html.corebb-dark-mode body.wb-vn-eol .corebb-search-results-page .corebb-login-eyebrow,
+html.corebb-dark-mode body.wb-vn-eol .corebb-search-page .corebb-login-section-head span,
+html.corebb-dark-mode body.wb-vn-eol .corebb-search-results-page .corebb-login-section-head span {
+    color: #d7b95f;
+}
+
+html.corebb-dark-mode body.wb-vn-eol .corebb-search-page .corebb-login-panel,
+html.corebb-dark-mode body.wb-vn-eol .corebb-search-results-page .corebb-login-panel {
+    background: #24282d;
+    border-top-color: #424a52;
+    border-left-color: #424a52;
+    border-right-color: #101316;
+    border-bottom-color: #101316;
+    color: #c9d1d9;
+}
+
+html.corebb-dark-mode body.wb-vn-eol .corebb-search-page .corebb-login-field > span,
+html.corebb-dark-mode body.wb-vn-eol .corebb-search-page .corebb-search-choice-row span,
+html.corebb-dark-mode body.wb-vn-eol .corebb-search-page .corebb-search-tip-list,
+html.corebb-dark-mode body.wb-vn-eol .corebb-search-page .corebb-search-tip-list b {
+    color: #d7dde4;
+}
+
+html.corebb-dark-mode body.wb-vn-eol .corebb-search-page .corebb-login-field small,
+html.corebb-dark-mode body.wb-vn-eol .corebb-search-results-page .corebb-login-header h2 span {
+    color: #d19a8b;
+}
+
+html.corebb-dark-mode body.wb-vn-eol .corebb-search-page .corebb-login-field input[type="text"],
+html.corebb-dark-mode body.wb-vn-eol .corebb-search-page .corebb-login-field select {
+    background: #101316 !important;
+    border-top-color: #050607;
+    border-left-color: #050607;
+    border-right-color: #4d5660;
+    border-bottom-color: #4d5660;
+    color: #dce3ea !important;
+}
+
+html.corebb-dark-mode body.wb-vn-eol .corebb-search-page .corebb-search-choice-row label {
+    background: #2a3036;
+    border-top-color: #56606a;
+    border-left-color: #56606a;
+    border-right-color: #0c0f12;
+    border-bottom-color: #0c0f12;
+    color: #d7dde4;
+}
+
+html.corebb-dark-mode body.wb-vn-eol .corebb-search-page .corebb-search-choice-row label:has(input:checked) {
+    background: #303842;
+    color: #ffffff;
+}
+
+html.corebb-dark-mode body.wb-vn-eol .corebb-search-page .corebb-login-submit,
+html.corebb-dark-mode body.wb-vn-eol .corebb-search-page .corebb-login-create-button,
+html.corebb-dark-mode body.wb-vn-eol .corebb-search-page .corebb-login-create-button:link,
+html.corebb-dark-mode body.wb-vn-eol .corebb-search-page .corebb-login-create-button:visited {
+    background: #2f363d !important;
+    border-top-color: #5f6a73 !important;
+    border-left-color: #5f6a73 !important;
+    border-right-color: #080a0c !important;
+    border-bottom-color: #080a0c !important;
+    color: #9ec3ec !important;
+}
+
+html.corebb-dark-mode body.wb-vn-eol .corebb-search-page .corebb-login-submit:hover,
+html.corebb-dark-mode body.wb-vn-eol .corebb-search-page .corebb-login-create-button:hover {
+    background: #3a424a !important;
+    color: #c7e0ff !important;
+}
+
+html.corebb-dark-mode body.wb-vn-eol .corebb-search-results-page .corebb-search-pagination,
+html.corebb-dark-mode body.wb-vn-eol .corebb-search-results-page .corebb-search-empty {
+    background: #20252a;
+    border-top-color: #424a52;
+    border-left-color: #424a52;
+    border-right-color: #0d1013;
+    border-bottom-color: #0d1013;
+    color: #c9d1d9;
+}
+
+html.corebb-dark-mode body.wb-vn-eol .corebb-search-results-page .corebb-search-results-table td {
+    background: #24282d;
+    border-color: #11161b;
+    color: #c9d1d9;
+}
+
+html.corebb-dark-mode body.wb-vn-eol .corebb-search-results-page .corebb-search-results-table tr:nth-child(even) td {
+    background: #20252a;
+}
+
+html.corebb-dark-mode body.wb-vn-eol .corebb-search-results-page .corebb-search-result-meta,
+html.corebb-dark-mode body.wb-vn-eol .corebb-search-results-page .corebb-search-result-excerpt {
+    color: #98a3ad;
+}
+
+html.corebb-dark-mode body.wb-vn-eol .corebb-search-page a,
+html.corebb-dark-mode body.wb-vn-eol .corebb-search-results-page a {
+    color: #8fb8e5;
+}
+
+/* Post composer: keep the VNBoards-era table treatment on the classic theme only. */
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain.corebb-post-composer {
+    background: #c1c2c9;
+    border-top: 1px solid #ffffff;
+    border-left: 1px solid #ffffff;
+    border-right: 1px solid #666666;
+    border-bottom: 1px solid #666666;
+    border-radius: 0;
+    box-shadow: none;
+    color: #000000;
+    font-family: Verdana, Arial, sans-serif;
+    font-size: 10pt;
+}
+
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-composer__head {
+    background: #666666;
+    border-top: 1px solid #999999;
+    border-left: 1px solid #999999;
+    border-right: 1px solid #333333;
+    border-bottom: 1px solid #333333;
+    color: #ffffff;
+    padding: 3px 6px;
+}
+
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-composer__head h1 {
+    color: #ffffff;
+    font-family: Verdana, Arial, sans-serif;
+    font-size: 10pt;
+    font-weight: bold;
+    line-height: 1.2;
+}
+
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-composer__kicker,
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-composer__board {
+    color: #ffcc66;
+    font-family: Verdana, Arial, sans-serif;
+    font-size: 7pt;
+    font-weight: bold;
+    line-height: 1.2;
+    text-transform: uppercase;
+}
+
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-composer__board {
+    background: #d7d7d7;
+    border-top: 1px solid #ffffff;
+    border-left: 1px solid #ffffff;
+    border-right: 1px solid #666666;
+    border-bottom: 1px solid #666666;
+    border-radius: 0;
+    color: #000000;
+    padding: 2px 8px;
+}
+
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-section {
+    background: #b1b3bc;
+    border-top: 0;
+    border-left: 0;
+    border-right: 0;
+    border-bottom: 1px solid #888888;
+    gap: 8px 14px;
+    grid-template-columns: minmax(110px, 16%) minmax(0, 1fr);
+    padding: 8px 18px;
+}
+
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-section--compact {
+    min-height: 0;
+}
+
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-label,
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-poll-panel .corebb-post-label,
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-poll-choice-row label {
+    color: #000000;
+    font-family: Verdana, Arial, sans-serif;
+    font-size: 9pt;
+    font-weight: bold;
+}
+
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-input,
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-textarea,
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain.corebb-post-composer input[type="text"],
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain.corebb-post-composer input[type="file"],
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain.corebb-post-composer textarea {
+    background: #ffffff;
+    border-top: 1px solid #666666 !important;
+    border-left: 1px solid #666666 !important;
+    border-right: 1px solid #ffffff !important;
+    border-bottom: 1px solid #ffffff !important;
+    border-radius: 0;
+    color: #000000;
+    font-family: Verdana, Arial, sans-serif;
+    font-size: 10pt;
+    line-height: 1.35;
+    padding: 2px;
+}
+
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-input,
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain.corebb-post-composer input[type="text"],
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain.corebb-post-composer input[type="file"] {
+    min-height: 0;
+}
+
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-textarea,
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-message textarea {
+    min-height: 300px;
+}
+
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-toolbar {
+    gap: 4px;
+}
+
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-toolbar .markupButton,
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain.corebb-post-composer input[type="button"],
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain.corebb-post-composer button,
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain.corebb-post-composer .corebb-post-submit {
+    border-radius: 0 !important;
+    font-family: Verdana, Arial, sans-serif !important;
+    font-size: 10px !important;
+    line-height: 14px;
+    min-height: 0;
+    padding: 1px 8px !important;
+}
+
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-toolbar .markupButton {
+    min-width: 28px;
+}
+
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-action-row {
+    gap: 6px;
+}
+
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-check {
+    color: #000000;
+    font-family: Verdana, Arial, sans-serif;
+    font-size: 9pt;
+    font-weight: bold;
+    gap: 5px;
+}
+
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-check input {
+    height: auto;
+    width: auto;
+}
+
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-note {
+    color: #663333;
+    font-family: Verdana, Arial, sans-serif;
+    font-size: 8pt;
+    line-height: 1.25;
+}
+
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-context,
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-poll-panel > .corebb-post-input,
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-poll-panel > .corebb-poll-choice-list,
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-poll-panel > .corebb-post-action-row,
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-upload > .corebb-post-note,
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-message .corebb-post-note {
+    grid-column: auto;
+}
+
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-meta span {
+    color: #663333;
+    font-size: 8pt;
+}
+
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-upload__controls {
+    gap: 6px;
+    grid-template-columns: minmax(180px, 1fr) auto minmax(120px, auto);
+}
+
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-poll-choice-list {
+    gap: 5px;
+}
+
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-poll-choice-row {
+    gap: 7px;
+    grid-template-columns: 76px minmax(0, 1fr);
+}
+
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-composer__footer {
+    background: #b1b3bc;
+    border-top: 1px solid #888888;
+    padding: 8px 18px;
+}
+
+body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain.corebb-post-composer .corebb-post-submit {
+    min-width: 112px;
+}
+
+html.corebb-dark-mode body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain.corebb-post-composer {
+    background: #191c20;
+    border-top-color: #4f565e;
+    border-left-color: #4f565e;
+    border-right-color: #080a0c;
+    border-bottom-color: #080a0c;
+    color: #c9d1d9;
+}
+
+html.corebb-dark-mode body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-composer__head {
+    background: #2d3339;
+    border-top-color: #56606a;
+    border-left-color: #56606a;
+    border-right-color: #0d1013;
+    border-bottom-color: #0d1013;
+    color: #e0e6ec;
+}
+
+html.corebb-dark-mode body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-composer__head h1 {
+    color: #e0e6ec;
+}
+
+html.corebb-dark-mode body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-composer__kicker,
+html.corebb-dark-mode body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-composer__board {
+    color: #d7b95f;
+}
+
+html.corebb-dark-mode body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-composer__board {
+    background: #2f363d;
+    border-top-color: #5f6a73;
+    border-left-color: #5f6a73;
+    border-right-color: #080a0c;
+    border-bottom-color: #080a0c;
+    color: #e0e6ec;
+}
+
+html.corebb-dark-mode body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-section,
+html.corebb-dark-mode body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-composer__footer {
+    background: #24282d;
+    border-bottom-color: #101316;
+    border-top-color: #424a52;
+    color: #c9d1d9;
+}
+
+html.corebb-dark-mode body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-label,
+html.corebb-dark-mode body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-poll-panel .corebb-post-label,
+html.corebb-dark-mode body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-poll-choice-row label,
+html.corebb-dark-mode body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-check {
+    color: #d7dde4;
+}
+
+html.corebb-dark-mode body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-input,
+html.corebb-dark-mode body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-textarea,
+html.corebb-dark-mode body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain.corebb-post-composer input[type="text"],
+html.corebb-dark-mode body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain.corebb-post-composer input[type="file"],
+html.corebb-dark-mode body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain.corebb-post-composer textarea {
+    background: #101316 !important;
+    border-top-color: #050607 !important;
+    border-left-color: #050607 !important;
+    border-right-color: #4d5660 !important;
+    border-bottom-color: #4d5660 !important;
+    color: #dce3ea !important;
+}
+
+html.corebb-dark-mode body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-note,
+html.corebb-dark-mode body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-meta span {
+    color: #d19a8b;
+}
+
+html.corebb-dark-mode body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-toolbar .markupButton,
+html.corebb-dark-mode body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain.corebb-post-composer input[type="button"],
+html.corebb-dark-mode body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain.corebb-post-composer button,
+html.corebb-dark-mode body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain.corebb-post-composer .corebb-post-submit {
+    background: #2f363d !important;
+    border-top-color: #5f6a73 !important;
+    border-left-color: #5f6a73 !important;
+    border-right-color: #080a0c !important;
+    border-bottom-color: #080a0c !important;
+    color: #9ec3ec !important;
+}
+
+html.corebb-dark-mode body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain .corebb-post-toolbar .markupButton:hover,
+html.corebb-dark-mode body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain.corebb-post-composer input[type="button"]:hover,
+html.corebb-dark-mode body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain.corebb-post-composer button:hover,
+html.corebb-dark-mode body.wb-vn-eol:not(.wb-modern-static):not(.wb-modern-4):not(.wb-emberline) #frmMain.corebb-post-composer .corebb-post-submit:hover {
+    background: #3a424a !important;
+    color: #c7e0ff !important;
+}
+
 /* VN EOL User CP / sidebar workspace cleanup */
 .wb-usercp-workspace {
     margin: 0;

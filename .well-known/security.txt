@@ -1,5 +1,5 @@
 Contact: mailto:security@corebb.net
-Contact: https://github.com/HannsGrubers/CoreBB-Forum/security/advisories/new
+Contact: https://github.com/HannsGrubers/CoreBB/security/advisories/new
 Policy: https://corebb.net/security/
 Canonical: https://corebb.net/.well-known/security.txt
 Preferred-Languages: en

@@ -19,6 +19,7 @@ require_once __DIR__ . '/security.php';
  +-------------------------------------------------------+*/
 
 require_once __DIR__ . '/private_board_helpers.php';
+require_once __DIR__ . '/forum_statistics_helpers.php';
 
 /**
  * Check whether poll tables are already available for read paths.
@@ -480,6 +481,10 @@ function corebb_poll_cast_vote(int $topicId, int $optionId, int $userId): array
         }
         return ['ok' => false, 'message' => 'Error recording poll vote: ' . db_error()];
     }
+    corebb_forum_stats_record_event((int)corebb_topic_board_id($topicId), 'poll_vote', [
+        'topicid' => $topicId,
+        'userid' => $userId,
+    ]);
 
     return ['ok' => true, 'message' => 'Your vote has been recorded.'];
 }
