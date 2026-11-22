@@ -2,7 +2,7 @@
 
 CoreBB is a self-hosted forum built with PHP and MySQL. If you remember the old Vault Network boards, you’ll recognize some of their DNA here. Pick a board, start a topic, and the conversation is still there for the next person who comes looking for it.
 
-[Visit the live forum](https://corebb.net/forum/) · [Explore the themes](https://corebb.net/#interface)
+[Visit the live forum](https://corebb.net/forum/) · [Explore the themes](https://corebb.net/#interface) · [VNBoards Themed Installation](https://vaultnetwork.net)
 
 ![The Workshop Forums board directory using CoreBB’s Signal theme](https://corebb.net/corebb-assets/themes/signal-cover.jpg)
 
