@@ -9,16 +9,16 @@
 
 $root = dirname(__DIR__);
 
-require_once $root . '/lib/helpers/bootstrap.php';
-require_once $root . '/lib/helpers/auth_flow_helpers.php';
-require_once $root . '/lib/helpers/google_auth_helpers.php';
-require_once $root . '/lib/helpers/oauth_provider_helpers.php';
-
-$action = strtolower(trim((string)($_GET['action'] ?? 'login')));
+$action = is_string($_GET['action'] ?? null) ? strtolower(trim($_GET['action'])) : 'login';
 $allowedActions = ['login', 'login_submit', 'logout', 'register', 'recover', 'reset', 'verify', 'resend', 'google', 'google_complete', 'oauth_start', 'oauth_callback', 'oauth_complete', 'oauth_debug', 'sso_start', 'sso_callback', 'sso_complete', 'sso_debug'];
 if (!in_array($action, $allowedActions, true)) {
     $action = 'login';
 }
+define('COREBB_AUTH_ACTION', $action);
+require_once $root . '/lib/helpers/bootstrap.php';
+require_once $root . '/lib/helpers/auth_flow_helpers.php';
+require_once $root . '/lib/helpers/google_auth_helpers.php';
+require_once $root . '/lib/helpers/oauth_provider_helpers.php';
 
 if ($action === 'login_submit') {
     if (strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET')) !== 'POST') {
@@ -28,7 +28,14 @@ if ($action === 'login_submit') {
 }
 
 if ($action === 'logout') {
-    corebb_auth_redirect(corebb_auth_logout_redirect());
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        // The browser bootstrap validates the form token before dispatch.
+        corebb_auth_end_session();
+        corebb_auth_redirect('/?msg=Successfully+logged+out!');
+    }
+    require_once $root . '/lib/helpers/view.php';
+    corebb_render_public('pages/logout.twig');
+    exit;
 }
 
 if ($action === 'google') {
@@ -95,14 +102,16 @@ switch ($action) {
         break;
 
     case 'reset':
+        header('Referrer-Policy: no-referrer');
         $GLOBALS['corebb_layout_script'] = 'auth:reset';
         $model = corebb_reset_password_model($_GET, $_POST, $_SERVER['REQUEST_METHOD'] ?? 'GET');
         corebb_render_public('pages/reset_password.twig', ['model' => $model]);
         break;
 
     case 'verify':
+        header('Referrer-Policy: no-referrer');
         $GLOBALS['corebb_layout_script'] = 'auth:verify';
-        corebb_render_public('pages/verify_email.twig', corebb_verify_email_template_data($_GET));
+        corebb_render_public('pages/verify_email.twig', corebb_verify_email_template_data($_SERVER['REQUEST_METHOD'] === 'POST' ? $_POST : $_GET));
         break;
 
     case 'resend':
@@ -114,7 +123,7 @@ switch ($action) {
     case 'login':
     default:
         $GLOBALS['corebb_layout_script'] = 'auth:login';
-        corebb_mobile_redirect('login');
+        if (!defined('COREBB_MAINTENANCE_AUTH')) { corebb_mobile_redirect('login'); }
         $model = corebb_login_model($_GET);
         $model['google'] = corebb_google_button_model();
         $model['oauthProviders'] = corebb_oauth_button_model();

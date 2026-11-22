@@ -47,8 +47,24 @@ if ($path === '') {
 
 $segments = $path === '' ? [] : array_values(array_filter(explode('/', $path), static fn($part): bool => $part !== ''));
 $resource = (string)($segments[0] ?? '');
+require_once dirname(__DIR__, 2) . '/lib/helpers/forum_access.php';
+$access = corebb_forum_access_settings();
+if ($access['maintenance']) {
+    corebb_api_error('maintenance', $access['message'], 503, ['subject'=>$access['subject']]);
+}
+if (!$access['allow_guests'] && empty(corebb_api_viewer()['id']) && !in_array($resource, ['', 'health', 'auth', 'me'], true)) {
+    corebb_api_error('login_required', 'Sign in to view this forum.', 401);
+}
 $rateResource = $resource === '' ? 'health' : $resource;
 corebb_api_apply_rate_limit($rateResource);
+
+if (corebb_api_viewer_is_banned()) {
+    $accountStatus = $method === 'GET' && in_array($resource, ['', 'health', 'me'], true);
+    $logoutFlow = $resource === 'auth' && in_array($segments[1] ?? '', ['csrf', 'logout'], true);
+    if (!$accountStatus && !$logoutFlow) {
+        corebb_api_error('banned', 'This account is banned.', 403);
+    }
+}
 
 // Route API requests through the same CoreBB models used by the classic pages.
 if ($resource === 'auth') {
@@ -322,9 +338,6 @@ if ($resource === 'polls' && $method === 'POST') {
     if (!$viewer) {
         corebb_api_error('login_required', 'You must be logged in to vote in polls.', 401);
     }
-    if (corebb_api_viewer_is_banned()) {
-        corebb_api_error('banned', 'This account is banned.', 403);
-    }
 
     $data = corebb_api_request_data();
     corebb_api_require_csrf($data);
@@ -366,10 +379,6 @@ if ($resource === '' || $resource === 'health') {
 
 if ($resource === 'me') {
     corebb_api_ok(corebb_api_viewer_payload() + ['limits' => corebb_api_boundary()]);
-}
-
-if (corebb_api_viewer_is_banned()) {
-    corebb_api_error('banned', 'This account is banned.', 403);
 }
 
 if ($resource === 'index') {

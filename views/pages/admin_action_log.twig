@@ -1,104 +1,50 @@
-{% include 'partials/admin_messages.twig' with {messages: model.messages|default([]), errors: model.errors|default([])} only %}
-{% set filters = model.filters|default({susername: '', ip: '', actiontype: ''}) %}
-{% set rows = model.rows|default([]) %}
-{% set pagination = model.pagination|default({}) %}
-
-<div class="corebb-admin-modern-page">
-    <div class="corebb-admin-modern-header">
-        <div>
-            <div class="corebb-admin-modern-eyebrow">Content</div>
-            <h2>Admin Action Log</h2>
-            <div class="corebb-admin-modern-meta">
-                <span>{{ model.total|default(0)|number_format }} matching actions</span>
-            </div>
-        </div>
-        <div class="corebb-admin-modern-actions">
-            <a class="corebb-board-action-link" href="/admin/?act=action_log">Reload</a>
-            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
-        </div>
-    </div>
-
-    <div class="corebb-admin-modern-panel">
-        <form class="corebb-admin-modern-form" method="get" action="/admin/">
-            <input type="hidden" name="act" value="action_log">
-            <div class="corebb-admin-modern-grid">
-                <label for="corebbActionLogAdmin">Admin User Name</label>
-                <input id="corebbActionLogAdmin" name="susername" type="text" value="{{ filters.susername|default('') }}">
-
-                <label for="corebbActionLogIp">IP Address</label>
-                <input id="corebbActionLogIp" name="ip" type="text" value="{{ filters.ip|default('') }}">
-
-                <label for="corebbActionLogType">Action Type</label>
-                <input id="corebbActionLogType" name="actiontype" type="text" size="100" value="{{ filters.actiontype|default('') }}">
-
-                <div class="corebb-admin-modern-submit corebb-admin-modern-full">
-                    <button class="corebb-board-action-link" type="submit">Search</button>
-                </div>
-            </div>
-        </form>
-    </div>
-
-    <table class="corebb-admin-modern-table corebb-admin-action-log-table wb-table">
-        <thead>
-            <tr>
-                <th>Admin</th>
-                <th>IP Address</th>
-                <th>Action Type</th>
-                <th>Description</th>
-                <th>Date Performed</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% if rows is empty %}
-                <tr>
-                    <td colspan="5" class="corebb-admin-modern-empty">No admin actions match the current search.</td>
-                </tr>
-            {% else %}
-                {% for row in rows %}
-                    <tr>
-                        <td><a class="corebb-admin-text-link" target="{{ row.admin_link.target|default('_top') }}" href="{{ row.admin_link.url|default('#') }}">{{ row.admin_link.label|default(row.admin_username|default('Unknown')) }}</a></td>
-                        <td><a class="corebb-admin-text-link" href="{{ row.ip_filter_url|default('#') }}">{{ row.ip_address|default('') }}</a></td>
-                        <td><a class="corebb-admin-text-link" href="{{ row.action_type_filter_url|default('#') }}">{{ row.action_type|default('') }}</a></td>
-                        <td>{{ row.description|default('') }}</td>
-                        <td>{{ row.date_vn|default('') }}</td>
-                    </tr>
-                {% endfor %}
-            {% endif %}
-        </tbody>
-    </table>
-
-    {% if pagination.has_pages|default(false) %}
-        <div class="corebb-admin-modern-panel">
-            <div class="corebb-admin-modern-submit">
-                {% if pagination.page|default(1) > 1 and pagination.first_url|default('') != '' %}
-                    <a class="corebb-board-action-link" href="{{ pagination.first_url }}">&laquo;</a>
-                {% endif %}
-                {% for pageLink in pagination.page_links|default([]) %}
-                    {% if pageLink.current|default(false) %}
-                        <span class="corebb-board-action-disabled">{{ pageLink.page }}</span>
-                    {% else %}
-                        <a class="corebb-board-action-link" href="{{ pageLink.url }}">{{ pageLink.page }}</a>
-                    {% endif %}
-                {% endfor %}
-                {% if pagination.next_url|default('') != '' %}
-                    <a class="corebb-board-action-link" href="{{ pagination.last_url|default(pagination.next_url) }}">&raquo;</a>
-                {% endif %}
-                {% if pagination.previous_url|default('') != '' %}
-                    <a class="corebb-board-action-link" href="{{ pagination.previous_url }}">Previous</a>
-                {% else %}
-                    <span class="corebb-board-action-disabled">Previous</span>
-                {% endif %}
-                {% if pagination.next_url|default('') != '' %}
-                    <a class="corebb-board-action-link" href="{{ pagination.next_url }}">Next</a>
-                {% else %}
-                    <span class="corebb-board-action-disabled">Next</span>
-                {% endif %}
-                <a class="corebb-board-action-link" href="{{ pagination.reload_url|default('/admin/?act=action_log') }}">Reload</a>
-            </div>
-        </div>
+{% set base = '/admin/?act=action_log' %}
+<div class="admin-overview admin-settings audit-log">
+    <header class="admin-dash-heading"><h1>Admin Action Log</h1>
+        <nav class="board-dir-links" aria-label="Action log links">
+            {% if model.reload_url %}<a href="{{ url(model.reload_url) }}">Reload log</a>{% endif %}
+            <a href="{{ url('/admin/') }}">Dashboard</a>
+        </nav>
+    </header>
+    {% include 'partials/admin_messages.twig' with {messages:[],errors:model.errors|default([])} only %}
+    {% if model.filters is defined %}
+    <form class="admin-settings-form audit-filters" method="get" action="{{ url('/admin/') }}">
+        <input type="hidden" name="act" value="action_log">
+        <div class="admin-auth-field"><label for="audit-action">Action</label><input type="search" name="actiontype" id="audit-action" value="{{ model.filters.actiontype }}" placeholder="Action, type, or description"></div>
+        <div class="admin-auth-field"><label for="audit-staff">Staff member</label><input type="search" name="susername" id="audit-staff" value="{{ model.filters.susername }}" placeholder="Username or ID"></div>
+        <div class="admin-auth-field"><label for="audit-ip">IP address</label><input type="search" name="ip" id="audit-ip" value="{{ model.filters.ip }}" spellcheck="false"></div>
+        <div class="admin-settings-save"><button type="submit">Search log</button>{% if model.filtered %}<a href="{{ url(base) }}">Reset</a>{% endif %}</div>
+    </form>
     {% endif %}
-
-    {% if model.total|default(0) > 0 %}
-        <div class="corebb-admin-modern-note is-muted">Showing {{ rows|length }} of {{ model.total|default(0) }} action{{ model.total|default(0) == 1 ? '' : 's' }}.</div>
+    {% if model.total is defined %}
+    <section class="audit-results" aria-label="Logged actions">
+        {% if model.rows %}
+        <p class="audit-range">{{ model.first|number_format }}–{{ model.last|number_format }} of {{ model.total|number_format }} {{ model.filtered ? 'matching ' : '' }}{{ model.total == 1 ? 'action' : 'actions' }} · Newest first</p>
+        <div class="audit-columns" aria-hidden="true"><span>Action</span><span>Staff member</span><span>When</span></div>
+        {% for row in model.rows %}
+        <details class="audit-entry" name="audit-record">
+            <summary><strong>{{ row.action }}</strong><span class="audit-actor">{{ row.admin_username }}</span><span class="audit-date">{{ row.date_vn }}</span></summary>
+            <div class="audit-detail">
+                {% if row.detail %}<p class="audit-description">{{ row.detail }}</p>{% endif %}
+                <dl>
+                    <div><dt>Action type</dt><dd>{% if row.type_filter_url %}<a href="{{ url(row.type_filter_url) }}" title="Filter by this action type">{{ row.type }}</a>{% else %}{{ row.type }}{% endif %}</dd></div>
+                    <div><dt>IP address</dt><dd>{% if row.ip_filter_url %}<a href="{{ url(row.ip_filter_url) }}" title="Filter by this IP address">{{ row.ip }}</a>{% else %}Not recorded{% endif %}</dd></div>
+                    {% if row.role %}<div><dt>Role at the time</dt><dd>{{ row.role }}</dd></div>{% endif %}
+                    {% if row.recorded_name %}<div><dt>Recorded username</dt><dd>{{ row.recorded_name }}</dd></div>{% endif %}
+                    {% if row.id %}<div><dt>Log entry</dt><dd>#{{ row.id }}</dd></div>{% endif %}
+                </dl>
+                {% if row.actor_filter_url %}<a href="{{ url(row.actor_filter_url) }}">Filter by this staff member</a>{% endif %}
+            </div>
+        </details>{% endfor %}
+        {% elseif model.filtered %}<p>No actions match these filters. <a href="{{ url(base) }}">Show all actions</a></p>
+        {% else %}<p>No actions have been recorded.</p>{% endif %}
+        {% if model.pagination.visible %}
+        <nav class="admin-latest-pager" aria-label="Log pages">
+            {% if model.pagination.prev.enabled %}<a rel="prev" href="{{ url(model.pagination.prev.url) }}">Previous</a>{% endif %}
+            {% for item in model.pagination.items %}{% if item.type == 'ellipsis' %}<span>…</span>{% elseif item.current %}<strong aria-current="page">{{ item.page }}</strong>{% else %}<a href="{{ url(item.url) }}" aria-label="Page {{ item.page }}">{{ item.page }}</a>{% endif %}{% endfor %}
+            {% if model.pagination.next.enabled %}<a rel="next" href="{{ url(model.pagination.next.url) }}">Next</a>{% endif %}
+        </nav>
+        {% endif %}
+    </section>
     {% endif %}
 </div>

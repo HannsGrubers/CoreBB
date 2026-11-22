@@ -1,0 +1,42 @@
+{% block reply_actions %}
+{% if archiveReadOnly %}
+    <a class="SmallText"><b>Secure Archive - Read Only</b></a>
+{% elseif locked and not canModerate %}
+    <a class="SmallText"><b>Topic Locked</b></a>
+{% else %}
+    <a class="SmallText" href="{{ post.reply_url|default('#') }}"><b>Post Reply</b></a> <span aria-hidden="true">-</span>
+    <a class="SmallText" href="{{ post.quote_url|default('#') }}"><b>Quote</b></a>
+{% endif %}
+{% endblock %} -
+{% block extra_actions %}
+{% if post.can_user_edit|default(false) %}
+    <a href="{{ post.edit_url|default('#') }}" class="SmallText"><b>Edit Message</b></a>
+    <a class="SmallText"> (<b>{{ post.edit_minutes_left|default(0) }}</b> minutes left)</a> -
+{% endif %}
+
+<a class="SmallText"><b>Notify</b></a>
+- <a class="SmallText" href="{{ post.report_url|default('#') }}"><b>Report Message</b></a>
+- <a class="SmallText" href="{{ post.pm_url|default('#') }}"><b>Private Message</b></a>
+{% if post.post_history_url|default('') is not empty %}
+    - <a class="SmallText" href="{{ post.post_history_url }}"><b>Post History</b></a>
+{% else %}
+    - <a class="SmallText"><b>Post History</b></a>
+{% endif %}
+
+{% if canModerate %}
+    - <a class="SmallText"><b>Moderate:</b> [</a>
+    <a class="SmallText" href="{{ post.remove_url|default('#') }}">Remove</a>,
+    <a class="SmallText" href="{{ post.moderator_edit_url|default('#') }}">Edit</a>,
+    <a class="SmallText" href="{{ post.ban_url|default('#') }}">Ban</a>,
+    {% if post.admin_notes_url|default('') is not empty %}
+        <a class="SmallText" href="{{ post.admin_notes_url }}">Notes</a>,
+    {% else %}
+        <a class="SmallText">Notes</a>,
+    {% endif %}
+    <a class="SmallText" href="{{ post.ipc_url|default('#') }}">IPC</a>,
+    <a class="SmallText" href="{{ post.lock_url|default('#') }}">{{ post.lock_label|default('Lock') }}</a>
+    <a class="SmallText">]</a>
+{% endif %}
+
+<a href="{{ post.post_id_url|default('#') }}" data-forum-action="post-id"><img src="{{ post.question_icon_url|default(asset('images/question.gif')) }}" style="vertical-align:top;" alt="Post ID: {{ postId }}" title="Post ID: {{ postId }}"></a>
+{% endblock %}

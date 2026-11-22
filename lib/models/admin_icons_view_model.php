@@ -395,17 +395,23 @@ function corebb_admin_icons_safe_file_path(string $publicPath): ?string
  * @param array $viewer Current admin user row.
  * @return array Data prepared for the admin template or caller.
  */
-function corebb_admin_icons_delete_icon(int $iconId, array $viewer): array
+function corebb_admin_icons_delete_icon(int $iconId, array $viewer, bool $unusedUploadOnly = false): array
 {
-    $icon = corebb_admin_icons_icon($iconId);
-    if (!$icon) {
-        return [false, 'Unknown icon.'];
-    }
-
-    db_run('UPDATE users SET iconid = 0 WHERE iconid = ?', [$iconId]);
-    $ok = db_run('DELETE FROM icons WHERE id = ?', [$iconId]);
-    if (!$ok) {
-        return [false, 'Error deleting icon #' . $iconId . ': ' . db_error()];
+    if (!db_begin()) { return [false, 'Could not start the icon removal.']; }
+    try {
+        $lock = corebb_db_connection()->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql' ? ' FOR UPDATE' : '';
+        $icon = db_one('SELECT id,filepath FROM icons WHERE id=?' . $lock, [$iconId]);
+        if (!$icon) { return [false, 'Icon not found.']; }
+        if ($unusedUploadOnly) {
+            $ok = db_run('DELETE FROM icons WHERE id=? AND uploaded=1 AND NOT EXISTS (SELECT 1 FROM users WHERE iconid=?)', [$iconId,$iconId]);
+        } else {
+            $ok = db_run('UPDATE users SET iconid=0 WHERE iconid=?', [$iconId]) && db_run('DELETE FROM icons WHERE id=?', [$iconId]);
+        }
+        if (!$ok || corebb_db_last_affected_rows() !== 1 || !db_commit()) {
+            return [false, 'Icon #' . $iconId . ' could not be removed.'];
+        }
+    } finally {
+        if (corebb_db_connection()->inTransaction()) { db_rollback(); }
     }
 
     $filePath = corebb_admin_icons_safe_file_path((string)($icon['filepath'] ?? ''));
@@ -430,7 +436,7 @@ function corebb_admin_icons_bulk_delete_unused(array $viewer): array
     $deleted = 0;
     $failed = 0;
     foreach (db_all('SELECT i.id, i.filepath FROM icons i WHERE i.uploaded = 1 AND NOT EXISTS (SELECT 1 FROM users u WHERE u.iconid = i.id)') as $row) {
-        [$ok] = corebb_admin_icons_delete_icon((int)($row['id'] ?? 0), $viewer);
+        [$ok] = corebb_admin_icons_delete_icon((int)($row['id'] ?? 0), $viewer, true);
         if ($ok) { $deleted++; } else { $failed++; }
     }
 
@@ -462,13 +468,15 @@ function corebb_admin_icons_set_approved(int $iconId, bool $approved, array $vie
         return [false, 'Unknown icon.'];
     }
 
-    $ok = db_run('UPDATE icons SET approved = ? WHERE id = ?', [$approved ? 1 : 0, $iconId]);
-    if (!$ok) {
-        return [false, 'Error updating icon #' . $iconId . ': ' . db_error()];
-    }
-
-    if (!$approved) {
-        db_run('UPDATE users SET iconid = 0 WHERE iconid = ?', [$iconId]);
+    if (!db_begin()) { return [false, 'Could not start the approval change.']; }
+    try {
+        if (!db_run('UPDATE icons SET approved = ? WHERE id = ?', [$approved ? 1 : 0, $iconId])
+            || (!$approved && !db_run('UPDATE users SET iconid = 0 WHERE iconid = ?', [$iconId]))
+            || !db_commit()) {
+            return [false, 'Could not update icon #' . $iconId . '.'];
+        }
+    } finally {
+        if (corebb_db_connection()->inTransaction()) { db_rollback(); }
     }
 
     corebb_admin_icons_log($viewer, ($approved ? 'Approved' : 'Unapproved') . ' avatar/icon #' . $iconId);
@@ -492,7 +500,7 @@ function corebb_admin_icons_set_shared(int $iconId, bool $shared, array $viewer)
 
     $ok = db_run('UPDATE icons SET uploaded = ? WHERE id = ?', [$shared ? 0 : 1, $iconId]);
     if (!$ok) {
-        return [false, 'Error updating icon #' . $iconId . ': ' . db_error()];
+        return [false, 'Could not update icon #' . $iconId . '.'];
     }
 
     corebb_admin_icons_log($viewer, ($shared ? 'Made shared' : 'Made user-owned') . ' avatar/icon #' . $iconId);
@@ -562,7 +570,7 @@ function corebb_admin_icons_upload_shared(array $viewer, array $files, array $po
     );
     if (!$ok) {
         @unlink($dest);
-        return [false, 'Icon database record could not be created: ' . db_error()];
+        return [false, 'The shared icon could not be saved.'];
     }
 
     $iconId = (int)db_insert_id();
@@ -581,7 +589,7 @@ function corebb_admin_icons_upload_shared(array $viewer, array $files, array $po
  */
 function corebb_admin_icons_handle_post(array $viewer, array $post, array $files): array
 {
-    if (!corebb_admin_icons_token_ok($post)) {
+    if (!corebb_security_csrf_valid($post) || !corebb_admin_icons_token_ok($post)) {
         return [false, 'Your admin icon manager session token was missing or expired. Reload the page and try again.'];
     }
 
@@ -620,16 +628,19 @@ function corebb_admin_icons_handle_post(array $viewer, array $post, array $files
  */
 function corebb_admin_icons_model(array $viewer, array $get, array $post, array $files): array
 {
+    if (!corebb_admin_can_access_tool($viewer, 'manage_icons') || corebb_admin_viewer_id($viewer) <= 0) {
+        return ['errors'=>['You do not have access to Manage Icons.']];
+    }
     corebb_admin_icons_ensure_schema();
     $filters = corebb_admin_icons_filters($get);
-    $messages = [];
+    $page = max(1, (int)($get['p'] ?? 1));
 
     if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         [$ok, $message] = corebb_admin_icons_handle_post($viewer, $post, $files);
-        $messages[] = $message;
+        return ['notice'=>[$ok ? 'messages' : 'errors', $message, !$ok && ($post['icon_action'] ?? '') === 'upload_shared'],
+            'queryString'=>corebb_admin_icons_filter_query($filters, $page)];
     }
 
-    $page = max(1, (int)($get['p'] ?? 1));
     $perPage = COREBB_ADMIN_ICONS_PER_PAGE;
     $total = corebb_admin_icons_count($filters);
     $totalPages = max(1, (int)ceil($total / $perPage));
@@ -640,9 +651,6 @@ function corebb_admin_icons_model(array $viewer, array $get, array $post, array 
     $pageUrlPattern = '/admin/?act=manage_icons&' . ($filterQuery !== '' ? $filterQuery . '&' : '') . 'p={page}';
 
     return [
-        'viewer' => $viewer,
-        'viewer_accesslevel' => (int)($viewer['accesslevel'] ?? 0),
-        'messages' => $messages,
         'filters' => $filters,
         'icons' => corebb_admin_icons_list($filters, $page, $perPage),
         'stats' => corebb_admin_icons_stats(),
@@ -651,7 +659,7 @@ function corebb_admin_icons_model(array $viewer, array $get, array $post, array 
         'total' => $total,
         'totalPages' => $totalPages,
         'token' => corebb_admin_icons_token(),
-        'queryString' => $filterQuery,
+        'queryString' => corebb_admin_icons_filter_query($filters, $page),
         'pagination' => corebb_pagination_model(
             $totalPages > 1 ? $pageUrlPattern : '',
             $page,

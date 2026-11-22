@@ -123,7 +123,7 @@ function corebb_auth_login_submit_redirect(array $post): string
 
 /**
  * Usage: Build the host/domain variants that may hold login cookies.
- * Referenced by: corebb_auth_logout_redirect().
+ * Referenced by: corebb_auth_end_session().
  *
  * @param string $configuredDomain Cookie domain from configuration.
  * @param string $host Current HTTP host.
@@ -151,14 +151,14 @@ function corebb_auth_cookie_domains_to_clear(string $configuredDomain, string $h
  * Usage: Revoke login tokens, clear cookies/session state, and return home.
  * Referenced by: controllers/auth.php action=logout.
  *
- * @return string Public redirect path after logout.
+ * Browser and mobile/API logouts discard the same authentication and recovery state.
  */
-function corebb_auth_logout_redirect(): string
+function corebb_auth_end_session(): void
 {
     global $CookieDomain;
 
     $cookie = corebb_read_serialized_cookie('BoardCookieV3');
-    if ($cookie && !empty($cookie['selector'])) {
+    if ($cookie && corebb_security_verify_login_cookie($cookie) && !empty($cookie['selector'])) {
         corebb_auth_revoke_login_token((string)$cookie['selector']);
     }
 
@@ -175,5 +175,6 @@ function corebb_auth_logout_redirect(): string
         session_destroy();
     }
 
-    return '/?msg=Successfully+logged+out!';
+    $GLOBALS['MyData'] = [];
+    $GLOBALS['userlogindata_a'] = [];
 }

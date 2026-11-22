@@ -22,7 +22,7 @@
     <tr class="BoardRowB">
         <td class="wb-valign-top BoardRowA"><div class="InputSection wb-text-right">Message:&nbsp;</div></td>
         <td class="BoardRowB">
-            <textarea name="message_body" cols="60" rows="17" wrap="soft" style="width: 100%;" onselect="pst_fnSaveCaret(this);" onkeyup="pst_fnSaveCaret(this);" onclick="pst_fnSaveCaret(this);" tabindex="2" id="message_body">{{ model.body|default('') }}</textarea>
+            <textarea name="message_body" cols="60" rows="17" wrap="soft" style="width: 100%;" data-forum-caret data-forum-action="caret" tabindex="2" id="message_body">{{ model.body|default('') }}</textarea>
             <input type="hidden" name="id" value="{{ model.id|default(0) }}"><br>
             <input style="font-weight: bold; text-decoration: underline;" type="submit" name="submitButton" value="Save Blog Entry">
         </td>

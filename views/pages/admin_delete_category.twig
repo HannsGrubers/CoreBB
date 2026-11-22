@@ -1,23 +1,23 @@
 {% include 'partials/admin_messages.twig' with {messages: model.messages|default([])} only %}
 {% set category = model.category|default(null) %}
 
-<div class="corebb-admin-modern-page">
+<div class="admin-overview admin-settings board-dir-form">
     {% if model.deleted|default(false) %}
         <div class="corebb-admin-modern-panel">
-            <a class="corebb-board-action-link" href="/admin/?act=manageboards">Return to Manage Boards</a>
+            <a href="{{ url('/admin/') }}?act=manageboards">Return to Manage Boards</a>
         </div>
     {% elseif category %}
-        <div class="corebb-admin-modern-header">
+        <div class="admin-dash-heading">
             <div>
-                <div class="corebb-admin-modern-eyebrow">Manage Boards</div>
-                <h2>Delete Category</h2>
+                <div class="board-dir-parent"><a href="{{ url('/admin/?act=manageboards') }}">Manage Boards</a></div>
+                <h1>Delete Category</h1>
                 <div class="corebb-admin-modern-meta">
                     <span>{{ category.name|default('Unnamed Category') }}</span>
                     <span>{{ model.board_count|default(0)|number_format }} boards</span>
                 </div>
             </div>
             <div class="corebb-admin-modern-actions">
-                <a class="corebb-board-action-link" href="/admin/?act=manageboards">Manage Boards</a>
+                <a href="{{ url('/admin/') }}?act=manageboards">Manage Boards</a>
             </div>
         </div>
 
@@ -32,14 +32,14 @@
 
         <div class="corebb-admin-modern-panel">
             {% if model.board_count|default(0) > 0 %}
-                <a class="corebb-board-action-link" href="/admin/?act=manageboards">Return to Manage Boards</a>
+                <a href="{{ url('/admin/') }}?act=manageboards">Return to Manage Boards</a>
             {% else %}
-                <form class="corebb-admin-modern-form" method="post" action="/admin/?act=delete_category&amp;id={{ category.id|default(0) }}&amp;method=delete">
+                <form class="admin-settings-form" method="post" action="{{ url('/admin/') }}?act=delete_category&amp;id={{ category.id|default(0) }}&amp;method=delete">
                     {% include 'partials/csrf_field.twig' %}
                     <input type="hidden" name="id" value="{{ category.id|default(0) }}">
                     <div class="corebb-admin-modern-submit">
-                        <button type="submit" class="corebb-board-action-link is-danger">Yes, delete it</button>
-                        <a class="corebb-board-action-link" href="/admin/?act=manageboards">Cancel</a>
+                        <button type="submit" class="board-editor-button board-editor-danger">Yes, delete it</button>
+                        <a href="{{ url('/admin/') }}?act=manageboards">Cancel</a>
                     </div>
                 </form>
             {% endif %}
@@ -47,7 +47,7 @@
     {% else %}
         <div class="corebb-admin-modern-panel">
             Unknown category.
-            <a class="corebb-board-action-link" href="/admin/?act=manageboards">Return to Manage Boards</a>
+            <a href="{{ url('/admin/') }}?act=manageboards">Return to Manage Boards</a>
         </div>
     {% endif %}
 </div>

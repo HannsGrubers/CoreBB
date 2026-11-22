@@ -67,14 +67,7 @@ function corebb_password_recovery_now(): int
  */
 function corebb_password_recovery_public_base_url(): string
 {
-    $base = trim((string)corebb_password_recovery_mail_config('COREBB_PUBLIC_BASE_URL', ''));
-    if ($base !== '') {
-        return rtrim($base, '/');
-    }
-
-    $https = strtolower((string)($_SERVER['HTTPS'] ?? ''));
-    $scheme = ($https !== '' && $https !== 'off') ? 'https' : 'http';
-    return $scheme . '://' . corebb_mail_public_host();
+    return corebb_mail_account_base_url();
 }
 
 /**
@@ -88,7 +81,8 @@ function corebb_password_recovery_public_base_url(): string
  */
 function corebb_password_recovery_url(string $token): string
 {
-    return corebb_password_recovery_public_base_url() . '/reset-password/?token=' . rawurlencode($token);
+    $base = corebb_password_recovery_public_base_url();
+    return $base === '' ? '' : $base . '/reset-password/?token=' . rawurlencode($token);
 }
 
 /**
@@ -202,6 +196,10 @@ function corebb_password_recovery_truthy($value): bool
  */
 function corebb_password_recovery_verbose_status_enabled(): bool
 {
+    if (!function_exists('corebb_load_logged_in_user') || !corebb_load_logged_in_user()
+        || (int)($GLOBALS['userlogindata_a']['accesslevel'] ?? 0) < 5) {
+        return false;
+    }
     // Never show recovery/mail diagnostics on the live production environment.
     if (defined('COREBB_ENV') && (string)COREBB_ENV === 'live') {
         return false;
@@ -359,7 +357,7 @@ function corebb_password_recovery_send_request(string $email): array
 
     $generic = [
         'ok' => true,
-        'message' => 'If that email address belongs to an account, a password reset link has been sent.',
+        'message' => 'If that email address belongs to an account, password reset instructions have been sent.',
         'mail_error' => '',
     ];
 
@@ -385,34 +383,30 @@ function corebb_password_recovery_send_request(string $email): array
         return corebb_password_recovery_return($generic, $statusRows);
     }
 
-    if (corebb_password_recovery_recent_request_exists($userId)) {
-        corebb_password_recovery_status_add($statusRows, 'Rate limit', 'suppressed', 'A recent unused password reset request already exists for this user, so no new email was sent. Wait about 5 minutes or use a different test account.');
-        return corebb_password_recovery_return($generic, $statusRows);
-    }
-    corebb_password_recovery_status_add($statusRows, 'Rate limit', 'ok', 'No recent unused reset request blocked this send.');
-
     $token = bin2hex(random_bytes(32));
     $tokenHash = hash('sha256', $token);
     $expires = corebb_password_recovery_now() + 3600;
     $created = date('Y-m-d H:i:s', corebb_password_recovery_now());
     $ip = corebb_password_recovery_request_ip();
 
-    // Only one active reset link per user keeps testing and support sane.
-    db_run('UPDATE password_resets SET used_at = NOW() WHERE user_id = ? AND used_at IS NULL', [$userId]);
-    db_run('INSERT INTO password_resets (user_id, email, token_hash, created_at, expires_at, request_ip) VALUES (?, ?, ?, ?, ?, ?)', [
-        $userId,
-        $email,
-        $tokenHash,
-        $created,
-        $expires,
-        $ip,
-    ]);
-
-    $dbError = (string)db_error();
-    if ($dbError !== '') {
-        corebb_password_recovery_status_add($statusRows, 'Reset token', 'database warning', $dbError);
-    } else {
-        corebb_password_recovery_status_add($statusRows, 'Reset token', 'created', 'Token row inserted and previous unused tokens were marked used.');
+    if (!db_begin()) {
+        return $generic;
+    }
+    try {
+        $account = db_one('SELECT privemail FROM users WHERE id = ? FOR UPDATE', [$userId]);
+        if (!$account || strcasecmp((string)$account['privemail'], $email) !== 0 || corebb_password_recovery_recent_request_exists($userId)) {
+            db_rollback();
+            return $generic;
+        }
+        if (!db_run('UPDATE password_resets SET used_at = NOW() WHERE user_id = ? AND used_at IS NULL', [$userId])
+            || !db_run('INSERT INTO password_resets (user_id, email, token_hash, created_at, expires_at, request_ip) VALUES (?, ?, ?, ?, ?, ?)',
+                [$userId, $email, $tokenHash, $created, $expires, $ip]) || !db_commit()) {
+            db_rollback();
+            return $generic;
+        }
+    } catch (Throwable $e) {
+        db_rollback();
+        return $generic;
     }
 
     $resetUrl = corebb_password_recovery_url($token);
@@ -420,17 +414,18 @@ function corebb_password_recovery_send_request(string $email): array
     $boardName = corebb_mail_board_name();
     $body = "Hello " . $username . ",\n\n"
         . "A password reset was requested for your " . $boardName . " account.\n\n"
-        . "Reset your password here:\n"
-        . $resetUrl . "\n\n"
-        . "This link expires in 1 hour. If you did not request this, you can ignore this message.\n\n"
+        . ($resetUrl !== '' ? "Reset your password here:\n" . $resetUrl :
+            "Open the forum yourself, choose Forgot password?, and enter this recovery code:\n" . $token) . "\n\n"
+        . "This request expires in 1 hour. If you did not request this, you can ignore this message.\n\n"
         . "- " . $boardName;
 
     corebb_password_recovery_status_add($statusRows, 'Mail send', 'attempting', 'Calling CoreBB mail helper. Message body and reset token are hidden from debug output.');
     $mail = corebb_mail_send($email, 'Reset your ' . $boardName . ' password', $body);
     if (empty($mail['sent'])) {
         corebb_password_recovery_status_add($statusRows, 'Mail send', 'failed', (string)($mail['error'] ?? 'Unknown mail error.'));
-        // Keep account existence private, but expose the send failure because the
-        // site owner needs it while wiring this up.
+        if (!corebb_password_recovery_verbose_status_enabled()) {
+            return $generic;
+        }
         return corebb_password_recovery_return([
             'ok' => false,
             'message' => 'A reset request was created, but the email could not be sent.',
@@ -482,7 +477,7 @@ function corebb_password_recovery_lookup_token(string $token): ?array
     }
 
     $hash = hash('sha256', $token);
-    $row = db_one('SELECT pr.*, u.username FROM password_resets pr JOIN users u ON u.id = pr.user_id WHERE pr.token_hash = ? LIMIT 1', [$hash]);
+    $row = db_one('SELECT pr.*, u.username FROM password_resets pr JOIN users u ON u.id = pr.user_id WHERE pr.token_hash = ? AND LOWER(pr.email) = LOWER(u.privemail) LIMIT 1', [$hash]);
     return is_array($row) ? $row : null;
 }
 
@@ -549,13 +544,24 @@ function corebb_password_recovery_complete(string $token, string $pass1, string 
     corebb_auth_ensure_schema();
     $hash = corebb_auth_password_hash($pass1);
 
-    db_begin();
+    if (!db_begin()) {
+        return ['ok' => false, 'message' => 'Unable to start the password reset. Please try again.'];
+    }
     try {
-        db_run('UPDATE users SET password = ? WHERE id = ? LIMIT 1', [$hash, $userId]);
-        corebb_auth_revoke_user_login_tokens($userId);
-        db_run('UPDATE password_resets SET used_at = NOW() WHERE id = ? LIMIT 1', [$resetId]);
-        db_run('UPDATE password_resets SET used_at = NOW() WHERE user_id = ? AND used_at IS NULL', [$userId]);
-        db_commit();
+        // Serialize password resets with a recovery-address change on the same account.
+        $account = db_one('SELECT privemail FROM users WHERE id = ? FOR UPDATE', [$userId]);
+        $active = db_one('SELECT email FROM password_resets WHERE id = ? AND user_id = ? AND token_hash = ?
+            AND used_at IS NULL AND expires_at > ? FOR UPDATE', [$resetId, $userId, $row['token_hash'], corebb_password_recovery_now()]);
+        if (!$account || !$active || strcasecmp($active['email'], $account['privemail']) !== 0) {
+            db_rollback();
+            return ['ok' => false, 'message' => 'This password reset link is no longer valid.'];
+        }
+        if (!db_run('UPDATE users SET password = ? WHERE id = ?', [$hash, $userId])
+            || !db_run('DELETE FROM user_login_tokens WHERE user_id = ?', [$userId])
+            || !db_run('UPDATE password_resets SET used_at = NOW() WHERE user_id = ? AND used_at IS NULL', [$userId])
+            || !db_commit()) {
+            throw new RuntimeException('Unable to complete password reset.');
+        }
     } catch (Throwable $e) {
         db_rollback();
         return ['ok' => false, 'message' => 'Unable to update the password. Please try again.'];

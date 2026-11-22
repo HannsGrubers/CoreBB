@@ -488,13 +488,9 @@ function corebb_install_seed_settings(PDO $pdo): void
 {
     $settings = [
         [1, 'defaultstyle', 'style_vn_eol.css'],
-        [null, 'theme_vn_eol', '1'],
-        [null, 'encaseboards', '1'],
         [null, 'showbasicstats', '1'],
         [null, 'allowguests', '1'],
         [null, 'customtitles', '1'],
-        [null, 'quickreply', '1'],
-        [null, 'markupcode', '1'],
         [null, 'maintenancemode', '0'],
         [null, 'maintenancesubject', 'Boards Offline'],
         [null, 'maintenancemessage', 'The boards are temporarily unavailable.'],
@@ -641,6 +637,8 @@ function corebb_install_seed_database(PDO $pdo, array $form, string $adminPasswo
             ->execute([3, 'CoreBB Modern 2', 'style_modern_2.css']);
         $pdo->prepare('INSERT INTO systemstyles (id, name, file) VALUES (?, ?, ?)')
             ->execute([4, 'CoreBB Emberline', 'style_emberline.css']);
+        $pdo->prepare('INSERT INTO systemstyles (id, name, file) VALUES (?, ?, ?)')
+            ->execute([5, 'CoreBB Signal', 'style_signal.css']);
 
         $pdo->prepare('INSERT INTO boards (name, private, secure_archive, position, default_open) VALUES (?, 0, 0, 1, 1)')
             ->execute(['Community']);
@@ -701,6 +699,7 @@ function corebb_install_config_contents(array $form, string $dbPassword, array $
         '$BoardName = ' . var_export($form['board_name'], true) . ';',
         '$BoardURL = ' . var_export(rtrim($form['board_url'], '/'), true) . ';',
         '$CookieDomain = ' . var_export('', true) . ';',
+        "define('COREBB_COOKIE_SECRET', " . var_export(bin2hex(random_bytes(32)), true) . ');',
         '$SQLPrefix = ' . var_export('', true) . ';',
         '$BoardLockdown = ' . var_export('0', true) . ';',
         '$ShortPHP = ' . var_export('.php', true) . ';',

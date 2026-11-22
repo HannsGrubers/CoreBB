@@ -7,6 +7,7 @@
  +-------------------------------------------------------*/
 
 $root = dirname(__DIR__);
+require_once $root . '/lib/helpers/bootstrap.php';
 $action = strtolower(trim((string)($_GET['action'] ?? 'search')));
 $allowedActions = ['profile', 'profile_content', 'search', 'post_id'];
 if (!in_array($action, $allowedActions, true)) {
@@ -39,7 +40,6 @@ Post ID<br>
     exit;
 }
 
-require_once $root . '/lib/helpers/bootstrap.php';
 require_once $root . '/lib/helpers/view.php';
 require_once $root . '/lib/models/layout_view_model.php';
 

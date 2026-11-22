@@ -4,21 +4,21 @@
 {% set categories = model.categories|default([]) %}
 {% set secureLocked = board and board.effective_secure_archive|default(0) and not board.can_modify_secure_archive|default(0) %}
 
-<div class="corebb-admin-modern-page">
+<div class="admin-overview admin-settings board-dir-form">
     {% if model.done|default(false) %}
         <div class="corebb-admin-modern-panel">
-            <a class="corebb-board-action-link" href="/admin/?act=manageboards">Return to Manage Boards</a>
+            <a href="{{ url('/admin/') }}?act=manageboards">Return to Manage Boards</a>
         </div>
     {% elseif not board %}
         <div class="corebb-admin-modern-panel">
             Unknown board.
-            <a class="corebb-board-action-link" href="/admin/?act=manageboards">Return to Manage Boards</a>
+            <a href="{{ url('/admin/') }}?act=manageboards">Return to Manage Boards</a>
         </div>
     {% else %}
-        <div class="corebb-admin-modern-header">
+        <div class="admin-dash-heading">
             <div>
                 <div class="corebb-admin-modern-eyebrow">Modify Board</div>
-                <h2>{{ board.name|default('Unnamed Board') }}</h2>
+                <h1>{{ board.name|default('Unnamed Board') }}</h1>
                 <div class="corebb-admin-modern-meta">
                     <span>#{{ board.id|default(0) }}</span>
                     <span>{{ board.topic_count|default(0)|number_format }} topics</span>
@@ -28,10 +28,10 @@
                 </div>
             </div>
             <div class="corebb-admin-modern-actions">
-                <a class="corebb-board-action-link" href="/admin/?act=modifyboard&amp;id={{ board.id|default(0) }}&amp;method=edit">Edit Details</a>
-                <a class="corebb-board-action-link" href="/admin/?act=modifyboard&amp;id={{ board.id|default(0) }}&amp;method=access">Access</a>
-                <a class="corebb-board-action-link is-danger" href="/admin/?act=modifyboard&amp;id={{ board.id|default(0) }}&amp;method=delete">Delete</a>
-                <a class="corebb-board-action-link" href="/admin/?act=manageboards">Manage Boards</a>
+                <a href="{{ url('/admin/') }}?act=modifyboard&amp;id={{ board.id|default(0) }}&amp;method=edit">Edit Details</a>
+                <a href="{{ url('/admin/') }}?act=modifyboard&amp;id={{ board.id|default(0) }}&amp;method=access">Access</a>
+                <a class="board-editor-danger" href="{{ url('/admin/') }}?act=modifyboard&amp;id={{ board.id|default(0) }}&amp;method=delete">Delete</a>
+                <a href="{{ url('/admin/') }}?act=manageboards">Manage Boards</a>
             </div>
         </div>
 
@@ -41,7 +41,7 @@
 
         {% if method == 'edit' %}
             <div class="corebb-admin-modern-panel">
-                <form class="corebb-admin-modern-form" name="form1" method="post" action="/admin/?act=modifyboard&amp;id={{ board.id|default(0) }}&amp;method=edit">
+                <form class="admin-settings-form" name="form1" method="post" action="{{ url('/admin/') }}?act=modifyboard&amp;id={{ board.id|default(0) }}&amp;method=edit">
                     {% include 'partials/csrf_field.twig' %}
                     <div class="corebb-admin-modern-grid">
                         <label for="corebbBoardName">Board Name</label>
@@ -54,6 +54,11 @@
                             {% endfor %}
                         </select>
 
+                        <label for="corebbBoardType">Board type</label>
+                        <select id="corebbBoardType" name="board_type" {% if secureLocked %}disabled{% endif %}>
+                            <option value="discussion">Discussion</option>
+                            <option value="knowledge_base"{% if board.board_type|default('discussion') == 'knowledge_base' %} selected{% endif %}>Knowledge Base</option>
+                        </select>
                         <label for="corebbBoardDescription">Board Description</label>
                         <textarea id="corebbBoardDescription" name="newboarddesc" wrap="soft" cols="50" rows="6"{% if secureLocked %} disabled{% endif %}>{{ board.description|default('') }}</textarea>
 
@@ -74,12 +79,12 @@
 
                         <div class="corebb-admin-modern-submit corebb-admin-modern-full">
                             {% if secureLocked %}
-                                <button class="corebb-board-action-link" type="button" disabled>Submit Disabled</button>
+                                <button class="board-editor-button" type="button" disabled>Submit Disabled</button>
                             {% else %}
-                                <button class="corebb-board-action-link" type="submit" name="Submit" value="Submit">Save Board</button>
+                                <button class="board-editor-button" type="submit" name="Submit" value="Submit">Save Board</button>
                             {% endif %}
                             <input type="hidden" name="editboardid" value="{{ board.id|default(0) }}">
-                            <a class="corebb-board-action-link" href="/admin/?act=manageboards">Return to Manage Boards</a>
+                            <a href="{{ url('/admin/') }}?act=manageboards">Return to Manage Boards</a>
                         </div>
                     </div>
                 </form>
@@ -99,12 +104,12 @@
                 </div>
 
                 <div class="corebb-board-access-add">
-                    <form class="corebb-board-access-form" method="post" action="/admin/?act=modifyboard&amp;id={{ board.id|default(0) }}&amp;method=access">
+                    <form class="corebb-board-access-form" method="post" action="{{ url('/admin/') }}?act=modifyboard&amp;id={{ board.id|default(0) }}&amp;method=access">
                         {% include 'partials/csrf_field.twig' %}
                         <input type="hidden" name="access_action" value="add">
                         <label for="corebb-board-access-user">Add User</label>
                         <input id="corebb-board-access-user" class="corebb-board-access-input" type="text" name="access_user" maxlength="75"{% if secureLocked %} disabled{% endif %}>
-                        <button class="corebb-board-action-link" type="submit"{% if secureLocked %} disabled{% endif %}>Invite User</button>
+                        <button class="board-editor-button" type="submit"{% if secureLocked %} disabled{% endif %}>Invite User</button>
                         <span class="corebb-board-access-help">Exact username or user ID.</span>
                     </form>
                 </div>
@@ -136,11 +141,11 @@
                                     <td>{{ grant.granted_by_username|default('System', true) }}</td>
                                     <td>{{ grant.created_at|default('') }}</td>
                                     <td class="corebb-board-access-action-cell">
-                                        <form class="corebb-board-access-remove-form" method="post" action="/admin/?act=modifyboard&amp;id={{ board.id|default(0) }}&amp;method=access">
+                                        <form class="corebb-board-access-remove-form" method="post" action="{{ url('/admin/') }}?act=modifyboard&amp;id={{ board.id|default(0) }}&amp;method=access">
                                             {% include 'partials/csrf_field.twig' %}
                                             <input type="hidden" name="access_action" value="remove">
                                             <input type="hidden" name="userid" value="{{ grantUserId }}">
-                                            <button class="corebb-board-action-link is-danger" type="submit"{% if secureLocked %} disabled{% endif %}>Remove</button>
+                                            <button class="board-editor-button board-editor-danger" type="submit"{% if secureLocked %} disabled{% endif %}>Remove</button>
                                         </form>
                                     </td>
                                 </tr>
@@ -165,13 +170,13 @@
                     {% if secureLocked %}
                         <span class="corebb-board-action-disabled">Total Delete disabled</span>
                     {% else %}
-                        <a class="corebb-board-action-link is-danger" href="/admin/?act=modifyboard&amp;id={{ board.id|default(0) }}&amp;method=fulldelete">Total Delete</a>
+                        <a class="board-editor-danger" href="{{ url('/admin/') }}?act=modifyboard&amp;id={{ board.id|default(0) }}&amp;method=fulldelete">Total Delete</a>
                     {% endif %}
                 </div>
 
                 <div class="corebb-admin-modern-choice">
                     <h3>Move Then Delete</h3>
-                    <form class="corebb-admin-modern-form" method="post" action="/admin/?act=modifyboard&amp;method=move_delete">
+                    <form class="admin-settings-form" method="post" action="{{ url('/admin/') }}?act=modifyboard&amp;method=move_delete">
                         {% include 'partials/csrf_field.twig' %}
                         <div class="corebb-admin-modern-submit">
                             <select name="targetboardid"{% if secureLocked %} disabled{% endif %}>
@@ -180,22 +185,22 @@
                                 {% endfor %}
                             </select>
                             <input type="hidden" name="sourceforumid" value="{{ board.id|default(0) }}">
-                            <button class="corebb-board-action-link is-danger" type="submit" name="moveanddelete" value="1"{% if secureLocked %} disabled{% endif %}>Move Contents and Delete Board</button>
+                            <button class="board-editor-button board-editor-danger" type="submit" name="moveanddelete" value="1"{% if secureLocked %} disabled{% endif %}>Move Contents and Delete Board</button>
                         </div>
                     </form>
                 </div>
             </div>
         {% elseif method == 'fulldelete' %}
-            <form class="corebb-admin-modern-form" name="form1" method="post" action="/admin/?act=modifyboard&amp;id={{ board.id|default(0) }}&amp;method=fulldelete">
+            <form class="admin-settings-form" name="form1" method="post" action="{{ url('/admin/') }}?act=modifyboard&amp;id={{ board.id|default(0) }}&amp;method=fulldelete">
                 {% include 'partials/csrf_field.twig' %}
                 <div class="corebb-admin-modern-note is-danger">
                     <strong>You are about to delete the board: {{ board.name|default('') }}, including every topic and post it contains. This action CANNOT be undone.</strong>
                 </div>
                 <div class="corebb-admin-modern-panel">
                     <div class="corebb-admin-modern-submit">
-                        <button class="corebb-board-action-link is-danger" type="submit" name="imsure" value="Accept"{% if secureLocked %} disabled{% endif %}>Accept</button>
+                        <button class="board-editor-button board-editor-danger" type="submit" name="imsure" value="Accept"{% if secureLocked %} disabled{% endif %}>Accept</button>
                         <input type="hidden" name="forumid" value="{{ board.id|default(0) }}">
-                        <a class="corebb-board-action-link" href="/admin/?act=manageboards">Cancel / Return to Manage Boards</a>
+                        <a href="{{ url('/admin/') }}?act=manageboards">Cancel / Return to Manage Boards</a>
                     </div>
                 </div>
             </form>
@@ -207,11 +212,11 @@
                         <span class="corebb-board-action-disabled">Manage Private Access disabled for Secure Archive</span>
                         <span class="corebb-board-action-disabled">Delete Board disabled for Secure Archive</span>
                     {% else %}
-                        <a class="corebb-board-action-link" href="/admin/?act=modifyboard&amp;id={{ board.id|default(0) }}&amp;method=edit">Edit Board Name/Description</a>
-                        <a class="corebb-board-action-link" href="/admin/?act=modifyboard&amp;id={{ board.id|default(0) }}&amp;method=access">Manage Private Access</a>
-                        <a class="corebb-board-action-link is-danger" href="/admin/?act=modifyboard&amp;id={{ board.id|default(0) }}&amp;method=delete">Delete Board</a>
+                        <a href="{{ url('/admin/') }}?act=modifyboard&amp;id={{ board.id|default(0) }}&amp;method=edit">Edit Board Name/Description</a>
+                        <a href="{{ url('/admin/') }}?act=modifyboard&amp;id={{ board.id|default(0) }}&amp;method=access">Manage Private Access</a>
+                        <a class="board-editor-danger" href="{{ url('/admin/') }}?act=modifyboard&amp;id={{ board.id|default(0) }}&amp;method=delete">Delete Board</a>
                     {% endif %}
-                    <a class="corebb-board-action-link" href="/admin/?act=manageboards">Return to Manage Boards</a>
+                    <a href="{{ url('/admin/') }}?act=manageboards">Return to Manage Boards</a>
                 </div>
             </div>
         {% endif %}

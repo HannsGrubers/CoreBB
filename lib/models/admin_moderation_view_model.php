@@ -364,32 +364,36 @@ function corebb_admin_mod_search_users(string $query, string $filter = 'all'): a
     }
 
     if ($query !== '') {
+        $like = '%' . $query . '%';
+        $matches = ['u.username LIKE ?', 'u.pubemail LIKE ?', 'u.privemail LIKE ?', 'u.lastip LIKE ?'];
+        $params = [$like, $like, $like, $like];
         if (ctype_digit($query)) {
-            $where[] = '(u.id = ? OR u.username LIKE ? OR u.pubemail LIKE ? OR u.privemail LIKE ? OR u.lastip LIKE ?)';
-            $like = '%' . $query . '%';
+            $matches[] = 'u.id = ?';
             $params[] = (int)$query;
-            $params[] = $like;
-            $params[] = $like;
-            $params[] = $like;
-            $params[] = $like;
-        } else {
-            $where[] = '(u.username LIKE ? OR u.pubemail LIKE ? OR u.privemail LIKE ? OR u.lastip LIKE ?)';
-            $like = '%' . $query . '%';
-            $params[] = $like;
-            $params[] = $like;
-            $params[] = $like;
-            $params[] = $like;
+        } elseif (filter_var(corebb_admin_display_ip($query), FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+            $matches[] = 'u.lastip = ?';
+            $params[] = str_contains($query, '-') ? corebb_admin_display_ip($query) : str_replace('.', '-', $query);
         }
+        $where[] = '(' . implode(' OR ', $matches) . ')';
     } elseif ($filter !== 'banned') {
         return [];
     }
 
-    $userSelect = corebb_admin_user_select_list('u');
-    $sql = 'SELECT ' . $userSelect . ', bu.username AS banned_by_username FROM users u LEFT JOIN users bu ON bu.id = u.banned_by';
+    $userSelect = corebb_admin_select_columns('users', ['id','username','status','accesslevel','posts','lastip'], 'u');
+    $sql = 'SELECT ' . $userSelect . ' FROM users u';
     if ($where) {
         $sql .= ' WHERE ' . implode(' AND ', $where);
     }
-    $sql .= " ORDER BY CASE WHEN CAST(u.status AS CHAR) = '2' THEN 0 ELSE 1 END, u.username ASC LIMIT " . COREBB_ADMIN_MOD_USER_RESULTS_LIMIT;
+    $sql .= ' ORDER BY ';
+    if ($query !== '') {
+        if (ctype_digit($query)) {
+            $sql .= 'CASE WHEN u.id=? THEN 0 ELSE 1 END, ';
+            $params[] = (int)$query;
+        }
+        $sql .= 'CASE WHEN u.username=? THEN 0 ELSE 1 END, ';
+        $params[] = $query;
+    }
+    $sql .= 'u.username, u.id LIMIT ' . COREBB_ADMIN_MOD_USER_RESULTS_LIMIT;
 
     $users = [];
     foreach (db_all($sql, $params) as $row) {
@@ -398,69 +402,44 @@ function corebb_admin_mod_search_users(string $query, string $filter = 'all'): a
     return $users;
 }
 
-/**
- * Usage: Search legacy-style banned users by username, IP, or host.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @param string $username Username value.
- * @param string $ipAddress IP address filter.
- * @param string $hostAddress Host address filter.
- * @return array Data prepared for the admin template or caller.
- */
-function corebb_admin_mod_search_banned_users_vn(string $username, string $ipAddress, string $hostAddress): array
+/** Load one page of banned accounts, applying the same filters to the count and list. */
+function corebb_admin_mod_banned_accounts(string $member, string $address, int $page, bool $includeIp): array
 {
-    $username = corebb_admin_mod_limit_text(trim($username), 255);
-    $ipAddress = corebb_admin_mod_limit_text(trim($ipAddress), 255);
-    $hostAddress = corebb_admin_mod_limit_text(trim($hostAddress), 255);
-
     $params = [];
-    $where = ["CAST(u.status AS CHAR) = '2'"];
-
-    if ($username !== '') {
-        if (ctype_digit($username)) {
-            $where[] = '(u.id = ? OR u.username LIKE ? OR u.pubemail LIKE ? OR u.privemail LIKE ?)';
-            $like = '%' . $username . '%';
-            $params[] = (int)$username;
-            $params[] = $like;
-            $params[] = $like;
-            $params[] = $like;
+    $where = ["CAST(u.status AS CHAR)='2'"];
+    if ($member !== '') {
+        $match = ['u.username LIKE ?', 'u.pubemail LIKE ?', 'u.privemail LIKE ?'];
+        $params = array_fill(0,3,'%' . $member . '%');
+        if (ctype_digit($member)) {
+            $match[] = 'u.id=?';
+            $params[] = (int)$member;
+        }
+        $where[] = '(' . implode(' OR ', $match) . ')';
+    }
+    if ($address !== '') {
+        $ip = corebb_admin_display_ip($address);
+        if (filter_var($ip,FILTER_VALIDATE_IP,FILTER_FLAG_IPV4)) {
+            $where[] = 'u.lastip IN (?,?)';
+            array_push($params,$ip,str_replace('.','-',$ip));
         } else {
-            $where[] = '(u.username LIKE ? OR u.pubemail LIKE ? OR u.privemail LIKE ?)';
-            $like = '%' . $username . '%';
-            $params[] = $like;
-            $params[] = $like;
-            $params[] = $like;
+            $where[] = 'u.lastip LIKE ?';
+            $params[] = '%' . $address . '%';
         }
     }
-
-    if ($ipAddress !== '') {
-        $where[] = 'u.lastip LIKE ?';
-        $params[] = '%' . $ipAddress . '%';
-    }
-
-    /*
-     * The VNBoards page had a Host Address field. CoreBB currently only
-     * stores a user's last IP, so this field is kept for layout compatibility and
-     * searched against lastip as the closest available data source.
-     */
-    if ($hostAddress !== '') {
-        $where[] = 'u.lastip LIKE ?';
-        $params[] = '%' . $hostAddress . '%';
-    }
-
-    $userSelect = corebb_admin_user_select_list('u');
-    $sql = 'SELECT ' . $userSelect . ', bu.username AS banned_by_username
-            FROM users u
-            LEFT JOIN users bu ON bu.id = u.banned_by
-            WHERE ' . implode(' AND ', $where) . '
-            ORDER BY CASE WHEN u.banned_at IS NULL OR u.banned_at = \'\' THEN 1 ELSE 0 END, u.banned_at DESC, u.username ASC
-            LIMIT ' . COREBB_ADMIN_MOD_USER_RESULTS_LIMIT;
-
-    $users = [];
-    foreach (db_all($sql, $params) as $row) {
-        $users[] = corebb_admin_mod_user_summary($row);
-    }
-    return $users;
+    $whereSql = implode(' AND ',$where);
+    $total = db_value("SELECT COUNT(*) FROM users u WHERE $whereSql",$params);
+    if ($total === null) { return ['errors'=>['Could not load banned accounts.']]; }
+    $perPage = COREBB_ADMIN_MOD_USER_RESULTS_LIMIT;
+    $pages = max(1,(int)ceil($total / $perPage));
+    $page = max(1,min($pages,$page));
+    $offset = ($page-1)*$perPage;
+    $fields = 'u.id,u.username,u.accesslevel,u.banned_at,u.banned_by,bu.username AS staff_name';
+    if ($includeIp) { $fields .= ',u.lastip'; }
+    $rows = db_all("SELECT $fields FROM users u LEFT JOIN users bu ON bu.id=u.banned_by
+        WHERE $whereSql ORDER BY CASE WHEN u.banned_at IS NULL OR u.banned_at='' THEN 1 ELSE 0 END,
+        u.banned_at DESC,u.username,u.id LIMIT $perPage OFFSET $offset",$params);
+    if (db_error() !== '') { return ['errors'=>['Could not load banned accounts.']]; }
+    return ['results'=>$rows,'total'=>(int)$total,'pages'=>$pages,'page'=>$page,'first'=>$offset+1,'last'=>$offset+count($rows)];
 }
 
 /**
@@ -515,35 +494,57 @@ function corebb_admin_mod_log(array $viewer, string $action): void
  * @param string $reason Moderation/admin reason text.
  * @return array Data prepared for the admin template or caller.
  */
-function corebb_admin_mod_ban_user(array $viewer, int $userId, string $reason): array
+function corebb_admin_mod_ban_user(array $viewer, int $userId, string $reason, ?int $reviewedLevel = null): array
 {
     corebb_admin_mod_ensure_schema();
-    $target = corebb_admin_mod_fetch_user($userId);
-    if (!$target) {
-        return [false, 'Unknown user.'];
+    corebb_admin_tool_permissions_ensure_schema();
+    $actorId = corebb_admin_viewer_id($viewer);
+    $reason = trim($reason);
+    if (strlen($reason) > 65535) { return [false, 'Shorten the ban reason before saving.']; }
+    if (!db_begin()) { return [false, 'Could not start the ban.']; }
+    try {
+        $lock = corebb_db_connection()->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql' ? ' FOR UPDATE' : '';
+        $accounts = array_column(db_all('SELECT id,username,accesslevel,status FROM users WHERE id IN (?,?) ORDER BY id' . $lock, [$actorId,$userId]), null, 'id');
+        $actor = $accounts[$actorId] ?? null;
+        $target = $accounts[$userId] ?? null;
+        corebb_admin_user_granted_tool_keys($actorId, true);
+        if (!$actor || db_error() !== '' || !corebb_admin_can_access_tool($actor,'moderation_ban')) {
+            return [false, 'You do not have access to Ban User.'];
+        }
+        if (!$target) { return [false, 'Member not found.']; }
+        [$allowed,$error] = corebb_admin_mod_can_touch_user($actor,$target,'ban');
+        if (!$allowed) { return [false,$error]; }
+        if ((string)$target['status'] === '2') { return [false, 'This member is already banned.']; }
+        $oldLevel = (int)$target['accesslevel'];
+        if ($reviewedLevel !== null && $oldLevel !== $reviewedLevel) {
+            return [false, 'The member’s role changed. Review the ban again.'];
+        }
+        $ok = db_run("UPDATE users SET status='2', accesslevel=1, ban_reason=?, banned_at=?, banned_by=?, unbanned_at='', unbanned_by=0 WHERE id=?",
+            [$reason, corebb_admin_mod_now(), $actorId, $userId]);
+        if (!$ok || !db_commit()) { return [false, 'Could not save the ban. Please try again.']; }
+    } finally {
+        if (corebb_db_connection()->inTransaction()) { db_rollback(); }
     }
-    [$allowed, $error] = corebb_admin_mod_can_touch_user($viewer, $target, 'ban');
-    if (!$allowed) {
-        return [false, $error];
-    }
-    if ((string)($target['status'] ?? '') === '2') {
-        return [false, 'That user is already banned.'];
-    }
+    $demotion = $oldLevel > 1 ? ' and demoted from ' . corebb_user_level_label($oldLevel) . ' to User' : '';
+    corebb_adminlog_viewer($actor,'Banned user ' . $target['username'] . " ({$userId})" . $demotion . ($reason !== '' ? ': ' . $reason : ''), 'ban_user');
+    return [true, $target['username'] . ' was banned' . $demotion . '.'];
+}
 
-    $reason = corebb_admin_mod_limit_text(trim($reason), 65535);
-    $now = corebb_admin_mod_now();
-    $oldLevel = (int)($target['accesslevel'] ?? 0);
-    $ok = db_run(
-        "UPDATE users SET status = '2', accesslevel = 1, ban_reason = ?, banned_at = ?, banned_by = ?, unbanned_at = '', unbanned_by = 0 WHERE id = ?",
-        [$reason, $now, (int)($viewer['id'] ?? 0), $userId]
-    );
-    if (!$ok) {
-        return [false, 'Error banning user: ' . db_error()];
-    }
+function corebb_admin_mod_lock_accounts(int $actorId,int $userId,string $lock): array
+{
+    return array_column(db_all('SELECT id,username,status,accesslevel,banned_at,banned_by,ban_reason
+        FROM users WHERE id IN (?,?) ORDER BY id' . $lock,[$actorId,$userId]),null,'id');
+}
 
-    $logSuffix = $oldLevel > 1 ? ' and demoted from ' . corebb_user_level_label($oldLevel) . ' to User' : '';
-    corebb_admin_mod_log($viewer, 'Banned user ' . (string)($target['username'] ?? $userId) . " ({$userId})" . $logSuffix . ($reason !== '' ? ': ' . $reason : ''));
-    return [true, $oldLevel > 1 ? 'User banned and demoted to User.' : 'User banned.'];
+/** Called inside the transaction owning the locked staff and member records. */
+function corebb_admin_mod_lift_locked_ban(array $actor,?array $target,?string $revision): array
+{
+    if (!$target || (string)$target['status'] !== '2') { return [false,'This account has no active ban.']; }
+    [$allowed,$error] = corebb_admin_mod_can_touch_user($actor,$target,'unban');
+    if (!$allowed) { return [false,$error]; }
+    if ($revision !== null && $revision !== corebb_admin_mod_ban_revision($target)) { return [false,'This ban changed. Review the current ban before continuing.']; }
+    $ok = db_run("UPDATE users SET status='0',unbanned_at=?,unbanned_by=? WHERE id=? AND status='2'",[corebb_admin_mod_now(),$actor['id'],$target['id']]);
+    return $ok && corebb_db_last_affected_rows()===1 ? [true,''] : [false,'Could not lift the ban. Please try again.'];
 }
 
 /**
@@ -555,37 +556,29 @@ function corebb_admin_mod_ban_user(array $viewer, int $userId, string $reason): 
  * @param string $note Admin note or resolution text.
  * @return array Data prepared for the admin template or caller.
  */
-function corebb_admin_mod_unban_user(array $viewer, int $userId, string $note = ''): array
+function corebb_admin_mod_unban_user(array $viewer, int $userId, string $note = '', ?string $revision = null, string $tool = 'moderation_unban'): array
 {
     corebb_admin_mod_ensure_schema();
-    $target = corebb_admin_mod_fetch_user($userId);
-    if (!$target) {
-        return [false, 'Unknown user.'];
+    corebb_admin_tool_permissions_ensure_schema();
+    $actorId = corebb_admin_viewer_id($viewer);
+    $note = trim($note);
+    if (strlen($note)>65535) { return [false,'Shorten the note before saving.']; }
+    if (!db_begin()) { return [false,'Could not start the unban.']; }
+    try {
+        $lock = corebb_db_connection()->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql' ? ' FOR UPDATE' : '';
+        $accounts = corebb_admin_mod_lock_accounts($actorId,$userId,$lock);
+        $actor = $accounts[$actorId] ?? null;
+        $target = $accounts[$userId] ?? null;
+        corebb_admin_user_granted_tool_keys($actorId,true);
+        if (!$actor || db_error() !== '' || !corebb_admin_can_access_tool($actor,$tool)) { return [false,'You no longer have access to this action.']; }
+        [$ok,$message] = corebb_admin_mod_lift_locked_ban($actor,$target,$revision);
+        if (!$ok) { return [false,$message]; }
+        if (!db_commit()) { return [false,'Could not lift the ban. Please try again.']; }
+    } finally {
+        if (corebb_db_connection()->inTransaction()) { db_rollback(); }
     }
-    [$allowed, $error] = corebb_admin_mod_can_touch_user($viewer, $target, 'unban');
-    if (!$allowed) {
-        return [false, $error];
-    }
-    if ((string)($target['status'] ?? '') !== '2') {
-        return [false, 'That user is not currently banned.'];
-    }
-
-    $now = corebb_admin_mod_now();
-    $ok = db_run(
-        "UPDATE users SET status = '0', unbanned_at = ?, unbanned_by = ? WHERE id = ?",
-        [$now, (int)($viewer['id'] ?? 0), $userId]
-    );
-    if (!$ok) {
-        return [false, 'Error unbanning user: ' . db_error()];
-    }
-
-    $log = 'Unbanned user ' . (string)($target['username'] ?? $userId) . " ({$userId})";
-    $note = corebb_admin_mod_limit_text(trim($note), 65535);
-    if ($note !== '') {
-        $log .= ': ' . $note;
-    }
-    corebb_admin_mod_log($viewer, $log);
-    return [true, 'User unbanned.'];
+    corebb_adminlog_viewer($actor,'Unbanned user ' . $target['username'] . " ({$userId})" . ($note !== '' ? ': ' . $note : ''),'unban_user');
+    return [true,'Ban lifted for ' . $target['username'] . '.'];
 }
 
 /**
@@ -617,7 +610,7 @@ function corebb_admin_mod_fetch_request(int $requestId): ?array
     $userSelect = corebb_admin_select_columns('users', ['accesslevel', 'posts', 'status', 'lastip', 'regdate', 'lastlogindate', 'ban_reason', 'banned_at', 'banned_by'], 'u');
     // Keep the old template keys for user status distinct from the request status.
     $userSelect = str_replace('`status` AS `status`', '`status` AS `user_status`', $userSelect);
-    $row = db_one('SELECT ' . $requestSelect . ', ' . $userSelect . ', bu.username AS banned_by_username FROM unban_requests r LEFT JOIN users u ON u.id = r.userid LEFT JOIN users bu ON bu.id = u.banned_by WHERE r.id = ? LIMIT 1', [$requestId]);
+    $row = db_one('SELECT ' . $requestSelect . ', ' . $userSelect . ', bu.username AS banned_by_username, staff.username AS resolved_by_name, u.id AS account_id FROM unban_requests r LEFT JOIN users u ON u.id = r.userid LEFT JOIN users bu ON bu.id = u.banned_by LEFT JOIN users staff ON staff.id=r.admin_userid WHERE r.id = ? LIMIT 1', [$requestId]);
     return $row ?: null;
 }
 
@@ -721,26 +714,18 @@ function corebb_admin_mod_list_requests(string $status, int $page): array
         $params[] = $status;
     }
 
-    $total = (int)db_value('SELECT COUNT(*) FROM unban_requests r' . $where, $params, 0);
+    $total = db_value('SELECT COUNT(*) FROM unban_requests r' . $where, $params);
+    if ($total === null) { return ['error'=>'Could not load unban requests.']; }
+    $total = (int)$total;
     $totalPages = max(1, (int)ceil($total / COREBB_ADMIN_MOD_REQUESTS_PER_PAGE));
     if ($page > $totalPages) {
         $page = $totalPages;
     }
     $offset = ($page - 1) * COREBB_ADMIN_MOD_REQUESTS_PER_PAGE;
 
-    $requestSelect = corebb_admin_mod_request_select_list('r');
-    $userSelect = corebb_admin_select_columns('users', ['accesslevel', 'posts', 'status', 'lastip', 'regdate', 'lastlogindate', 'ban_reason', 'banned_at', 'banned_by'], 'u');
-    $userSelect = str_replace('`status` AS `status`', '`status` AS `user_status`', $userSelect);
-    $sql = 'SELECT ' . $requestSelect . ', ' . $userSelect . ', bu.username AS banned_by_username
-            FROM unban_requests r
-            LEFT JOIN users u ON u.id = r.userid
-            LEFT JOIN users bu ON bu.id = u.banned_by' . $where . '
-            ORDER BY CASE WHEN r.status = \'pending\' THEN 0 ELSE 1 END, r.id DESC
-            LIMIT ' . COREBB_ADMIN_MOD_REQUESTS_PER_PAGE . ' OFFSET ' . $offset;
-    $items = [];
-    foreach (db_all($sql, $params) as $row) {
-        $items[] = corebb_admin_mod_request_summary($row);
-    }
+    $items = db_all("SELECT r.id,r.userid,r.username,r.status,r.created_at,r.resolved_at FROM unban_requests r$where
+        ORDER BY CASE WHEN r.status='pending' THEN 0 ELSE 1 END, r.id DESC LIMIT " . COREBB_ADMIN_MOD_REQUESTS_PER_PAGE . ' OFFSET ' . $offset,$params);
+    if (db_error() !== '') { return ['error'=>'Could not load unban requests.']; }
     return [
         'items' => $items,
         'total' => $total,
@@ -760,47 +745,171 @@ function corebb_admin_mod_list_requests(string $status, int $page): array
  * @param string $note Admin note or resolution text.
  * @return array Data prepared for the admin template or caller.
  */
-function corebb_admin_mod_resolve_request(array $viewer, int $requestId, string $decision, string $note): array
+function corebb_admin_mod_resolve_request(array $viewer, int $requestId, string $decision, string $note, ?string $revision=null, ?string $banRevision=null): array
 {
+    if (!in_array($decision,['approve','deny'],true)) { return [false,'Choose a decision.']; }
+    $note=trim($note);
+    if (strlen($note)>65535) { return [false,'Shorten the response before saving.']; }
     corebb_admin_mod_ensure_schema();
-    $request = corebb_admin_mod_fetch_request($requestId);
-    if (!$request) {
-        return [false, 'Unknown unban request.'];
-    }
-    if (!in_array($decision, ['approve', 'deny'], true)) {
-        return [false, 'Unknown request action.'];
-    }
-    if ((string)($request['status'] ?? '') !== 'pending') {
-        return [false, 'That request is already resolved.'];
-    }
-
-    $userId = (int)($request['userid'] ?? 0);
-    $newStatus = $decision === 'approve' ? 'approved' : 'denied';
-    $note = corebb_admin_mod_limit_text(trim($note), 65535);
-    $now = corebb_admin_mod_now();
-
-    if ($decision === 'approve') {
-        [$ok, $message] = corebb_admin_mod_unban_user($viewer, $userId, $note !== '' ? $note : 'Approved unban request #' . $requestId);
-        if (!$ok) {
-            return [false, $message];
+    corebb_admin_tool_permissions_ensure_schema();
+    if (!db_begin()) { return [false,'Could not start the decision.']; }
+    try {
+        $lock = corebb_db_connection()->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql' ? ' FOR UPDATE' : '';
+        $request = db_one('SELECT * FROM unban_requests WHERE id=?' . $lock,[$requestId]);
+        if (!$request || $request['status'] !== 'pending') { return [false,'This request is no longer pending.']; }
+        $actorId=corebb_admin_viewer_id($viewer);
+        $userId=(int)$request['userid'];
+        $accounts=corebb_admin_mod_lock_accounts($actorId,$userId,$lock);
+        $actor=$accounts[$actorId] ?? null;
+        corebb_admin_user_granted_tool_keys($actorId,true);
+        if (!$actor || db_error() !== '' || !corebb_admin_can_access_tool($actor,'moderation_requests')) {
+            return [false,'You no longer have permission to decide unban requests.'];
         }
+        if ($revision !== null && $revision !== corebb_admin_appeal_revision($request)) { return [false,'The appeal changed. Review the latest request before responding.']; }
+        if ($decision==='approve') {
+            [$ok,$error]=corebb_admin_mod_lift_locked_ban($actor,$accounts[$userId] ?? null,$banRevision);
+            if (!$ok) { return [false,$error]; }
+        }
+        $status=$decision==='approve' ? 'approved' : 'denied';
+        $now=corebb_admin_mod_now();
+        if (!db_run("UPDATE unban_requests SET status=?,admin_userid=?,admin_note=?,updated_at=?,resolved_at=? WHERE id=? AND status='pending'",
+            [$status,$actorId,$note,$now,$now,$requestId]) || corebb_db_last_affected_rows()!==1 || !db_commit()) {
+            return [false,'Could not save the decision. Please try again.'];
+        }
+    } finally {
+        if (corebb_db_connection()->inTransaction()) { db_rollback(); }
     }
-
-    $ok = db_run(
-        'UPDATE unban_requests SET status = ?, admin_userid = ?, admin_note = ?, updated_at = ?, resolved_at = ? WHERE id = ?',
-        [$newStatus, (int)($viewer['id'] ?? 0), $note, $now, $now, $requestId]
-    );
-    if (!$ok) {
-        return [false, 'Error updating unban request: ' . db_error()];
+    if ($decision==='approve') {
+        corebb_adminlog_viewer($actor,'Unbanned user ' . $accounts[$userId]['username'] . ' (#' . $userId . ') via request #' . $requestId,'unban_user');
     }
+    corebb_adminlog_viewer($actor,ucfirst($status) . ' unban request #' . $requestId . ' for user #' . $userId,'unban_request_response');
+    return [true, $decision==='approve' ? 'Request approved and account ban lifted.' : 'Request denied.'];
+}
 
-    if ($decision === 'deny') {
-        corebb_admin_mod_log($viewer, 'Denied unban request #' . $requestId . ' for user ' . (string)($request['username'] ?? $userId));
-    } else {
-        corebb_admin_mod_log($viewer, 'Approved unban request #' . $requestId . ' for user ' . (string)($request['username'] ?? $userId));
+function corebb_admin_appeal_revision(array $row): string
+{
+    return hash('sha256',serialize(array_map(static fn($key)=>(string)($row[$key] ?? ''),
+        ['id','userid','request_text','contact_email','updated_at','verified','is_verified'])));
+}
+
+function corebb_admin_appeals_workspace(array $model,array $viewer,array $query,array $post,string $action,bool $isPost): array
+{
+    $filters=['pending'=>'Pending','approved'=>'Approved','denied'=>'Denied','resolved'=>'Resolved','all'=>'All'];
+    $status=$model['request_status'];
+    if (!isset($filters[$status])) { $status='pending'; }
+    $page=max(1,(int)($query['p'] ?? $query['page'] ?? 1));
+    $base='/admin/?act=moderation&mode=requests';
+    $filtered=$base . '&status=' . $status;
+    $model['queue_url']=$filtered . '&page=' . $page;
+    $model['request_status']=$status;
+    $model['statuses']=$filters;
+    $model['can_ban']=corebb_admin_can_access_tool($viewer,'moderation_ban');
+    $id=(int)($query['respond'] ?? $query['request_id'] ?? 0);
+    $reviewForm=isset($query['respond']) || isset($query['request_id']);
+    if ($isPost && in_array($action,['request_approve','request_deny'],true)) {
+        $posted=filter_var($post['request_id'] ?? null,FILTER_VALIDATE_INT,['options'=>['min_range'=>1]]);
+        if (!$posted || !is_string($post['admin_note'] ?? '')
+            || ($reviewForm && ($id!==$posted || !is_string($post['revision'] ?? null) || !is_string($post['ban_revision'] ?? null)))) {
+            $model['errors'][]='Reopen the request before submitting a decision.';
+            return $model;
+        }
+        $id=$posted;
+        $model['draft_response']=$post['admin_note'] ?? '';
+        [$ok,$message]=corebb_admin_mod_resolve_request($viewer,$id,$action==='request_approve'?'approve':'deny',$model['draft_response'],
+            $reviewForm ? $post['revision'] : null, $reviewForm ? $post['ban_revision'] : null);
+        $model[$ok?'messages':'errors'][]=$message;
+        if ($ok) { $model['decision_saved']=true; return $model; }
     }
+    if ($id>0) {
+        $row=corebb_admin_mod_fetch_request($id);
+        if (!$row) { $model['errors'][]='Request not found.'; return $model; }
+        $memberId=(int)$row['userid'];
+        $ban=['id'=>$memberId,'status'=>$row['user_status'] ?? null] + $row;
+        $canIp=corebb_admin_can_access_tool($viewer,'user_ip_check');
+        $canHost=corebb_admin_can_access_tool($viewer,'host_lookup');
+        $ip=($canIp || $canHost) ? corebb_admin_display_ip((string)(($row['ip_address'] ?? '') ?: ($row['lastip'] ?? ''))) : '';
+        $model['appeal']=[
+            'id'=>$id,'userid'=>$memberId,'username'=>$row['username'] ?: 'User #' . $memberId,
+            'status'=>$row['status'],'text'=>$row['request_text'],'created'=>$row['created_at'],
+            'verified'=>isset($row['verified']) || isset($row['is_verified']) ? corebb_admin_mod_bool_text($row['verified'] ?? $row['is_verified']) : 'Not recorded',
+            'banned_by'=>$row['banned_by_username'] ?: (!empty($ban['banned_by']) ? 'User #' . $ban['banned_by'] : ''),
+            'ban_date'=>$ban['banned_at'] ?? '', 'ban_reason'=>$ban['ban_reason'] ?? '',
+            'ip'=>$ip,'can_host'=>$canHost,'can_notes'=>corebb_admin_can_access_tool($viewer,'admin_notes'),
+            'member_url'=>corebb_admin_can_access_tool($viewer,'user_pages') ? '/admin/?act=user_pages&userid=' . $memberId : '/profile/' . $memberId . '/',
+            'response'=>$row['admin_note'],'resolved'=>$row['resolved_at'],
+            'reviewer'=>$row['resolved_by_name'] ?: ($row['admin_userid'] ? 'User #' . $row['admin_userid'] : ''),
+            'can_approve'=>$row['account_id'] && (string)$ban['status']==='2' && corebb_admin_mod_can_touch_user($viewer,$ban,'unban')[0],
+            'revision'=>corebb_admin_appeal_revision($row),'ban_revision'=>corebb_admin_mod_ban_revision($ban),
+        ];
+        return $model;
+    }
+    $model['request_counts']=corebb_admin_mod_request_counts();
+    $list=corebb_admin_mod_list_requests($status,$page);
+    if (isset($list['error'])) { $model['errors'][]=$list['error']; return $model; }
+    $model['queue_url']=$filtered . '&page=' . $list['page'];
+    $list['pagination']=corebb_pagination_model($list['total_pages']>1 ? $filtered . '&page={page}' : '',$list['page'],$list['total_pages']);
+    $model['requests']=$list;
+    return $model;
+}
 
-    return [true, $decision === 'approve' ? 'Request approved and user unbanned.' : 'Request denied.'];
+/** Identify the ban and role that staff saw on the review screen. */
+function corebb_admin_mod_ban_revision(array $target): string
+{
+    return hash('sha256', serialize(array_map(static fn($key) => (string)($target[$key] ?? ''),
+        ['id','status','accesslevel','banned_at','banned_by','ban_reason'])));
+}
+
+/** Build the account review and retain the current search when navigating back to the list. */
+function corebb_admin_unban_workspace(array $model, array $viewer, array $request, array $post, string $action, bool $isPost): array
+{
+    $input = $request + $post;
+    $text = static fn($v): string => is_scalar($v) ? corebb_admin_mod_limit_text(trim((string)$v),255) : '';
+    $member = $text($input['username'] ?? $input['search_username'] ?? $input['q'] ?? '');
+    $address = $text($input['ip_address'] ?? $input['search_ip'] ?? $input['ip'] ?? '');
+    if ($address === '') { $address = $text($input['host_address'] ?? $input['search_host'] ?? ''); }
+    $address = corebb_admin_display_ip($address);
+    $page = max(1,(int)($input['page'] ?? 1));
+    $params = array_filter(['username'=>$member,'ip_address'=>$address], 'strlen');
+    $base = '/admin/?act=moderation&mode=unban' . ($params ? '&' . http_build_query($params) : '');
+    $model['back_url'] = $base . ($page>1 ? '&page=' . $page : '');
+    $model['member_filter'] = $member;
+    $model['address_filter'] = $address;
+    $model['can_ban'] = corebb_admin_can_access_tool($viewer,'moderation_ban');
+    $model['can_ip'] = corebb_admin_can_access_tool($viewer,'user_ip_check');
+    if ($isPost && $action === 'unban_save') {
+        $id = filter_var($post['userid'] ?? null,FILTER_VALIDATE_INT,['options'=>['min_range'=>1]]);
+        if (!$id || !is_string($post['note'] ?? '') || (isset($request['review']) && ((string)$request['review'] !== (string)$id || !is_string($post['revision'] ?? null)))) {
+            $model['errors'][] = 'Reopen the ban before confirming.';
+            return $model;
+        }
+        [$ok,$message] = corebb_admin_mod_unban_user($viewer,$id,$post['note'] ?? '',is_string($post['revision'] ?? null) ? $post['revision'] : null);
+        $model[$ok ? 'messages' : 'errors'][] = $message;
+        if ($ok) { $model['unban_saved'] = true; return $model; }
+    }
+    if (isset($request['review']) || ($isPost && $action === 'unban_confirm')) {
+        $id = (int)($request['review'] ?? $post['userid'] ?? 0);
+        $target = db_one('SELECT u.id,u.username,u.accesslevel,u.status,u.ban_reason,u.banned_at,u.banned_by,bu.username AS staff_name
+            FROM users u LEFT JOIN users bu ON bu.id=u.banned_by WHERE u.id=?',[$id]);
+        if (!$target || (string)$target['status'] !== '2') { $model['errors'][] = 'This account has no active ban.'; return $model; }
+        [, $target['blocked']] = corebb_admin_mod_can_touch_user($viewer,$target,'unban');
+        $target['profile_url'] = corebb_admin_mod_public_profile_url($id);
+        $target['level_name'] = corebb_user_level_label((int)$target['accesslevel']);
+        $model['revision'] = corebb_admin_mod_ban_revision($target);
+        $model['confirm_user'] = $target;
+        $model['confirm_action'] = 'unban';
+        return $model;
+    }
+    $list = corebb_admin_mod_banned_accounts($member,$address,$page,$model['can_ip']);
+    if (isset($list['errors'])) { $model['errors'] = array_merge($model['errors'],$list['errors']); return $model; }
+    $model = array_replace($model,$list);
+    $model['back_url'] = $base . ($model['page']>1 ? '&page=' . $model['page'] : '');
+    foreach ($model['results'] as &$row) {
+        $row['profile_url'] = corebb_admin_mod_public_profile_url((int)$row['id']);
+        if ($model['can_ip']) { $row['last_ip'] = corebb_admin_display_ip((string)$row['lastip']); unset($row['lastip']); }
+    }
+    unset($row);
+    $model['pagination'] = corebb_pagination_model($model['pages']>1 ? $base . '&page={page}' : '',$model['page'],$model['pages']);
+    return $model;
 }
 
 /**
@@ -814,40 +923,50 @@ function corebb_admin_mod_resolve_request(array $viewer, int $requestId, string 
  */
 function corebb_admin_moderation_model(array $viewer, array $request, array $post): array
 {
-    corebb_admin_mod_ensure_schema();
-
-    $model = corebb_admin_require_model_base($viewer, 'Moderation Tools', $request);
     $mode = (string)($request['mode'] ?? 'ban');
     if (!in_array($mode, ['ban', 'unban', 'requests'], true)) {
         $mode = 'ban';
     }
+    if (corebb_admin_viewer_id($viewer) <= 0 || !corebb_admin_can_access_tool($viewer,'moderation_' . $mode)) {
+        return ['mode'=>$mode, 'errors'=>['You do not have access to this moderation tool.']];
+    }
+    corebb_admin_mod_ensure_schema();
+    $model = ['messages'=>[], 'errors'=>[]];
+    $model['can_unban'] = corebb_admin_can_access_tool($viewer,'moderation_unban');
+    $model['can_requests'] = corebb_admin_can_access_tool($viewer,'moderation_requests');
+    if ($mode === 'ban') {
+        $model['can_ip'] = corebb_admin_can_access_tool($viewer,'user_ip_check');
+        $model['result_limit'] = COREBB_ADMIN_MOD_USER_RESULTS_LIMIT;
+    }
     $model['mode'] = $mode;
     $model['token'] = corebb_admin_mod_token();
     $model['query'] = trim((string)($request['q'] ?? ''));
-    $model['unban_search'] = [
-        'username' => '',
-        'ip_address' => '',
-        'host_address' => '',
-    ];
     $respondedParam = strtolower((string)($request['responded'] ?? ''));
     $model['request_status'] = (string)($request['status'] ?? ($respondedParam === 'true' ? 'resolved' : 'pending'));
-    $model['respond_request_id'] = (int)($request['respond'] ?? $request['request_id'] ?? 0);
-    $model['respond_request'] = null;
     $model['confirm_user'] = null;
     $model['results'] = [];
-    $model['requests'] = ['items' => [], 'total' => 0, 'page' => 1, 'total_pages' => 1, 'status' => 'pending'];
-    $model['request_counts'] = corebb_admin_mod_request_counts();
 
     $isPost = ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST';
     $action = (string)($post['action'] ?? $request['action'] ?? '');
 
-    if ($isPost && in_array($action, ['ban_confirm', 'ban_save', 'unban_confirm', 'unban_save', 'request_approve', 'request_deny'], true) && !corebb_admin_mod_token_ok($post)) {
+    $actions = ['ban'=>['ban_confirm','ban_save'], 'unban'=>['unban_confirm','unban_save'], 'requests'=>['request_approve','request_deny']];
+    if ($isPost && ($mode === 'requests' || $action !== '') && !in_array($action,$actions[$mode],true)) {
+        $model['errors'][] = 'This action is not available in the selected tool.';
+        return $model;
+    }
+    if ($isPost && $action !== '' && (!corebb_security_csrf_valid($post) || !corebb_admin_mod_token_ok($post))) {
         $model['errors'][] = 'Security token expired. Please reload the moderation page and try again.';
-        $action = '';
+        return $model;
+    }
+    if ($mode === 'requests') {
+        return corebb_admin_appeals_workspace($model,$viewer,$request,$post,$action,$isPost);
+    }
+    if ($mode === 'unban') {
+        return corebb_admin_unban_workspace($model,$viewer,$request,$post,$action,$isPost);
     }
 
-    if ($isPost && $action === 'ban_confirm') {
-        $userId = (int)($post['userid'] ?? 0);
+    if (($isPost && $action === 'ban_confirm') || (!$isPost && $mode === 'ban' && isset($request['review']))) {
+        $userId = (int)($isPost ? ($post['userid'] ?? 0) : $request['review']);
         $target = corebb_admin_mod_fetch_user($userId);
         if (!$target) {
             $model['errors'][] = 'Unknown user.';
@@ -859,58 +978,27 @@ function corebb_admin_moderation_model(array $viewer, array $request, array $pos
                 $model['errors'][] = 'That user is already banned.';
             } else {
                 $model['mode'] = 'ban';
-                $model['confirm_user'] = corebb_admin_mod_user_summary($target);
+                $model['confirm_user'] = corebb_admin_user_summary($target);
                 $model['confirm_action'] = 'ban';
             }
         }
     } elseif ($isPost && $action === 'ban_save') {
         $userId = (int)($post['userid'] ?? 0);
-        $reason = (string)($post['reason'] ?? '');
-        [$ok, $message] = corebb_admin_mod_ban_user($viewer, $userId, $reason);
+        if (!is_string($post['reason'] ?? '') || (isset($request['review']) && (string)$request['review'] !== (string)$userId)) {
+            $model['errors'][] = 'Select the member again before confirming the ban.';
+            return $model;
+        }
+        $reason = $post['reason'] ?? '';
+        $level = isset($post['reviewed_level']) ? (int)$post['reviewed_level'] : null;
+        [$ok, $message] = corebb_admin_mod_ban_user($viewer, $userId, $reason, $level);
         if ($ok) {
             $model['messages'][] = $message;
+            $model['ban_saved'] = true;
+            return $model;
         } else {
             $model['errors'][] = $message;
         }
         $model['mode'] = 'ban';
-    } elseif ($isPost && $action === 'unban_confirm') {
-        $userId = (int)($post['userid'] ?? 0);
-        $target = corebb_admin_mod_fetch_user($userId);
-        if (!$target) {
-            $model['errors'][] = 'Unknown user.';
-        } else {
-            [$allowed, $error] = corebb_admin_mod_can_touch_user($viewer, $target, 'unban');
-            if (!$allowed) {
-                $model['errors'][] = $error;
-            } elseif ((string)($target['status'] ?? '') !== '2') {
-                $model['errors'][] = 'That user is not currently banned.';
-            } else {
-                $model['mode'] = 'unban';
-                $model['confirm_user'] = corebb_admin_mod_user_summary($target);
-                $model['confirm_action'] = 'unban';
-            }
-        }
-    } elseif ($isPost && $action === 'unban_save') {
-        $userId = (int)($post['userid'] ?? 0);
-        $note = (string)($post['note'] ?? '');
-        [$ok, $message] = corebb_admin_mod_unban_user($viewer, $userId, $note);
-        if ($ok) {
-            $model['messages'][] = $message;
-        } else {
-            $model['errors'][] = $message;
-        }
-        $model['mode'] = 'unban';
-    } elseif ($isPost && ($action === 'request_approve' || $action === 'request_deny')) {
-        $requestId = (int)($post['request_id'] ?? 0);
-        $note = (string)($post['admin_note'] ?? '');
-        [$ok, $message] = corebb_admin_mod_resolve_request($viewer, $requestId, $action === 'request_approve' ? 'approve' : 'deny', $note);
-        if ($ok) {
-            $model['messages'][] = $message;
-        } else {
-            $model['errors'][] = $message;
-        }
-        $model['mode'] = 'requests';
-        $mode = 'requests';
     }
 
     $mode = (string)($model['mode'] ?? $mode);
@@ -918,58 +1006,19 @@ function corebb_admin_moderation_model(array $viewer, array $request, array $pos
     if ($mode === 'ban') {
         $query = corebb_admin_mod_limit_text(trim((string)($request['q'] ?? $post['q'] ?? '')), 255);
         $model['query'] = $query;
-        if ($query !== '') {
+        if ($query !== '' && !$model['confirm_user']) {
             $model['results'] = corebb_admin_mod_search_users($query, 'active');
+            foreach ($model['results'] as &$user) {
+                [, $user['blocked']] = corebb_admin_mod_can_touch_user($viewer,$user,'ban');
+                if ($model['can_ip']) {
+                    $user['last_ip'] = corebb_admin_display_ip($user['last_ip']);
+                } else {
+                    unset($user['last_ip']);
+                }
+            }
+            unset($user);
             if (!$model['results']) {
                 $model['messages'][] = 'No active users matched that search.';
-            }
-        }
-    } elseif ($mode === 'unban') {
-        $username = corebb_admin_mod_limit_text(trim((string)($request['username'] ?? $request['search_username'] ?? $post['username'] ?? $post['search_username'] ?? $request['q'] ?? $post['q'] ?? '')), 255);
-        $ipAddress = corebb_admin_mod_limit_text(trim((string)($request['ip_address'] ?? $request['search_ip'] ?? $post['ip_address'] ?? $post['search_ip'] ?? '')), 255);
-        $hostAddress = corebb_admin_mod_limit_text(trim((string)($request['host_address'] ?? $request['search_host'] ?? $post['host_address'] ?? $post['search_host'] ?? '')), 255);
-
-        $model['query'] = trim(implode(' ', array_filter([$username, $ipAddress, $hostAddress], static fn($v) => $v !== '')));
-        $model['unban_search'] = [
-            'username' => $username,
-            'ip_address' => $ipAddress,
-            'host_address' => $hostAddress,
-        ];
-        $model['results'] = corebb_admin_mod_search_banned_users_vn($username, $ipAddress, $hostAddress);
-        if (($username !== '' || $ipAddress !== '' || $hostAddress !== '') && !$model['results']) {
-            $model['messages'][] = 'No banned users matched that search.';
-        }
-    } elseif ($mode === 'requests') {
-        $respondedParam = strtolower((string)($request['responded'] ?? ''));
-        $status = (string)($request['status'] ?? ($respondedParam === 'true' ? 'resolved' : ($model['request_status'] ?? 'pending')));
-        if (!in_array($status, ['pending', 'approved', 'denied', 'resolved', 'all'], true)) {
-            $status = 'pending';
-        }
-        $page = max(1, (int)($request['p'] ?? $request['page'] ?? 1));
-        $model['request_status'] = $status;
-        $model['request_counts'] = corebb_admin_mod_request_counts();
-        $model['requests'] = corebb_admin_mod_list_requests($status, $page);
-        $isOld = in_array($status, ['approved', 'denied', 'resolved', 'all'], true);
-        $base = '/admin/?act=moderation&mode=requests&' . ($isOld ? 'responded=True&' : '') . ($status !== 'pending' && !$isOld ? 'status=' . rawurlencode($status) . '&' : '') . 'page={page}';
-        $model['requests_view'] = [
-            'is_old' => $isOld,
-            'title' => $isOld ? 'Old Unban Requests' : 'New Unban Requests',
-            'toggle_href' => $isOld ? '/admin/?act=moderation&mode=requests' : '/admin/?act=moderation&mode=requests&responded=True',
-            'toggle_text' => $isOld ? 'Click here for New Unban Requests' : 'Click here for Old Unban Requests',
-        ];
-        $model['requests']['pagination'] = corebb_pagination_model(
-            (int)($model['requests']['total_pages'] ?? 1) > 1 ? $base : '',
-            (int)($model['requests']['page'] ?? 1),
-            (int)($model['requests']['total_pages'] ?? 1),
-            'MainMenuLink'
-        );
-
-        $respondRequestId = (int)($request['respond'] ?? $request['request_id'] ?? $model['respond_request_id'] ?? 0);
-        if ($respondRequestId > 0) {
-            $respondRequest = corebb_admin_mod_fetch_request($respondRequestId);
-            if ($respondRequest) {
-                $model['respond_request'] = corebb_admin_mod_request_summary($respondRequest);
-                $model['respond_request_id'] = $respondRequestId;
             }
         }
     }

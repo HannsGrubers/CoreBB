@@ -1,0 +1,38 @@
+<main aria-labelledby="kb-board-heading">
+    <table class="wb-table wb-w-full wb-cellspace-1 wb-cellpad-3">
+        <tr><td class="BoardColumn"><h1 id="kb-board-heading" class="wb-kb-heading">{{ model.boardName }}</h1></td></tr>
+        {% if model.boardDescription %}<tr><td class="BoardRowB">{{ model.boardDescription }}</td></tr>{% endif %}
+        <tr><td class="MainMenuRow">
+            <form class="wb-kb-controls" method="get" action="{{ model.boardUrl }}">
+                <label class="MainMenuFont">Search articles <input class="formtext" name="q" type="search" maxlength="160" value="{{ model.query }}"></label>
+                {% if model.categories %}
+                    <label class="MainMenuFont">Category <select class="formtext" name="category">
+                        <option value="">All categories</option>
+                        {% for choice in model.categories %}<option value="{{ choice }}"{% if choice == model.category %} selected{% endif %}>{{ choice }}</option>{% endfor %}
+                    </select></label>
+                {% endif %}
+                <button class="formsubmit" type="submit">Search</button>
+                {% if model.query != '' or model.category != '' %}<a class="MainMenuLink" href="{{ model.boardUrl }}">Clear filters</a>{% endif %}
+                {% if model.canPublish %}<a class="MainMenuLink" href="{{ model.newTopicUrl }}">Write an article</a>{% endif %}
+            </form>
+        </td></tr>
+    </table>
+
+    <table class="wb-table wb-w-full wb-cellspace-1 wb-cellpad-3">
+        <tr><th scope="col" class="BoardColumn wb-text-left">Articles ({{ model.count }})</th></tr>
+        {% for article in model.articles %}
+        <tr class="wb-topic-list-row"><td class="BoardRowB wb-kb-entry">
+            <h2 class="wb-kb-heading"><a class="BoardRowBLinkB" href="{{ article.url }}">{{ article.title }}</a></h2>
+            {% if article.kb_summary %}<div>{{ article.kb_summary }}</div>{% endif %}
+            <div class="wb-kb-details SmallText">
+                {% if article.kb_category %}<span>{{ article.kb_category }}</span>{% endif %}
+                {% if article.kb_versions %}<span>Applies to {{ article.kb_versions }}</span>{% endif %}
+                {% if article.kb_verified %}<span>Verified {{ article.kb_verified }}</span>{% endif %}
+            </div>
+        </td></tr>
+        {% else %}
+        <tr><td class="BoardRowB">{{ model.query != '' or model.category != '' ? 'No articles match these filters.' : 'No articles have been published yet.' }}</td></tr>
+        {% endfor %}
+    </table>
+    {% include 'partials/board_pagination.twig' with {pagination: model.pagination} only %}
+</main>

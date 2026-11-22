@@ -1,0 +1,72 @@
+{% set action_url = url(page ~ '&section=route&target=' ~ route.target|url_encode) %}
+<section class="admin-upgrade-route" aria-labelledby="upgrade-route-title">
+    <h2 id="upgrade-route-title">Upgrade route</h2>
+    {% if not route.active and route.catalog %}
+    <form class="admin-settings-form admin-route-select" method="get" action="{{ url('/admin/') }}">
+        <input type="hidden" name="act" value="updates"><input type="hidden" name="section" value="route">
+        <label for="route-target">Destination release</label>
+        <select name="target" id="route-target">
+            {% if route.catalog[route.target] is not defined %}<option value="" selected>Latest stable</option>{% endif %}
+            {% for item in route.catalog %}
+                <option value="{{ item.version }}"{% if item.version == route.target %} selected{% endif %}>{{ item.version }} · {{ item.version == model.status.latest_stable ? 'latest stable' : item.type }}</option>
+            {% endfor %}
+        </select>
+        <div class="admin-settings-save"><button type="submit">Preview route</button></div>
+    </form>
+    {% endif %}
+    {% if route.problem %}
+        <p role="status">{{ route.problem }}</p>
+    {% elseif route.installed == route.target and not model.lock.exists %}
+        <p role="status">CoreBB {{ route.target }} is installed. No further steps are needed.</p>
+    {% endif %}
+    {% if route.steps %}
+        <p>From <strong>{{ route.start }}</strong> to <strong>{{ route.target }}</strong> · {{ route.steps|length }} {{ route.steps|length == 1 ? 'package' : 'packages' }}</p>
+        <ol class="admin-route-steps">
+            {% for step in route.steps %}
+            <li{% if loop.index0 == route.position and not route.problem %} class="is-next"{% endif %}><div><strong>{{ step.version }}</strong> <span>{{ step.type|capitalize }}</span>
+                {% if route.active and not route.problem %}<small>{{ loop.index <= route.position ? 'Installed' : (loop.index0 == route.position ? 'Next' : 'Pending') }}</small>{% endif %}</div>
+            </li>
+            {% endfor %}
+        </ol>
+    {% endif %}
+    {% if model.can_manage and route.next %}
+        {% if model.lock.exists %}<p>Review the upgrade lock before continuing.</p>
+        {% elseif not model.zip_available or not model.official_download_available %}<p>Guided upgrades require PHP ZIP support and outbound HTTPS downloads.</p>
+        {% else %}
+        <form id="upgrade-route-run" class="admin-settings-form" method="post" action="{{ action_url }}">
+            {% include 'partials/csrf_field.twig' %}
+            <input type="hidden" name="action" value="{{ route.active ? 'route_next' : 'route_start' }}">
+            <input type="hidden" name="fingerprint" value="{{ route.fingerprint }}">
+            <input type="hidden" name="expected_version" value="{{ route.installed }}">
+            {% if not route.active %}<label class="admin-auth-option"><input type="checkbox" name="backup_confirmed" value="1" required> I have backed up the forum files and database for this route.</label>{% endif %}
+            {% if route.steps|length - route.position > 1 %}
+                <label class="admin-auth-option"><input type="checkbox" name="automatic" value="1" checked> Continue automatically through the remaining packages in this tab</label>
+            {% endif %}
+            <div class="admin-settings-save"><button type="submit">Install {{ route.next.version }}</button></div>
+        </form>
+        {% if route.automatic %}
+            <p id="route-continuation" hidden>Continuing to {{ route.next.version }}… <button type="button">Pause here</button></p>
+            <script nonce="{{ csp_nonce() }}">
+            (() => {
+                const form = document.getElementById('upgrade-route-run');
+                const note = document.getElementById('route-continuation');
+                note.hidden = false;
+                const timer = setTimeout(() => form.requestSubmit(), 3000);
+                const pause = () => { clearTimeout(timer); note.hidden = true; };
+                note.querySelector('button').addEventListener('click', pause);
+                form.addEventListener('submit', pause);
+                form.addEventListener('change', pause);
+                window.addEventListener('pagehide', pause, {once:true});
+            })();
+            </script>
+        {% endif %}
+        {% endif %}
+    {% endif %}
+    {% if model.can_manage and route.active %}
+        <form class="admin-settings-save admin-route-clear" method="post" action="{{ action_url }}">
+            {% include 'partials/csrf_field.twig' %}<input type="hidden" name="action" value="route_cancel">
+            <input type="hidden" name="fingerprint" value="{{ route.fingerprint }}">
+            <button type="submit">{{ route.installed == route.target ? 'Dismiss completed route' : 'Clear saved route' }}</button>
+        </form>
+    {% endif %}
+</section>

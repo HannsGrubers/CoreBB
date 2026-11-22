@@ -14,6 +14,8 @@ require_once __DIR__ . '/corebb_update_helpers.php';
 require_once __DIR__ . '/db.php';
 
 const COREBB_UPDATE_PACKAGE_MAX_BYTES = 104857600;
+const COREBB_UPDATE_EXPANDED_MAX_BYTES = 268435456;
+const COREBB_UPDATE_MAX_ENTRIES = 10000;
 const COREBB_UPDATE_DOWNLOAD_TIMEOUT_SECONDS = 45;
 
 /**
@@ -87,7 +89,7 @@ function corebb_update_package_path_is_safe(string $path): bool
     }
     $parts = explode('/', $raw);
     foreach ($parts as $part) {
-        if ($part === '..') {
+        if ($part === '..' || $part === '.') {
             return false;
         }
     }
@@ -98,12 +100,9 @@ function corebb_update_path_is_preserved(string $path): bool
 {
     $path = corebb_update_normalize_package_path($path);
     foreach (corebb_update_preserve_paths() as $preserve) {
+        $directory = str_ends_with($preserve, '/');
         $preserve = corebb_update_normalize_package_path($preserve);
-        if (str_ends_with($preserve, '/')) {
-            if (str_starts_with($path . '/', $preserve)) {
-                return true;
-            }
-        } elseif (strcasecmp($path, $preserve) === 0) {
+        if (strcasecmp($path, $preserve) === 0 || ($directory && str_starts_with(strtolower($path), strtolower($preserve) . '/'))) {
             return true;
         }
     }
@@ -171,7 +170,11 @@ function corebb_update_extract_package(string $zipPath): array
     }
 
     $files = [];
+    $remaining = COREBB_UPDATE_EXPANDED_MAX_BYTES;
     try {
+        if ($zip->numFiles > COREBB_UPDATE_MAX_ENTRIES) {
+            throw new RuntimeException('Update ZIP contains too many entries.');
+        }
         for ($i = 0; $i < $zip->numFiles; $i++) {
             $stat = $zip->statIndex($i);
             $name = is_array($stat) ? (string)($stat['name'] ?? '') : '';
@@ -193,6 +196,10 @@ function corebb_update_extract_package(string $zipPath): array
                 continue;
             }
 
+            $size = (int)($stat['size'] ?? -1);
+            if ($size < 0 || $size > $remaining) {
+                throw new RuntimeException('Expanded update exceeds the storage limit.');
+            }
             $source = $zip->getStream($name);
             if (!is_resource($source)) {
                 throw new RuntimeException('Could not read ZIP entry: ' . $rel);
@@ -202,12 +209,22 @@ function corebb_update_extract_package(string $zipPath): array
                 fclose($source);
                 throw new RuntimeException('Could not write extracted package file: ' . $rel);
             }
-            stream_copy_to_stream($source, $dest);
-            fclose($source);
-            fclose($dest);
+            try {
+                if (stream_copy_to_stream($source, $dest, $size + 1) !== $size || !fflush($dest)) {
+                    throw new RuntimeException('ZIP entry length or write failed.');
+                }
+            } finally {
+                fclose($source);
+                fclose($dest);
+            }
+            $remaining -= $size;
             @chmod($target, 0600);
             $files[] = $rel;
         }
+    } catch (Throwable $e) {
+        corebb_update_remove_tree_contents($root);
+        @rmdir($root);
+        throw $e;
     } finally {
         $zip->close();
     }
@@ -297,54 +314,45 @@ function corebb_update_validate_hash_manifest(string $root): array
 /**
  * @return array<string, mixed>|null
  */
-function corebb_update_manifest_release_for_version(string $version, bool $refresh = false): ?array
+function corebb_update_manifest_release_for_version(string $version): ?array
 {
-    $manifest = null;
-    if ($refresh) {
-        $fetched = corebb_update_fetch_manifest();
-        if (!empty($fetched['ok']) && is_array($fetched['manifest'] ?? null)) {
-            $manifest = $fetched['manifest'];
-        }
-    }
-    $manifest = $manifest ?? corebb_update_cached_manifest();
+    $manifest = corebb_update_package_catalog();
     foreach (($manifest['releases'] ?? []) as $release) {
-        if (is_array($release) && (string)($release['version'] ?? '') === $version) {
+        if (is_array($release) && ($release['version'] ?? '') === $version) {
             return $release;
         }
     }
-
-    if (!$refresh) {
-        $fetched = corebb_update_fetch_manifest();
-        if (!empty($fetched['ok']) && is_array($fetched['manifest'] ?? null)) {
-            foreach (($fetched['manifest']['releases'] ?? []) as $release) {
-                if (is_array($release) && (string)($release['version'] ?? '') === $version) {
-                    return $release;
-                }
-            }
-        }
-    }
-
     return null;
 }
 
-function corebb_update_validate_official_zip_hash(string $zipPath, string $version): array
+function corebb_update_package_catalog(): array
 {
-    $release = corebb_update_manifest_release_for_version($version, true);
-    if (!$release) {
-        throw new RuntimeException('Official update manifest does not list package version ' . $version . '. Check for updates before uploading the package.');
+    $fetched = corebb_update_fetch_manifest();
+    if (!empty($fetched['ok'])) {
+        return $fetched['manifest'];
     }
-
-    $expected = strtolower(trim((string)($release['sha256'] ?? '')));
-    if ($expected === '' || $expected === 'placeholder' || preg_match('/^[a-f0-9]{64}$/', $expected) !== 1) {
-        throw new RuntimeException('Official update manifest does not provide a valid ZIP SHA-256 for package version ' . $version . '.');
+    if (!empty($fetched['offline'])) {
+        $cached = corebb_update_cached_manifest();
+        if ($cached !== null) {
+            return $cached;
+        }
     }
+    throw new RuntimeException($fetched['message'] ?? 'Unable to verify the official release catalog.');
+}
 
-    $actual = strtolower((string)hash_file('sha256', $zipPath));
-    if (!hash_equals($expected, $actual)) {
-        throw new RuntimeException('Uploaded package ZIP SHA-256 does not match the official update manifest for version ' . $version . '.');
+function corebb_update_identify_archive(string $zipPath, string $expectedVersion): array
+{
+    $catalog = corebb_update_package_catalog();
+    $actual = hash_file('sha256', $zipPath);
+    foreach (($catalog['releases'] ?? []) as $release) {
+        $version = (string)($release['version'] ?? '');
+        $expected = strtolower((string)($release['sha256'] ?? ''));
+        if (corebb_update_version_valid($version) && ($expectedVersion === '' || $version === $expectedVersion)
+            && is_string($actual) && hash_equals($actual, $expected)) {
+            return ['version' => $version, 'actual' => $actual];
+        }
     }
-
-    return ['expected' => $expected, 'actual' => $actual];
+    throw new RuntimeException('Update ZIP checksum does not match the signed release catalog.');
 }
 
 function corebb_update_official_manifest_host(): string
@@ -448,13 +456,19 @@ function corebb_update_store_official_package_download(string $version): string
             if ($bytes > COREBB_UPDATE_PACKAGE_MAX_BYTES) {
                 throw new RuntimeException('Official package download exceeded the maximum package size.');
             }
-            if (fwrite($target, $chunk) === false) {
+            if (fwrite($target, $chunk) !== strlen($chunk)) {
                 throw new RuntimeException('Official package download failed while writing.');
             }
         }
+    } catch (Throwable $e) {
+        fclose($target);
+        @unlink($part);
+        throw $e;
     } finally {
         fclose($source);
-        fclose($target);
+        if (is_resource($target)) {
+            fclose($target);
+        }
     }
 
     if ($bytes <= 0) {
@@ -466,7 +480,6 @@ function corebb_update_store_official_package_download(string $version): string
         throw new RuntimeException('Official package could not be finalized in private storage.');
     }
     @chmod($dest, 0600);
-    corebb_update_validate_official_zip_hash($dest, $version);
     return $dest;
 }
 
@@ -565,18 +578,33 @@ function corebb_update_validate_extracted_package(string $root, array $files): a
  */
 function corebb_update_stage_zip_package(string $zipPath, string $source, string $expectedVersion = ''): array
 {
-    $extracted = corebb_update_extract_package($zipPath);
-    $summary = corebb_update_validate_extracted_package($extracted['root'], $extracted['files']);
-    $version = (string)($summary['version'] ?? '');
-    if ($expectedVersion !== '' && $version !== $expectedVersion) {
-        throw new RuntimeException('Downloaded package version ' . $version . ' does not match requested version ' . $expectedVersion . '.');
+    try {
+        $zipHash = corebb_update_identify_archive($zipPath, $expectedVersion);
+        $extracted = corebb_update_extract_package($zipPath);
+        $summary = corebb_update_validate_extracted_package($extracted['root'], $extracted['files']);
+        $version = (string)($summary['version'] ?? '');
+        if ($version !== $zipHash['version']) {
+            throw new RuntimeException('Package version differs from the signed catalog.');
+        }
+        $summary['zip_path'] = $zipPath;
+        $summary['zip_sha256'] = $zipHash['actual'];
+        $summary['zip_source'] = $source;
+        $reviewId = bin2hex(random_bytes(16));
+        $reviewFile = corebb_update_private_dir('reviews') . DIRECTORY_SEPARATOR . $reviewId . '.json';
+        $json = json_encode($summary, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+        if (file_put_contents($reviewFile, $json, LOCK_EX) !== strlen($json)
+            || !corebb_update_set_setting('last_update_package_summary', $reviewId)) {
+            @unlink($reviewFile);
+            throw new RuntimeException('Unable to save the validated package review.');
+        }
+    } catch (Throwable $e) {
+        if (isset($extracted)) {
+            corebb_update_remove_tree_contents($extracted['root']);
+            @rmdir($extracted['root']);
+        }
+        @unlink($zipPath);
+        throw $e;
     }
-    $zipHash = corebb_update_validate_official_zip_hash($zipPath, $version);
-    $summary['zip_path'] = $zipPath;
-    $summary['zip_sha256'] = $zipHash['actual'];
-    $summary['zip_source'] = $source;
-    corebb_update_set_setting('last_update_package_path', $zipPath);
-    corebb_update_set_setting('last_update_package_summary', json_encode($summary, JSON_UNESCAPED_SLASHES));
     return $summary;
 }
 
@@ -605,11 +633,13 @@ function corebb_update_handle_official_package_download(string $version): array
  */
 function corebb_update_last_package_summary(): ?array
 {
-    $raw = trim(corebb_update_setting('last_update_package_summary', ''));
-    if ($raw === '') {
+    $id = corebb_update_setting('last_update_package_summary', '');
+    if (!preg_match('/^[0-9a-f]{32}$/D', $id)) {
         return null;
     }
-    $decoded = json_decode($raw, true);
+    $file = corebb_update_private_dir('reviews') . DIRECTORY_SEPARATOR . $id . '.json';
+    $raw = @file_get_contents($file);
+    $decoded = is_string($raw) ? json_decode($raw, true) : null;
     return is_array($decoded) ? $decoded : null;
 }
 
@@ -778,11 +808,8 @@ function corebb_update_acquire_lock(array $summary): string
 {
     $lockPath = corebb_update_lock_path();
     $lockDir = dirname($lockPath);
-    if (!is_dir($lockDir) && !mkdir($lockDir, 0700, true) && !is_dir($lockDir)) {
+    if (!is_dir($lockDir) && !@mkdir($lockDir, 0700, true) && !is_dir($lockDir)) {
         throw new RuntimeException('Upgrade lock directory could not be created.');
-    }
-    if (is_file($lockPath)) {
-        throw new RuntimeException('An upgrade lock already exists. Clear or resolve the existing upgrade before applying another package.');
     }
     $payload = [
         'created_at' => date('Y-m-d H:i:s'),
@@ -790,8 +817,17 @@ function corebb_update_acquire_lock(array $summary): string
         'target_version' => (string)($summary['version'] ?? ''),
         'pid' => getmypid(),
     ];
-    if (file_put_contents($lockPath, json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT), LOCK_EX) === false) {
-        throw new RuntimeException('Upgrade lock could not be written.');
+    $bytes = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR);
+    $handle = @fopen($lockPath, 'xb');
+    if ($handle === false) {
+        throw new RuntimeException(is_file($lockPath) ? 'An upgrade lock already exists. Resolve it before applying another package.' : 'Upgrade lock could not be created.');
+    }
+    try {
+        if (fwrite($handle, $bytes) !== strlen($bytes) || !fflush($handle)) {
+            throw new RuntimeException('Upgrade lock could not be written.');
+        }
+    } finally {
+        fclose($handle);
     }
     @chmod($lockPath, 0600);
     return $lockPath;
@@ -879,10 +915,9 @@ function corebb_update_clear_upgrade_lock(bool $disableMaintenance = true): void
 
 function corebb_update_set_maintenance_mode(bool $enabled): void
 {
-    corebb_update_set_setting('maintenancemode', $enabled ? '1' : '0');
-    if ($enabled) {
-        corebb_update_set_setting('maintenancesubject', 'CoreBB Upgrade in Progress');
-        corebb_update_set_setting('maintenancemessage', 'The forum is temporarily unavailable while a software upgrade is being completed.');
+    if (!corebb_update_set_setting('maintenancemode', $enabled ? '1' : '0')
+        || (!$enabled && !corebb_update_set_setting('upgrade_maintenance_active', '0'))) {
+        throw new RuntimeException('Could not change maintenance mode.');
     }
 }
 
@@ -1109,7 +1144,14 @@ function corebb_update_apply_package(?array $summary = null): array
     }
 
     $lockPath = corebb_update_acquire_lock($summary);
-    corebb_update_set_maintenance_mode(true);
+    if (($summary['installed_version'] ?? '') !== corebb_update_installed_version()) {
+        corebb_update_clear_lock();
+        throw new RuntimeException('The installed version changed after package validation. Validate a fresh package.');
+    }
+    if (!corebb_update_set_setting('upgrade_maintenance_active', '1')) {
+        corebb_update_clear_lock();
+        throw new RuntimeException('Could not put the forum into upgrade maintenance.');
+    }
 
     try {
         $copied = corebb_update_copy_replace_paths($summary);
@@ -1135,11 +1177,15 @@ function corebb_update_apply_package(?array $summary = null): array
         throw new RuntimeException('Cache clear failed: ' . $e->getMessage(), 0, $e);
     }
 
-    corebb_update_set_setting('installed_version', (string)($summary['version'] ?? ''));
-    corebb_update_set_setting('schema_version', (string)($summary['schema_version'] ?? COREBB_SCHEMA_VERSION));
-    corebb_update_set_setting('last_update_package_summary', '');
-    corebb_update_set_setting('last_update_package_path', '');
-    corebb_update_set_maintenance_mode(false);
+    if (!corebb_update_set_setting('schema_version', (string)($summary['schema_version'] ?? COREBB_SCHEMA_VERSION))
+        || !corebb_update_set_setting('installed_version', (string)$summary['version'])
+        || !corebb_update_set_setting('last_update_package_summary', '')
+        || !corebb_update_set_setting('last_update_package_path', '')) {
+        throw new RuntimeException('Could not finalize upgrade records. Review the upgrade lock before continuing.');
+    }
+    if (!corebb_update_set_setting('upgrade_maintenance_active', '0')) {
+        throw new RuntimeException('Use the recovery upgrader to release upgrade maintenance.');
+    }
     corebb_update_clear_lock();
 
     return [

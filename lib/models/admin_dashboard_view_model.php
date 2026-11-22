@@ -88,199 +88,50 @@ function corebb_admin_dashboard_admins(): array
 }
 
 /**
- * Usage: Build the actor display model for a dashboard log row.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @param array $row Database row being normalized for display.
- * @return array Data prepared for the admin template or caller.
- */
-function corebb_admin_dashboard_log_actor(array $row): array
-{
-    $rawUserId = trim((string)($row['userid'] ?? ''));
-    $userId = ($rawUserId !== '' && ctype_digit($rawUserId)) ? (int)$rawUserId : 0;
-    $storedUsername = trim((string)($row['admin_username'] ?? ''));
-    $joinedUsername = trim((string)($row['joined_username'] ?? ''));
-
-    /*
-     * Prefer the live users.username joined by userid. Some upgraded/legacy
-     * adminlogs rows had admin_username backfilled with the numeric actor id,
-     * and audit views intentionally show plain usernames without VIP styling.
-     */
-    if ($userId > 0 && $joinedUsername !== '') {
-        $username = $joinedUsername;
-    } elseif ($storedUsername !== '' && !ctype_digit($storedUsername)) {
-        $username = $storedUsername;
-    } elseif ($rawUserId !== '' && !ctype_digit($rawUserId)) {
-        $username = $rawUserId;
-    } elseif ($storedUsername !== '') {
-        $username = $storedUsername;
-    } elseif ($userId > 0) {
-        $username = '#' . $userId;
-    } else {
-        $username = 'Unknown';
-    }
-
-    return [
-        'username' => $username,
-        'url' => '/admin/?act=action_log&susername=' . rawurlencode($username),
-    ];
-}
-
-/**
- * Usage: Format a stored value for admin display.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @param string $value Raw value to normalize.
- * @return string Normalized or display-ready string.
- */
-function corebb_admin_dashboard_format_date(string $value): string
-{
-    $value = trim($value);
-    if ($value === '' || $value === '0000-00-00 00:00:00') {
-        return 'Not recorded';
-    }
-
-    if (preg_match('/^\d{9,11}$/', $value) === 1) {
-        $timestamp = (int)$value;
-    } else {
-        $timestamp = strtotime($value);
-    }
-
-    if ($timestamp === false || $timestamp <= 0) {
-        return $value;
-    }
-
-    return date('n/j/Y g:i:s A', $timestamp);
-}
-
-/**
- * Usage: Normalize input before it is displayed or saved.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @param array $row Database row being normalized for display.
- * @return array Data prepared for the admin template or caller.
- */
-function corebb_admin_dashboard_normalize_log_row(array $row): array
-{
-    $actor = corebb_admin_dashboard_log_actor($row);
-    $action = trim((string)($row['description'] ?? ''));
-    if ($action === '') {
-        $action = trim((string)($row['action'] ?? ''));
-    }
-    if ($action === '') {
-        $action = '[No action description]';
-    }
-
-    return [
-        'id' => (int)($row['id'] ?? 0),
-        'userid' => (int)($row['userid'] ?? 0),
-        'userlevel' => (string)($row['userlevel'] ?? ''),
-        'admin_username' => (string)$actor['username'],
-        'admin_url' => (string)$actor['url'],
-        'action' => $action,
-        'action_type' => (string)($row['action_type'] ?? ''),
-        'ip_address' => (string)($row['ip_address'] ?? ''),
-        'date_performed' => (string)($row['date_performed'] ?? ''),
-        'date_vn' => corebb_admin_dashboard_format_date((string)($row['date_performed'] ?? '')),
-    ];
-}
-
-/**
  * Usage: Fetch recent admin actions for a dashboard panel.
  * Referenced by: admin route handlers and helper chains in this file.
  *
- * @param ?int $level Optional access level to filter by.
+ * @param int $level Staff level already authorized for this dashboard.
  * @param int $limit Maximum rows to return.
  * @return array Data prepared for the admin template or caller.
  */
-function corebb_admin_dashboard_logs(?int $level = null, int $limit = 20): array
+function corebb_admin_dashboard_logs(int $level, int $limit = 5): array
 {
     corebb_adminlogs_ensure_schema();
 
     $limit = max(1, min(100, $limit));
-    $params = [];
 
     $idExpr = corebb_adminlogs_select_expr('id', '0');
     $useridExpr = corebb_adminlogs_select_expr('userid', '0');
     $userlevelExpr = corebb_adminlogs_select_expr('userlevel', "''");
     $actionExpr = corebb_adminlogs_select_expr('action', "''");
     $adminUsernameExpr = corebb_adminlogs_select_expr('admin_username', "''");
-    $ipExpr = corebb_adminlogs_select_expr('ip_address', "''");
     $typeExpr = corebb_adminlogs_select_expr('action_type', "''");
     $descriptionExpr = corebb_adminlogs_select_expr('description', $actionExpr);
     $dateExpr = corebb_adminlogs_select_expr('date_performed', "''");
     $orderSql = corebb_adminlogs_order_sql();
 
-    $where = '';
-    if($level !== null){
-        $where = ' WHERE ' . $userlevelExpr . ' = ?';
-        $params[] = (string)(int)$level;
-    }
-
     $rows = corebb_admin_dashboard_rows(
-        'SELECT ' . $idExpr . ' AS id, ' . $useridExpr . ' AS userid, ' . $userlevelExpr . ' AS userlevel, ' . $actionExpr . ' AS action, ' . $adminUsernameExpr . ' AS admin_username, ' . $ipExpr . ' AS ip_address, ' . $typeExpr . ' AS action_type, ' . $descriptionExpr . ' AS description, ' . $dateExpr . ' AS date_performed, u.username AS joined_username
+        'SELECT ' . $idExpr . ' AS id, ' . $useridExpr . ' AS userid, ' . $userlevelExpr . ' AS userlevel, ' . $actionExpr . ' AS action, ' . $adminUsernameExpr . ' AS admin_username, ' . $typeExpr . ' AS action_type, ' . $descriptionExpr . ' AS description, ' . $dateExpr . ' AS date_performed, u.username AS joined_username
          FROM adminlogs al
-         LEFT JOIN users u ON u.id = ' . $useridExpr .
-        $where .
-        ' ORDER BY ' . $orderSql . ' LIMIT ' . $limit,
-        $params,
+         LEFT JOIN users u ON u.id = ' . $useridExpr . ' WHERE ' . $userlevelExpr . ' = ? ORDER BY ' . $orderSql . ' LIMIT ' . $limit,
+        [(string)$level],
         $limit
     );
 
-    return array_map('corebb_admin_dashboard_normalize_log_row', $rows);
+    return array_map('corebb_adminlog_display_row', $rows);
 }
 
-/**
- * Usage: Build a dashboard panel title for an access level.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @param int $accessLevel User access level.
- * @return array Data prepared for the admin template or caller.
- */
-function corebb_admin_dashboard_title(int $accessLevel): array
+/** Each dashboard role sees the same five most recent events per permitted staff level. */
+function corebb_admin_dashboard_activity_roles(int $accessLevel): array
 {
-    if($accessLevel >= 5){
-        return [
-            'title' => 'Administration Area',
-            'body' => 'From here you can control every aspect of your forums.',
-        ];
-    }
-    if($accessLevel >= 4){
-        return [
-            'title' => 'Management Area',
-            'body' => 'From here you can control forum management functions, except Administrator-only tools.',
-        ];
-    }
-    if($accessLevel >= 3){
-        return [
-            'title' => 'Moderation Area',
-            'body' => 'From here you can use the available moderator functions.',
-        ];
-    }
-    return [
-        'title' => 'VIP Area',
-        'body' => 'From here you can use the available VIP functions.',
-    ];
+    return array_filter([5 => 'Administrator', 4 => 'Manager', 3 => 'Moderator'],
+        static fn(int $level): bool => $level <= $accessLevel, ARRAY_FILTER_USE_KEY);
 }
 
-/**
- * Usage: Build and process the dashboard admin page model.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @param array $viewer Current admin user row.
- * @return array Data prepared for the admin template or caller.
- */
 function corebb_admin_dashboard_model(array $viewer): array
 {
     $accessLevel = (int)($viewer['accesslevel'] ?? 0);
-    $title = corebb_admin_dashboard_title($accessLevel);
-    if($accessLevel < 2 && corebb_admin_user_granted_tool_keys((int)($viewer['id'] ?? 0))){
-        $title = [
-            'title' => 'Special Access Area',
-            'body' => 'From here you can use the administration tools specifically granted to your account.',
-        ];
-    }
-
     $stats = [
         'Users' => corebb_admin_dashboard_count_table('users'),
         'Categories' => corebb_admin_dashboard_count_table('boards'),
@@ -291,30 +142,24 @@ function corebb_admin_dashboard_model(array $viewer): array
         'Blog Entries' => corebb_admin_dashboard_count_table('blogs_posts'),
     ];
 
-    $logSections = [];
-    $dashboardLogLimit = 5;
-    if($accessLevel >= 5){
-        $logSections[] = ['title' => 'Showing Latest 5 Administrator Actions', 'rows' => corebb_admin_dashboard_logs(5, $dashboardLogLimit)];
-        $logSections[] = ['title' => 'Showing Latest 5 Manager Actions', 'rows' => corebb_admin_dashboard_logs(4, $dashboardLogLimit)];
-        $logSections[] = ['title' => 'Showing Latest 5 Moderator Actions', 'rows' => corebb_admin_dashboard_logs(3, $dashboardLogLimit)];
+
+    $roles = corebb_admin_dashboard_activity_roles($accessLevel);
+    $activity = [];
+    foreach (array_keys($roles) as $level) {
+        array_push($activity, ...corebb_admin_dashboard_logs($level));
     }
-    elseif($accessLevel >= 4){
-        $logSections[] = ['title' => 'Showing Latest 5 Manager Actions', 'rows' => corebb_admin_dashboard_logs(4, $dashboardLogLimit)];
-        $logSections[] = ['title' => 'Showing Latest 5 Moderator Actions', 'rows' => corebb_admin_dashboard_logs(3, $dashboardLogLimit)];
-    }
-    elseif($accessLevel >= 3){
-        $logSections[] = ['title' => 'Showing Latest 5 Moderator Actions', 'rows' => corebb_admin_dashboard_logs(3, $dashboardLogLimit)];
-    }
+    usort($activity, static fn(array $a, array $b): int =>
+        ($b['id'] <=> $a['id']) ?: strcmp($b['date_performed'], $a['date_performed']));
 
     return [
-        'viewer' => $viewer,
-        'viewer_accesslevel' => $accessLevel,
-        'title' => $title['title'],
-        'body' => $title['body'],
-        'admins' => corebb_admin_dashboard_admins(),
+        'admins' => $accessLevel >= 4 ? corebb_admin_dashboard_admins() : [],
+        'show_staff' => $accessLevel >= 4,
         'stats' => $stats,
         'update_status' => $accessLevel >= 5 ? corebb_update_status() : null,
-        'log_sections' => $logSections,
+        'activity_roles' => $roles,
+        'activity' => $activity,
+        'can_view_log' => corebb_admin_can_access_tool($viewer, 'action_log'),
+        'can_view_history' => corebb_admin_can_access_tool($viewer, 'version_history'),
         'message' => '',
     ];
 }

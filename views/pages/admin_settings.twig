@@ -1,95 +1,81 @@
-{% set settings = model.settings|default({}) %}
-{% set messages = model.messages|default([]) %}
-{% set boolSettings = model.bool_settings|default([]) %}
-{% set numberSettings = model.number_settings|default([]) %}
-{% set styleOptions = model.style_options|default({}) %}
-
-<div class="corebb-admin-modern-page">
-    <div class="corebb-admin-modern-header">
-        <div>
-            <div class="corebb-admin-modern-eyebrow">System</div>
-            <h2>Edit System Settings</h2>
-            <div class="corebb-admin-modern-meta">
-                <span>{{ settings|length|number_format }} settings</span>
-                <span>Stored in systemsettings</span>
-            </div>
-        </div>
-        <div class="corebb-admin-modern-actions">
-            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
-        </div>
+{% macro boolean(name, value, label) %}
+    <div class="admin-setting-choice" role="group" aria-label="{{ label }}">
+        {% if value is not same as('0') and value is not same as('1') %}
+            <label><input type="radio" name="settings[{{ name }}]" value="{{ value }}" checked><span>Keep stored value</span></label>
+        {% endif %}
+        {% for choice, text in ['Disabled', 'Enabled'] %}
+            <label><input type="radio" name="settings[{{ name }}]" value="{{ choice }}"{% if value is same as(choice ~ '') %} checked{% endif %}><span>{{ text }}</span></label>
+        {% endfor %}
     </div>
-
-    {% if model.message|default('') != '' %}
-        {% include 'partials/admin_messages.twig' with {messages: [model.message]} only %}
-    {% endif %}
-    {% include 'partials/admin_messages.twig' with {messages: messages} only %}
-
-    <form class="corebb-admin-modern-form" name="systemsettings" method="post" action="/admin/?act=edit_settings&amp;method=post">
+{% endmacro %}
+<div class="admin-overview admin-settings">
+    <header class="admin-dash-heading">
+        <h1>System settings</h1>
+        <a href="{{ url('/admin/') }}">Dashboard</a>
+    </header>
+    <nav class="admin-settings-nav" aria-label="Settings sections">
+        {% for key, title in model.sections %}
+            <a href="{{ url('/admin/?act=edit_settings&section=' ~ key) }}"{% if key == model.section %} aria-current="page"{% endif %}>{{ title }}</a>
+        {% endfor %}
+    </nav>
+    {% if model.message %}{% include 'partials/admin_messages.twig' with {messages: [model.message]} only %}{% endif %}
+    {% include 'partials/admin_messages.twig' with {messages: model.messages, errors: model.errors} only %}
+    <form class="admin-settings-form" name="systemsettings" method="post" action="{{ url('/admin/?act=edit_settings&section=' ~ model.section ~ '&method=post') }}">
         {% include 'partials/csrf_field.twig' %}
-
-        <div class="corebb-admin-modern-note">
-            Rate limit windows are stored in seconds. PM and posting limits still exempt moderators and higher; login and report limits do not.
-        </div>
-
-        <table class="corebb-admin-modern-table corebb-admin-settings-table wb-table">
-            <thead>
-                <tr>
-                    <th>Setting</th>
-                    <th>Description</th>
-                    <th>Value</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for name, row in settings %}
-                    {% set value = row.value|default('') %}
-                    <tr>
-                        <td><strong>{{ name }}</strong></td>
-                        <td><span class="corebb-admin-modern-help">{{ row.label|default(name) }}</span></td>
-                        <td>
-                            {% if name == 'defaultstyle' and styleOptions %}
-                                <select name="settings[{{ name }}]">
-                                    {% for file, label in styleOptions %}
-                                        <option value="{{ file }}"{% if value == file %} selected{% endif %}>{{ label }} ({{ file }})</option>
-                                    {% endfor %}
-                                </select>
-                            {% elseif name in boolSettings %}
-                                <select name="settings[{{ name }}]">
-                                    <option value="1"{% if value == '1' %} selected{% endif %}>1 / Yes</option>
-                                    <option value="0"{% if value == '0' %} selected{% endif %}>0 / No</option>
-                                </select>
-                            {% elseif name in ['maintenancemessage', 'terms_of_service'] %}
-                                <textarea name="settings[{{ name }}]" rows="5" cols="70">{{ value }}</textarea>
-                            {% elseif name in numberSettings %}
-                                <input type="number" min="1" step="1" name="settings[{{ name }}]" value="{{ value }}" size="12">
-                            {% else %}
-                                <input type="text" name="settings[{{ name }}]" value="{{ value }}" size="70">
-                            {% endif %}
-                        </td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-
-        <div class="corebb-admin-modern-panel">
-            <div class="corebb-admin-modern-grid">
-                <label for="corebbNewSettingName">Add New Setting</label>
-                <span>
-                    <input id="corebbNewSettingName" type="text" name="new_setting_name" size="30" placeholder="setting_name">
-                    <span class="corebb-admin-modern-help">Use letters, numbers, underscores, or dashes.</span>
-                </span>
-
-                <label for="corebbNewSettingValue">Value</label>
-                <input id="corebbNewSettingValue" type="text" name="new_setting_value" size="70">
-
-                <div class="corebb-admin-modern-submit corebb-admin-modern-full">
-                    <button class="corebb-board-action-link" type="submit" name="Submit" value="Save Settings">Save Settings</button>
-                    <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
-                </div>
+        <header class="admin-settings-heading"><h2>{{ model.sections[model.section] }}</h2>
+            {% if model.section == 'limits' %}<p>Set the maximum number of actions allowed in each time window.</p>
+            {% elseif model.section == 'maintenance' %}<p>Show this notice instead of the public forum while maintenance is enabled. Staff can still sign in and use Admin.</p>
+            {% endif %}
+            {% if model.upgrade_maintenance %}<p>Upgrade maintenance is active. The updater releases its hold after a successful upgrade.</p>{% endif %}
+        </header>
+        {% if model.section == 'limits' %}
+            <div class="admin-limit-groups">
+            {% for action, group in model.rate_groups %}
+                {% set prefix = 'rate_limit_' ~ action ~ '_' %}
+                <fieldset class="admin-limit-group">
+                    <legend>{{ group.title }}</legend>
+                    <div class="admin-limit-enable">
+                        <span>{{ group.note }}</span>
+                        {{ _self.boolean(prefix ~ 'enabled', model.settings[prefix ~ 'enabled'].value, group.title ~ ' rate limiting') }}
+                    </div>
+                    <div class="admin-limit-columns" aria-hidden="true"><span>Applies to</span><span>{{ group.unit }}</span><span>Window (seconds)</span></div>
+                    {% for rule, scope in group.rules %}
+                        {% set key = prefix ~ rule %}
+                        <div class="admin-limit-rule">
+                            <strong>{{ scope }}</strong>
+                            <label><span>{{ group.unit }}</span><input type="number" min="1" max="100000" step="1" required aria-label="{{ group.title }} · {{ scope }} · {{ group.unit }}" name="settings[{{ key }}_max]" value="{{ model.settings[key ~ '_max'].value }}"></label>
+                            <label><span>Window (seconds)</span><input type="number" min="1" max="604800" step="1" required aria-label="{{ group.title }} · {{ scope }} · Window in seconds" name="settings[{{ key }}_window]" value="{{ model.settings[key ~ '_window'].value }}"></label>
+                        </div>
+                    {% endfor %}
+                </fieldset>
+            {% endfor %}
             </div>
-        </div>
+        {% else %}
+            {% for name, field in model.fields %}
+                {% set value = model.settings[name].value %}
+                <div class="admin-setting-row{% if field[2] == 'textarea' %} is-editor{% endif %}">
+                    <div class="admin-setting-label">
+                        {% if field[2] == 'boolean' %}<strong>{{ field[0] }}</strong>{% else %}<label for="setting-{{ name }}">{{ field[0] }}</label>{% endif %}
+                        {% if name == 'defaultstyle' %}<small>Used when a member follows the forum default.</small>
+                        {% elseif name == 'showbasicstats' %}<small>Board and message counts, including posts today.</small>
+                        {% elseif name == 'allowguests' %}<small>Disable to require sign-in before reading the forum. Private board permissions still apply.</small>
+                        {% elseif name == 'customtitles' %}<small>Members can set a plain-text title in User CP → Edit Profile. Staff-assigned post titles take priority.</small>{% endif %}
+                    </div>
+                    {% if field[2] == 'style' %}
+                        <select id="setting-{{ name }}" name="settings[{{ name }}]">
+                            {% if value not in model.style_options|keys %}<option value="{{ value }}" selected>Current stylesheet · {{ value }}</option>{% endif %}
+                            {% for file, label in model.style_options %}<option value="{{ file }}"{% if value == file %} selected{% endif %}>{{ label }}</option>{% endfor %}
+                        </select>
+                    {% elseif field[2] == 'boolean' %}
+                        {{ _self.boolean(name, value, field[0]) }}
+                    {% elseif field[2] == 'textarea' %}
+                        <textarea id="setting-{{ name }}" name="settings[{{ name }}]" rows="{{ name == 'terms_of_service' ? 14 : 5 }}">{{ value }}</textarea>
+                    {% else %}
+                        <input id="setting-{{ name }}" type="text" name="settings[{{ name }}]" value="{{ value }}">
+                    {% endif %}
+                </div>
+            {% endfor %}
+        {% endif %}
+        <div class="admin-settings-save"><button type="submit">Save {{ model.sections[model.section]|lower }}</button></div>
     </form>
-
-    <div class="corebb-admin-modern-note is-muted">
-        Database username/password and board URL values still live in <strong>config.php</strong>. This page edits settings stored in the <strong>systemsettings</strong> table.
-    </div>
 </div>

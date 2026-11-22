@@ -121,14 +121,14 @@ function corebb_unban_request_model(array $viewer, array $post): array
             $existing = db_one("SELECT * FROM unban_requests WHERE userid = ? AND status = 'pending' ORDER BY id DESC LIMIT 1", [$userId]);
             if ($existing) {
                 $ok = db_run(
-                    'UPDATE unban_requests SET username = ?, contact_email = ?, ip_address = ?, request_text = ?, updated_at = ? WHERE id = ?',
+                    "UPDATE unban_requests SET username = ?, contact_email = ?, ip_address = ?, request_text = ?, updated_at = ? WHERE id = ? AND status='pending'",
                     [$username, $contactEmail, $ip, $requestText, $now, (int)$existing['id']]
                 );
-                if ($ok) {
+                if ($ok && (corebb_db_last_affected_rows() > 0 || db_exists("SELECT 1 FROM unban_requests WHERE id=? AND status='pending'", [(int)$existing['id']]))) {
                     $model['messages'][] = 'Your existing pending unban request was updated.';
                     $model['form']['request_text'] = '';
                 } else {
-                    $model['errors'][] = 'Error updating unban request: ' . db_error();
+                    $model['errors'][] = 'The request could not be updated. Refresh your request history before trying again.';
                 }
             } else {
                 $ok = db_run(

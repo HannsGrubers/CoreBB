@@ -359,7 +359,7 @@ function corebb_contact_mods_fetch_request(int $requestId): array|false
     }
     return db_one(
         'SELECT cmr.id, cmr.userid, cmr.subject, cmr.message, cmr.status, cmr.created_at, cmr.created_ip, cmr.handled_by, cmr.handled_at, cmr.handler_note, cmr.response_pm_id,
-                requester.username AS requester_username, requester.accesslevel AS requester_accesslevel, requester.lastip AS requester_lastip,
+                requester.username AS requester_username, requester.id AS requester_id,
                 handler.username AS handler_username
            FROM contact_mod_requests cmr
            LEFT JOIN users requester ON requester.id = cmr.userid
@@ -378,22 +378,17 @@ function corebb_contact_mods_fetch_request(int $requestId): array|false
  * @param string $status New request status.
  * @param string $note Handler note or response text.
  * @param int $pmId Private message id created for a staff response.
- * @return void
+ * @return bool Whether this open request was closed by the caller.
  */
-function corebb_contact_mods_close(int $requestId, int $viewerId, string $status, string $note = '', int $pmId = 0): void
+function corebb_contact_mods_close(int $requestId, int $viewerId, string $status, string $note = '', int $pmId = 0): bool
 {
-    corebb_contact_mods_ensure_schema();
-    if ($requestId <= 0 || $viewerId <= 0) {
-        return;
+    if ($requestId <= 0 || $viewerId <= 0 || !in_array($status, ['responded', 'ignored'], true)) {
+        return false;
     }
-    $allowed = ['new', 'responded', 'ignored'];
-    if (!in_array($status, $allowed, true)) {
-        $status = 'ignored';
-    }
-    db_run(
-        'UPDATE contact_mod_requests SET status = ?, handled_by = ?, handled_at = ?, handler_note = ?, response_pm_id = ? WHERE id = ?',
+    return db_run(
+        "UPDATE contact_mod_requests SET status = ?, handled_by = ?, handled_at = ?, handler_note = ?, response_pm_id = ? WHERE id = ? AND status = 'new'",
         [$status, $viewerId, date('Y-m-d H:i:s'), corebb_contact_mods_limit_text($note, 65535), $pmId, $requestId]
-    );
+    ) && corebb_db_last_affected_rows() === 1;
 }
 
 /**
@@ -401,18 +396,14 @@ function corebb_contact_mods_close(int $requestId, int $viewerId, string $status
  * Referenced by: corebb_admin_contact_mods_model().
  *
  * @param int $requestId Request id to reopen.
- * @return void
+ * @return bool Whether a handled request was reopened.
  */
-function corebb_contact_mods_reopen(int $requestId): void
+function corebb_contact_mods_reopen(int $requestId): bool
 {
-    corebb_contact_mods_ensure_schema();
-    if ($requestId <= 0) {
-        return;
-    }
-    db_run(
-        "UPDATE contact_mod_requests SET status = 'new', handled_by = 0, handled_at = '', handler_note = '', response_pm_id = 0 WHERE id = ?",
+    return db_run(
+        "UPDATE contact_mod_requests SET status = 'new', handled_by = 0, handled_at = '', handler_note = '', response_pm_id = 0 WHERE id = ? AND status <> 'new'",
         [$requestId]
-    );
+    ) && corebb_db_last_affected_rows() === 1;
 }
 
 /**
@@ -449,6 +440,9 @@ function corebb_contact_mods_send_reply_pm(array $viewer, array $request, string
 
     $original = corebb_contact_mods_clean_text((string)($request['message'] ?? ''), 4000);
     $body = "A moderator responded to your Contact Mods request.\n\n";
+    if (strlen($body) + strlen($reply) > 65535) {
+        return ['ok' => false, 'message' => 'Shorten the reply so it fits in a private message.'];
+    }
     $body .= $reply . "\n\n";
     $body .= "----- Original Contact Mods Request -----\n";
     $body .= "Subject: " . ($subject !== '' ? $subject : '(no subject)') . "\n";
@@ -463,7 +457,7 @@ function corebb_contact_mods_send_reply_pm(array $viewer, array $request, string
         [$senderId, $recipientId, $title, $body, 0, $now]
     );
     if (!$ok) {
-        return ['ok' => false, 'message' => 'Could not send private message: ' . db_error()];
+        return ['ok' => false, 'message' => 'Could not send the private message. Please try again.'];
     }
 
     return ['ok' => true, 'message' => 'Response sent to ' . (string)($recipient['username'] ?? ('#' . $recipientId)) . ' by private message.', 'pm_id' => db_insert_id()];

@@ -408,3 +408,96 @@ function corebb_adminlog_entry($userid, $userlevel, $action, $actionType = '', $
         'date_performed' => $date,
     ]);
 }
+
+/**
+ * Usage: Build the actor display model for a dashboard log row.
+ * Referenced by: admin route handlers and helper chains in this file.
+ *
+ * @param array $row Database row being normalized for display.
+ * @return array Data prepared for the admin template or caller.
+ */
+function corebb_adminlog_display_actor(array $row): array
+{
+    $rawUserId = trim((string)($row['userid'] ?? ''));
+    $userId = ($rawUserId !== '' && ctype_digit($rawUserId)) ? (int)$rawUserId : 0;
+    $storedUsername = trim((string)($row['admin_username'] ?? ''));
+    $joinedUsername = trim((string)($row['joined_username'] ?? ''));
+
+    /*
+     * Prefer the live users.username joined by userid. Some upgraded/legacy
+     * adminlogs rows had admin_username backfilled with the numeric actor id,
+     * and audit views intentionally show plain usernames without VIP styling.
+     */
+    if ($userId > 0 && $joinedUsername !== '') {
+        $username = $joinedUsername;
+    } elseif ($storedUsername !== '' && !ctype_digit($storedUsername)) {
+        $username = $storedUsername;
+    } elseif ($rawUserId !== '' && !ctype_digit($rawUserId)) {
+        $username = $rawUserId;
+    } elseif ($storedUsername !== '') {
+        $username = $storedUsername;
+    } elseif ($userId > 0) {
+        $username = '#' . $userId;
+    } else {
+        $username = 'Unknown';
+    }
+
+    return [
+        'username' => $username,
+        'url' => corebb_public_join_base_path('/admin/?act=action_log&susername=' . rawurlencode($username === '#' . $userId ? (string)$userId : $username)),
+    ];
+}
+
+/**
+ * Usage: Format a stored value for admin display.
+ * Referenced by: admin route handlers and helper chains in this file.
+ *
+ * @param string $value Raw value to normalize.
+ * @return string Normalized or display-ready string.
+ */
+function corebb_adminlog_display_date(string $value): string
+{
+    $value = trim($value);
+    if ($value === '' || $value === '0000-00-00 00:00:00') {
+        return 'Not recorded';
+    }
+
+    if (preg_match('/^\d{9,11}$/', $value) === 1) {
+        $timestamp = (int)$value;
+    } else {
+        $timestamp = strtotime($value);
+    }
+
+    if ($timestamp === false || $timestamp <= 0) {
+        return $value;
+    }
+
+    return date('n/j/Y g:i:s A', $timestamp);
+}
+
+/**
+ * Usage: Normalize input before it is displayed or saved.
+ * Referenced by: admin route handlers and helper chains in this file.
+ *
+ * @param array $row Database row being normalized for display.
+ * @return array Data prepared for the admin template or caller.
+ */
+function corebb_adminlog_display_row(array $row): array
+{
+    $actor = corebb_adminlog_display_actor($row);
+    $action = trim((string)($row['action'] ?? ''));
+    $description = trim((string)($row['description'] ?? ''));
+    $type = trim((string)($row['action_type'] ?? ''));
+    $headline = $action ?: ($type !== '' ? ucfirst(str_replace('_', ' ', $type)) : $description);
+
+    return [
+        'id' => (int)($row['id'] ?? 0),
+        'userlevel' => (string)($row['userlevel'] ?? ''),
+        'admin_username' => (string)$actor['username'],
+        'admin_url' => (string)$actor['url'],
+        'action' => $headline !== '' ? $headline : 'Action recorded',
+        'detail' => $description !== $headline ? $description : '',
+        'date_performed' => (string)($row['date_performed'] ?? ''),
+        'date_vn' => corebb_adminlog_display_date((string)($row['date_performed'] ?? '')),
+    ];
+}

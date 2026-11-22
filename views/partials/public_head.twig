@@ -1,6 +1,7 @@
 <title>{{ layout.head.title|default('CoreBB') }}</title>
 <meta charset="utf-8">
-<script>
+<script defer src="{{ asset('scripts/forum_actions.js') }}"></script>
+<script nonce="{{ csp_nonce() }}">
 (function(){
     try {
         var fixedTheme = {{ layout.head.theme_mode_fixed|default(false)|json_encode|raw }};
@@ -12,7 +13,10 @@
     } catch (e) {}
 }());
 </script>
-<script>
+{% if layout.head.kb_page|default(false) or layout.head.signal_preview|default(false) or layout.head.maintenance_auth|default(false) %}
+<meta name="viewport" content="width=device-width, initial-scale=1">
+{% else %}
+<script nonce="{{ csp_nonce() }}">
 (function(){
     try {
         var mobileUrl = {{ layout.head.mobile_url|default('/mobile/')|json_encode|raw }};
@@ -21,8 +25,7 @@
         if (location.pathname === mobilePathNoSlash || location.pathname.indexOf(mobilePath) === 0) { return; }
         var params = new URLSearchParams(location.search);
         var requested = (params.get('view') || '').toLowerCase();
-        var cookieMatch = document.cookie.match(/(?:^|;\s*)corebb_view_mode=([^;]+)/);
-        var stored = cookieMatch ? decodeURIComponent(cookieMatch[1]).toLowerCase() : '';
+        var stored = {{ layout.head.view_mode|default('')|json_encode|raw }};
         if (requested === 'desktop' || requested === 'classic') { return; }
         if (requested === 'mobile' || stored === 'mobile') {
             redirect();
@@ -53,6 +56,7 @@
     } catch (e) {}
 }());
 </script>
+{% endif %}
 {% for stylesheet in layout.head.stylesheets|default([]) %}
 <link rel="stylesheet" href="{{ stylesheet }}" media="screen">
 {% endfor %}

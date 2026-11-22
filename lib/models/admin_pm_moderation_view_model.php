@@ -125,20 +125,19 @@ function corebb_pm_mod_fetch_report(int $reportId): array|false
     $deletedByJoin = corebb_pm_deleted_by_supported() ? 'LEFT JOIN users deleter ON deleter.id = pm.deleted_by' : '';
     $deletedByUsername = corebb_pm_deleted_by_supported() ? 'deleter.username AS deleted_by_username' : "'' AS deleted_by_username";
     return db_one(
-        "SELECT pr.id, pr.pmid, pr.reporterid, pr.reported_userid, pr.senderid, pr.recieveid, pr.reason_type, pr.comments, pr.severity, pr.status, pr.created_at, pr.created_ip, pr.handled_by, pr.handled_at, pr.handler_note,
-                reporter.username AS reporter_username, reported.username AS reported_username,
+        "SELECT pr.id, pr.pmid, pr.reporterid, pr.senderid, pr.recieveid, pr.reason_type, pr.comments, pr.severity, pr.status, pr.created_at, pr.handled_by, pr.handled_at, pr.handler_note,
+                reporter.username AS reporter_username,
                 sender.username AS sender_username, sender.accesslevel AS sender_accesslevel,
                 receiver.username AS receiver_username, receiver.accesslevel AS receiver_accesslevel,
                 handler.username AS handler_username,
-                pm.title, pm.message, pm.markread, pm.datesent, {$deletedColumns},
+                pm.id AS message_id, pm.title, pm.message, pm.datesent, {$deletedColumns},
                 {$deletedByUsername}
            FROM pm_reports pr
            LEFT JOIN users reporter ON reporter.id = pr.reporterid
-           LEFT JOIN users reported ON reported.id = pr.reported_userid
            LEFT JOIN users sender ON sender.id = pr.senderid
            LEFT JOIN users receiver ON receiver.id = pr.recieveid
            LEFT JOIN users handler ON handler.id = pr.handled_by
-           LEFT JOIN privatemessages pm ON pm.id = pr.pmid
+           LEFT JOIN privatemessages pm ON pm.id = pr.pmid AND pm.senderid = pr.senderid AND pm.recieveid = pr.recieveid
            {$deletedByJoin}
           WHERE pr.id = ? LIMIT 1",
         [$reportId]
@@ -179,26 +178,19 @@ function corebb_pm_mod_fetch_pm(int $pmId): array|false
  * Usage: Apply the requested admin change and return its result state.
  * Referenced by: admin route handlers and helper chains in this file.
  *
- * @param int $reportId Private-message report id.
+ * @param array $report Report as reviewed, including the PM and its participants.
  * @param int $viewerId Viewer user id.
  * @param string $status Request/report status.
  * @param string $note Admin note or resolution text.
- * @return void No return value.
+ * @return bool Whether this open report was closed by the caller.
  */
-function corebb_pm_mod_close_report(int $reportId, int $viewerId, string $status, string $note = ''): void
+function corebb_pm_mod_close_report(array $report, int $viewerId, string $status, string $note): bool
 {
-    corebb_pm_ensure_moderation_schema();
-    if ($reportId <= 0 || $viewerId <= 0) {
-        return;
-    }
-    $allowed = ['new', 'ignored', 'deleted', 'resolved'];
-    if (!in_array($status, $allowed, true)) {
-        $status = 'ignored';
-    }
-    db_run(
-        'UPDATE pm_reports SET status = ?, handled_by = ?, handled_at = ?, handler_note = ? WHERE id = ?',
-        [$status, $viewerId, date('Y-m-d H:i:s'), corebb_pm_mod_limit_text($note, 65535), $reportId]
-    );
+    return db_run(
+        "UPDATE pm_reports SET status = ?, handled_by = ?, handled_at = ?, handler_note = ?
+         WHERE id = ? AND pmid = ? AND senderid = ? AND recieveid = ? AND status = 'new'",
+        [$status, $viewerId, date('Y-m-d H:i:s'), $note, $report['id'], $report['pmid'], $report['senderid'], $report['recieveid']]
+    ) && corebb_db_last_affected_rows() === 1;
 }
 
 /**
@@ -210,8 +202,11 @@ function corebb_pm_mod_close_report(int $reportId, int $viewerId, string $status
  * @param string $reason Moderation/admin reason text.
  * @return array Data prepared for the admin template or caller.
  */
-function corebb_pm_mod_soft_delete_pm(int $pmId, array $viewer, string $reason = ''): array
+function corebb_pm_mod_soft_delete_pm(int $pmId, array $viewer, string $reason = '', ?array $report = null): array
 {
+    if ($report !== null && $pmId !== (int)$report['pmid']) {
+        return ['ok' => false, 'message' => 'The reported message is unavailable.'];
+    }
     corebb_pm_ensure_moderation_schema();
     if (!corebb_pm_soft_delete_supported()) {
         return ['ok' => false, 'message' => 'Private-message moderation storage is not ready yet. Refresh the admin page once, then try again.'];
@@ -225,21 +220,29 @@ function corebb_pm_mod_soft_delete_pm(int $pmId, array $viewer, string $reason =
         return ['ok' => false, 'message' => $reasonBlocked];
     }
     if ((int)($pm['is_deleted'] ?? 0) === 1) {
-        return ['ok' => true, 'message' => 'Private message is already deleted.'];
+        return ['ok' => $report === null, 'message' => 'Private message is already deleted.'];
     }
     $viewerId = (int)($viewer['id'] ?? 0);
     $reason = corebb_pm_mod_limit_text($reason !== '' ? $reason : 'Deleted by staff moderation.', 65535);
-    $ok = db_run(
-        'UPDATE privatemessages SET is_deleted = 1, deleted_at = ?, deleted_by = ?, delete_reason = ? WHERE id = ?',
-        [date('Y-m-d H:i:s'), $viewerId, $reason, $pmId]
-    );
-    if (!$ok) {
-        return ['ok' => false, 'message' => 'Error deleting private message: ' . db_error()];
+    $failed = ['ok' => false, 'message' => 'Could not complete the removal. Refresh the page to check its current status.'];
+    if (!db_begin()) {
+        return $failed;
     }
-    db_run(
-        "UPDATE pm_reports SET status = 'deleted', handled_by = ?, handled_at = ?, handler_note = ? WHERE pmid = ? AND status = 'new'",
-        [$viewerId, date('Y-m-d H:i:s'), $reason, $pmId]
-    );
+    $sender = $report['senderid'] ?? $pm['senderid'];
+    $recipient = $report['recieveid'] ?? $pm['recieveid'];
+    $now = date('Y-m-d H:i:s');
+    if (!db_run('UPDATE privatemessages SET is_deleted = 1, deleted_at = ?, deleted_by = ?, delete_reason = ?
+                 WHERE id = ? AND senderid = ? AND recieveid = ? AND is_deleted = 0',
+                [$now, $viewerId, $reason, $pmId, $sender, $recipient])
+        || corebb_db_last_affected_rows() !== 1
+        || ($report !== null && !corebb_pm_mod_close_report($report, $viewerId, 'deleted', $reason))
+        || !db_run("UPDATE pm_reports SET status = 'deleted', handled_by = ?, handled_at = ?, handler_note = ?
+                    WHERE pmid = ? AND senderid = ? AND recieveid = ? AND status = 'new'",
+                   [$viewerId, $now, $reason, $pmId, $sender, $recipient])
+        || !db_commit()) {
+        db_rollback();
+        return $failed;
+    }
     corebb_pm_mod_log($viewer, "Deleted private message {$pmId}", 'pm_delete', "Private message {$pmId} moved to moderation-deleted state");
     return ['ok' => true, 'message' => 'Private message deleted from user mailboxes. It remains visible to administrators.'];
 }
@@ -268,33 +271,22 @@ function corebb_pm_mod_restore_pm(int $pmId, array $viewer): array
     if ((int)($pm['is_deleted'] ?? 0) === 0) {
         return ['ok' => true, 'message' => 'Private message is already active.'];
     }
-    if (!db_run("UPDATE privatemessages SET is_deleted = 0, deleted_at = '', deleted_by = 0, delete_reason = '' WHERE id = ?", [$pmId])) {
-        return ['ok' => false, 'message' => 'Error restoring private message: ' . db_error()];
+    if (!db_run("UPDATE privatemessages SET is_deleted = 0, deleted_at = '', deleted_by = 0, delete_reason = ''
+                 WHERE id = ? AND is_deleted = 1", [$pmId]) || corebb_db_last_affected_rows() !== 1) {
+        return ['ok' => false, 'message' => 'Could not restore the message. Refresh to check its current status.'];
     }
     corebb_pm_mod_log($viewer, "Restored private message {$pmId}", 'pm_restore', "Private message {$pmId} restored to user mailboxes");
     return ['ok' => true, 'message' => 'Private message restored.'];
 }
 
-/**
- * Usage: Add display links and labels to one PM report row.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @param array $row Database row being normalized for display.
- * @return array Data prepared for the admin template or caller.
- */
-function corebb_pm_mod_enrich_report_row(array $row): array
+function corebb_pm_report_outcome(string $status): string
 {
-    $row['_status_label'] = match ((string)($row['status'] ?? 'new')) {
-        'ignored' => 'Cancelled',
-        'deleted' => 'Deleted',
+    return match ($status) {
+        'ignored' => 'Closed without removal',
+        'deleted' => 'Message removed',
         'resolved' => 'Resolved',
-        default => 'New',
+        default => 'Open',
     };
-    $row['_moderate_url'] = '/admin/?act=pm_reports&report=' . (int)($row['id'] ?? 0);
-    $row['_sender_url'] = '/admin/?act=user_pages&usr=' . rawurlencode((string)($row['sender_username'] ?? $row['senderid'] ?? ''));
-    $row['_receiver_url'] = '/admin/?act=user_pages&usr=' . rawurlencode((string)($row['receiver_username'] ?? $row['recieveid'] ?? ''));
-    $row['_reporter_url'] = '/admin/?act=user_pages&usr=' . rawurlencode((string)($row['reporter_username'] ?? $row['reporterid'] ?? ''));
-    return $row;
 }
 
 /**
@@ -320,84 +312,86 @@ function corebb_pm_reports_new_count(): int
  */
 function corebb_admin_pm_reports_model(array $viewer, array $get, array $post): array
 {
+    if (empty($viewer['id']) || !corebb_admin_can_access_tool($viewer, 'pm_reports')) {
+        return ['errors' => ['You do not have access to Private Message Reports.']];
+    }
     corebb_pm_ensure_moderation_schema();
-    $messages = [];
-    $errors = [];
-    $viewerId = (int)($viewer['id'] ?? 0);
-
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $action = (string)($post['action'] ?? '');
-        $reportId = (int)($post['report_id'] ?? 0);
-        $note = corebb_pm_mod_limit_text((string)($post['handler_note'] ?? ''), 65535);
-        $report = corebb_pm_mod_fetch_report($reportId);
-        if ($viewerId <= 0) {
-            $errors[] = 'Unknown admin user.';
-        } elseif (!$report) {
-            $errors[] = 'Unknown PM report ID.';
-        } elseif ($action === 'cancel_report') {
-            corebb_pm_mod_close_report($reportId, $viewerId, 'ignored', $note !== '' ? $note : 'Report cancelled.');
-            corebb_pm_mod_log($viewer, "Cancelled private message report {$reportId}", 'pm_report_cancelled');
-            $messages[] = 'PM report cancelled.';
-        } elseif ($action === 'delete_pm') {
-            $result = corebb_pm_mod_soft_delete_pm((int)($report['pmid'] ?? 0), $viewer, $note !== '' ? $note : 'Deleted from reported private message queue.');
-            if (!empty($result['ok'])) {
-                corebb_pm_mod_close_report($reportId, $viewerId, 'deleted', $note !== '' ? $note : 'Private message deleted.');
-                $messages[] = (string)$result['message'];
+    $old = ($get['old'] ?? '') === 'yes';
+    $page = max(1, (int)($get['page'] ?? 1));
+    $base = '/admin/?act=pm_reports' . ($old ? '&old=yes' : '');
+    $back = $base . ($page > 1 ? '&page=' . $page : '');
+    $model = ['queue_url' => $back, 'old' => $old, 'errors' => []];
+    $posted = ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST';
+    if (isset($get['report']) || $posted) {
+        $id = (int)($get['report'] ?? $post['report_id'] ?? 0);
+        $report = corebb_pm_mod_fetch_report($id);
+        if (!$report) {
+            $model['errors'][] = 'This report is unavailable.';
+            return $model;
+        }
+        [$canAct, $reason] = corebb_pm_mod_can_act_on_pm($viewer, $report);
+        $canRemove = $canAct && $report['message_id'] && !$report['is_deleted'] && corebb_pm_soft_delete_supported();
+        $note = $post['handler_note'] ?? '';
+        if ($posted) {
+            $action = $post['action'] ?? '';
+            if (!corebb_security_csrf_valid($post) || $id !== (int)($post['report_id'] ?? 0)) {
+                $model['errors'][] = 'Open the report again before submitting.';
+            } elseif (!$canAct || $report['status'] !== 'new') {
+                $model['errors'][] = $reason ?: 'This report has already been handled.';
+            } elseif (!is_string($note) || strlen($note) > 65535) {
+                $model['errors'][] = 'Shorten the staff note before saving.';
+            } elseif ($action === 'cancel_report') {
+                if (corebb_pm_mod_close_report($report, (int)$viewer['id'], 'ignored', trim($note))) {
+                    corebb_pm_mod_log($viewer, "Closed private message report {$id}", 'pm_report_cancelled');
+                    return $model + ['saved' => true, 'messages' => ['Report closed without removing the message.']];
+                }
+                $model['errors'][] = 'Could not close the report. Refresh it to check its current status.';
+            } elseif ($action === 'delete_pm' && $canRemove) {
+                $result = corebb_pm_mod_soft_delete_pm((int)$report['pmid'], $viewer, trim($note), $report);
+                if ($result['ok']) {
+                    return $model + ['saved' => true, 'messages' => [$result['message']]];
+                }
+                $model['errors'][] = $result['message'];
             } else {
-                $errors[] = (string)$result['message'];
+                $model['errors'][] = 'Choose an available decision.';
             }
         }
-    }
-
-    $old = (string)($get['old'] ?? '') === 'yes';
-    $reportId = (int)($get['report'] ?? 0);
-    $page = max(1, (int)($get['page'] ?? 1));
-    $perPage = 25;
-
-    $detail = $reportId > 0 ? corebb_pm_mod_fetch_report($reportId) : false;
-    if ($detail) {
-        $detail = corebb_pm_mod_enrich_report_row($detail);
-        [$canAct, $blockReason] = corebb_pm_mod_can_act_on_pm($viewer, $detail);
-        $detail['_can_act'] = $canAct;
-        $detail['_block_reason'] = $blockReason;
+        return $model + [
+            'detail' => $report, 'outcome' => corebb_pm_report_outcome($report['status']),
+            'can_act' => $canAct, 'can_remove' => $canRemove, 'blocked_reason' => $reason,
+            'can_view_member' => corebb_admin_can_access_tool($viewer, 'user_pages'),
+            'action_url' => $back . '&report=' . $id, 'draft_note' => is_string($note) ? $note : '',
+        ];
     }
 
     $where = $old ? "pr.status <> 'new'" : "pr.status = 'new'";
-    $total = (int)db_value("SELECT COUNT(*) FROM pm_reports pr WHERE {$where}", [], 0);
-    $totalPages = max(1, (int)ceil(max(1, $total) / $perPage));
-    $page = min($page, $totalPages);
-    $offset = ($page - 1) * $perPage;
-
-    $rows = [];
-    $deletedColumns = corebb_pm_deleted_select_columns('pm');
-    $sql = "SELECT pr.id, pr.pmid, pr.reporterid, pr.reported_userid, pr.senderid, pr.recieveid, pr.reason_type, pr.comments, pr.severity, pr.status, pr.created_at, pr.created_ip, pr.handled_by, pr.handled_at, pr.handler_note,
-                   reporter.username AS reporter_username, sender.username AS sender_username, receiver.username AS receiver_username,
-                   pm.title, pm.message, {$deletedColumns}, pm.datesent
-              FROM pm_reports pr
-              LEFT JOIN users reporter ON reporter.id = pr.reporterid
-              LEFT JOIN users sender ON sender.id = pr.senderid
-              LEFT JOIN users receiver ON receiver.id = pr.recieveid
-              LEFT JOIN privatemessages pm ON pm.id = pr.pmid
-             WHERE {$where}
-             ORDER BY CAST(pr.severity AS UNSIGNED) DESC, pr.id DESC
-             LIMIT {$offset}, {$perPage}";
-    foreach (db_all($sql) as $row) {
-        $rows[] = corebb_pm_mod_enrich_report_row($row);
+    $total = db_value("SELECT COUNT(*) FROM pm_reports pr WHERE {$where}");
+    if ($total === null) {
+        $model['errors'][] = 'Could not load the report queue.';
+        return $model;
     }
-
-    $base = '/admin/?act=pm_reports&' . ($old ? 'old=yes&' : '') . 'page={page}';
-    return [
-        'viewer' => $viewer,
-        'viewer_accesslevel' => (int)($viewer['accesslevel'] ?? 0),
-        'messages' => $messages,
-        'errors' => $errors,
-        'old' => $old,
-        'detail' => $detail ?: null,
-        'requests' => $rows,
-        'total' => $total,
-        'page' => $page,
-        'total_pages' => $totalPages,
-        'pagination' => corebb_pagination_model($totalPages > 1 ? $base : '', $page, $totalPages, 'BoardRowBLink'),
+    $perPage = 25;
+    $pages = max(1, (int)ceil($total / $perPage));
+    $page = min($page, $pages);
+    $offset = ($page - 1) * $perPage;
+    $rows = db_all("SELECT pr.id, pr.pmid, pr.reporterid, pr.reason_type, pr.severity, pr.status, pr.created_at,
+                           reporter.username AS reporter_username, pm.title
+                    FROM pm_reports pr
+                    LEFT JOIN users reporter ON reporter.id = pr.reporterid
+                    LEFT JOIN privatemessages pm ON pm.id = pr.pmid AND pm.senderid = pr.senderid AND pm.recieveid = pr.recieveid
+                    WHERE {$where} ORDER BY pr.severity DESC, pr.id DESC LIMIT {$perPage} OFFSET {$offset}");
+    if (db_error() !== '') {
+        $model['errors'][] = 'Could not load the report queue.';
+        return $model;
+    }
+    foreach ($rows as &$row) {
+        $row['detail_url'] = $base . ($page > 1 ? '&page=' . $page : '') . '&report=' . $row['id'];
+        $row['outcome'] = corebb_pm_report_outcome($row['status']);
+    }
+    unset($row);
+    return $model + [
+        'requests' => $rows, 'total' => (int)$total, 'first' => $offset + 1, 'last' => $offset + count($rows),
+        'pagination' => corebb_pagination_model($pages > 1 ? $base . '&page={page}' : '', $page, $pages, 'BoardRowBLink'),
     ];
 }
 
@@ -412,102 +406,98 @@ function corebb_admin_pm_reports_model(array $viewer, array $get, array $post): 
  */
 function corebb_admin_pm_history_model(array $viewer, array $get, array $post): array
 {
+    if (empty($viewer['id']) || !corebb_admin_can_access_tool($viewer, 'pm_history')) {
+        return ['errors' => ['You do not have access to Private Message History.']];
+    }
     corebb_pm_ensure_moderation_schema();
-    $messages = [];
-    $errors = [];
-    $viewerId = (int)($viewer['id'] ?? 0);
-
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $action = (string)($post['action'] ?? '');
-        $pmId = (int)($post['pmid'] ?? 0);
-        if ($viewerId <= 0) {
-            $errors[] = 'Unknown admin user.';
-        } elseif ($pmId <= 0) {
-            $errors[] = 'Unknown private message ID.';
-        } elseif ($action === 'delete_pm') {
-            $result = corebb_pm_mod_soft_delete_pm($pmId, $viewer, corebb_pm_mod_limit_text((string)($post['delete_reason'] ?? 'Deleted by administrator from PM History.'), 65535));
-            if (!empty($result['ok'])) {
-                $messages[] = (string)$result['message'];
+    $q = is_string($get['q'] ?? null) ? corebb_pm_mod_limit_text($get['q'], 255) : '';
+    $scope = in_array($get['deleted'] ?? '', ['yes', 'only'], true) ? $get['deleted'] : 'no';
+    $page = max(1, (int)($get['page'] ?? 1));
+    $base = '/admin/?act=pm_history' . ($scope !== 'no' ? '&deleted=' . $scope : '') . ($q !== '' ? '&q=' . rawurlencode($q) : '');
+    $queue = $base . ($page > 1 ? '&page=' . $page : '');
+    $model = ['queue_url' => $queue, 'q' => $q, 'scope' => $scope, 'errors' => [],
+              'can_view_reports' => corebb_admin_can_access_tool($viewer, 'pm_reports')];
+    $posted = ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST';
+    $supportsRemoval = corebb_pm_soft_delete_supported();
+    if (isset($get['pmid']) || $posted) {
+        $id = (int)($get['pmid'] ?? $post['pmid'] ?? 0);
+        $pm = corebb_pm_mod_fetch_pm($id);
+        if (!$pm) {
+            $model['errors'][] = 'This private message is unavailable.';
+            return $model;
+        }
+        [$canModerate, $blocked] = corebb_pm_mod_can_act_on_pm($viewer, $pm);
+        $removed = (bool)$pm['is_deleted'];
+        $canRemove = $supportsRemoval && !$removed && $canModerate;
+        $canRestore = $supportsRemoval && $removed && corebb_admin_viewer_level($viewer) >= 5;
+        $reason = $post['delete_reason'] ?? '';
+        if ($posted) {
+            $action = $post['action'] ?? '';
+            if (!corebb_security_csrf_valid($post) || (int)($post['pmid'] ?? 0) !== $id) {
+                $model['errors'][] = 'Open the message again before submitting.';
+            } elseif ($action === 'delete_pm' && $canRemove && (!is_string($reason) || strlen($reason) > 65535)) {
+                $model['errors'][] = 'Shorten the removal reason before saving.';
             } else {
-                $errors[] = (string)$result['message'];
-            }
-        } elseif ($action === 'restore_pm') {
-            $result = corebb_pm_mod_restore_pm($pmId, $viewer);
-            if (!empty($result['ok'])) {
-                $messages[] = (string)$result['message'];
-            } else {
-                $errors[] = (string)$result['message'];
+                $result = match (true) {
+                    $action === 'delete_pm' && $canRemove => corebb_pm_mod_soft_delete_pm($id, $viewer, trim($reason)),
+                    $action === 'restore_pm' && $canRestore => corebb_pm_mod_restore_pm($id, $viewer),
+                    default => ['ok' => false, 'message' => 'That action is unavailable for this message.'],
+                };
+                if ($result['ok']) {
+                    return $model + ['saved' => true, 'messages' => [$result['message']]];
+                }
+                $model['errors'][] = $result['message'];
             }
         }
+        return $model + [
+            'detail' => $pm, 'action_url' => $queue . '&pmid=' . $id,
+            'can_view_member' => corebb_admin_can_access_tool($viewer, 'user_pages'),
+            'can_remove' => $canRemove, 'can_restore' => $canRestore,
+            'blocked' => !$supportsRemoval ? 'Mailbox moderation is unavailable on this installation.'
+                : ($removed ? 'Only administrators can restore removed messages.' : $blocked),
+            'draft_reason' => is_string($reason) ? $reason : '',
+        ];
     }
 
-    $q = corebb_pm_mod_limit_text((string)($get['q'] ?? ''), 255);
-    $showDeleted = (string)($get['deleted'] ?? '') === 'yes';
-    $page = max(1, (int)($get['page'] ?? 1));
-    $perPage = 30;
     $where = [];
     $params = [];
-    if (!$showDeleted) {
-        $where[] = corebb_pm_visible_condition('pm');
+    if ($scope === 'only') {
+        $where[] = $supportsRemoval ? 'pm.is_deleted = 1' : '1 = 0';
+    } elseif ($scope === 'no' && $supportsRemoval) {
+        $where[] = 'COALESCE(pm.is_deleted, 0) <> 1';
     }
     if ($q !== '') {
         if (ctype_digit($q)) {
             $where[] = '(pm.id = ? OR pm.senderid = ? OR pm.recieveid = ?)';
-            $params[] = (int)$q;
-            $params[] = (int)$q;
-            $params[] = (int)$q;
+            $params = array_fill(0, 3, (int)$q);
         } else {
             $where[] = '(sender.username LIKE ? OR receiver.username LIKE ? OR pm.title LIKE ? OR pm.message LIKE ?)';
-            $like = '%' . $q . '%';
-            $params[] = $like;
-            $params[] = $like;
-            $params[] = $like;
-            $params[] = $like;
+            $params = array_fill(0, 4, '%' . $q . '%');
         }
     }
-    $whereSql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
-    $total = (int)db_value("SELECT COUNT(*) FROM privatemessages pm LEFT JOIN users sender ON sender.id = pm.senderid LEFT JOIN users receiver ON receiver.id = pm.recieveid {$whereSql}", $params, 0);
-    $totalPages = max(1, (int)ceil(max(1, $total) / $perPage));
-    $page = min($page, $totalPages);
-    $offset = ($page - 1) * $perPage;
-
-    $rows = [];
-    $deletedColumns = corebb_pm_deleted_select_columns('pm');
-    $deletedByJoin = corebb_pm_deleted_by_supported() ? 'LEFT JOIN users deleter ON deleter.id = pm.deleted_by' : '';
-    $deletedByUsername = corebb_pm_deleted_by_supported() ? 'deleter.username AS deleted_by_username' : "'' AS deleted_by_username";
-    $sql = "SELECT pm.id, pm.senderid, pm.recieveid, pm.title, pm.message, pm.markread, pm.datesent, {$deletedColumns},
-                   sender.username AS sender_username, sender.accesslevel AS sender_accesslevel,
-                   receiver.username AS receiver_username, receiver.accesslevel AS receiver_accesslevel,
-                   {$deletedByUsername}
-              FROM privatemessages pm
-              LEFT JOIN users sender ON sender.id = pm.senderid
-              LEFT JOIN users receiver ON receiver.id = pm.recieveid
-              {$deletedByJoin}
-              {$whereSql}
-             ORDER BY pm.id DESC
-             LIMIT {$offset}, {$perPage}";
-    foreach (db_all($sql, $params) as $row) {
-        $row['_sender_url'] = '/admin/?act=user_pages&usr=' . rawurlencode((string)($row['sender_username'] ?? $row['senderid'] ?? ''));
-        $row['_receiver_url'] = '/admin/?act=user_pages&usr=' . rawurlencode((string)($row['receiver_username'] ?? $row['recieveid'] ?? ''));
-        [$canAct, $blockReason] = corebb_pm_mod_can_act_on_pm($viewer, $row);
-        $row['_can_act'] = $canAct;
-        $row['_block_reason'] = $blockReason;
-        $rows[] = $row;
+    $from = 'FROM privatemessages pm LEFT JOIN users sender ON sender.id = pm.senderid
+             LEFT JOIN users receiver ON receiver.id = pm.recieveid';
+    $whereSql = $where ? ' WHERE ' . implode(' AND ', $where) : '';
+    $total = db_value("SELECT COUNT(*) {$from}{$whereSql}", $params);
+    if ($total === null) {
+        $model['errors'][] = 'Could not load private message history.';
+        return $model;
     }
-
-    $base = '/admin/?act=pm_history&deleted=' . ($showDeleted ? 'yes' : 'no') . '&q=' . rawurlencode($q) . '&page={page}';
-    return [
-        'viewer' => $viewer,
-        'viewer_accesslevel' => (int)($viewer['accesslevel'] ?? 0),
-        'messages' => $messages,
-        'errors' => $errors,
-        'q' => $q,
-        'show_deleted' => $showDeleted,
-        'rows' => $rows,
-        'total' => $total,
-        'page' => $page,
-        'total_pages' => $totalPages,
-        'pagination' => corebb_pagination_model($totalPages > 1 ? $base : '', $page, $totalPages, 'BoardRowBLink'),
+    $perPage = 30;
+    $pages = max(1, (int)ceil($total / $perPage));
+    $page = min($page, $pages);
+    $offset = ($page - 1) * $perPage;
+    $removedColumn = $supportsRemoval ? 'pm.is_deleted' : '0';
+    $rows = db_all("SELECT pm.id, pm.senderid, pm.recieveid, pm.title, pm.markread, pm.datesent, {$removedColumn} AS is_deleted,
+                           sender.username AS sender_username, receiver.username AS receiver_username
+                    {$from}{$whereSql} ORDER BY pm.id DESC LIMIT {$perPage} OFFSET {$offset}", $params);
+    if (db_error() !== '') {
+        $model['errors'][] = 'Could not load private message history.';
+        return $model;
+    }
+    return $model + [
+        'rows' => $rows, 'total' => (int)$total, 'first' => $offset + 1, 'last' => $offset + count($rows),
+        'detail_base' => $base . ($page > 1 ? '&page=' . $page : '') . '&pmid=',
+        'pagination' => corebb_pagination_model($pages > 1 ? $base . '&page={page}' : '', $page, $pages, 'BoardRowBLink'),
     ];
 }
-?>

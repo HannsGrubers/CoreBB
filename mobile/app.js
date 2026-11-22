@@ -222,6 +222,7 @@
         const id = Number(param('id', 0));
         const page = Number(param('page', 1));
         const data = await api(`boards/${id}?page=${page}`);
+        if (data.knowledgeBaseUrl) { location.replace(data.knowledgeBaseUrl); return; }
         const currentPage = Number(data.pagination?.currentPage || page || 1);
         const totalPages = Number(data.pagination?.totalPages || 1);
         app.innerHTML = `
@@ -262,6 +263,12 @@
         const rawPage = param('page', '1');
         const page = rawPage === 'latest' ? 500 : Number(rawPage || 1);
         const data = await api(`threads/${id}?page=${page}`);
+        if (data.articleUrl) {
+            const article = new URL(data.articleUrl, location.origin);
+            if (page > 1) article.searchParams.set('tab', 'discussion');
+            location.replace(article.href);
+            return;
+        }
         const currentPage = Number(data.pagination?.currentPage || page || 1);
         const totalPages = Number(data.pagination?.totalPages || 1);
         const canReply = !!data.permissions?.canReply;
@@ -350,6 +357,7 @@
             <article class="post" id="post-${postId}">
                 <div class="post-head">
                     ${authorId > 0 ? `<button class="post-author" data-go="profile" data-id="${authorId}">${authorName}</button>` : authorName}
+                    ${post.author?.memberTitle ? `<span class="subtle">Member title: ${esc(post.author.memberTitle)}</span>` : ''}
                     <span class="subtle">${esc(post.postedAt?.display || '')}</span>
                 </div>
                 <div class="post-body">${post.body?.html || ''}</div>

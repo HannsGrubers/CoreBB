@@ -913,7 +913,7 @@ function corebb_mod_refresh_topic_from_posts(int $topicId): void
  * @param string $reason Moderator-provided reason.
  * @return array{ok: bool, message: string, redirect: string} Operation result.
  */
-function corebb_mod_remove_post(int $postId, string $reason = ''): array
+function corebb_mod_remove_post(int $postId, string $reason = '', ?callable $onRemoval = null, bool $allowWholeTopic = true): array
 {
     corebb_mod_ensure_schema();
     $post = corebb_mod_get_post($postId, true);
@@ -921,6 +921,9 @@ function corebb_mod_remove_post(int $postId, string $reason = ''): array
         return ['ok' => false, 'message' => 'Unknown post ID.', 'redirect' => corebb_public_join_base_path('/')];
     }
     if ((int)($post['is_deleted'] ?? 0) === 1) {
+        if ($onRemoval !== null) {
+            return ['ok'=>false,'message'=>'The post was already removed. Refresh the report.','redirect'=>''];
+        }
         return ['ok' => true, 'message' => 'Post is already in the deleted-posts bin.', 'redirect' => '/admin/?act=deleted_posts'];
     }
     if (!corebb_secure_archive_user_can_modify_post_id($postId, corebb_mod_actor_level())) {
@@ -948,7 +951,8 @@ function corebb_mod_remove_post(int $postId, string $reason = ''): array
     // In CoreBB the first visible post is the topic anchor. Removing it should
     // move the whole thread to the bin, not leave orphaned replies behind.
     if ($firstVisiblePostId === $postId) {
-        return corebb_mod_remove_topic($topicId, $reason);
+        if (!$allowWholeTopic) { return ['ok'=>false,'message'=>'This post opens the topic. Review the whole-topic action.','redirect'=>'']; }
+        return corebb_mod_remove_topic($topicId, $reason, $onRemoval);
     }
 
     $topicWasVisible = $topic && ((int)($topic['is_deleted'] ?? 0) === 0) && $visiblePostsBefore > 0;
@@ -963,15 +967,18 @@ function corebb_mod_remove_post(int $postId, string $reason = ''): array
         'UPDATE posts SET is_deleted = 1, deleted_at = ?, deleted_by = ?, delete_reason = ? WHERE id = ? AND is_deleted = 0',
         [$deletedAt, $deletedBy, $reason, $postId]
     );
-    if (!$ok) {
+    if (!$ok || corebb_db_last_affected_rows() !== 1) {
         db_rollback();
-        return ['ok' => false, 'message' => 'Error moving post to deleted-posts bin: ' . db_error(), 'redirect' => corebb_mod_thread_redirect($topicId)];
+        return ['ok' => false, 'message' => 'Could not move the post. Review its current status.', 'redirect' => corebb_mod_thread_redirect($topicId)];
     }
     if ($visiblePostsBefore <= 1) {
         db_run('UPDATE topics SET is_deleted = 1, deleted_at = ?, deleted_by = ?, delete_reason = ? WHERE id = ?', [$deletedAt, $deletedBy, $reason, $topicId]);
     }
     corebb_mod_apply_visible_count_delta($boardId, $topicId, $posterId, -1, $topicDelta);
-    db_commit();
+    if (($onRemoval && !$onRemoval()) || !db_commit()) {
+        db_rollback();
+        return ['ok'=>false,'message'=>'Could not finish the removal. Refresh the report before trying again.','redirect'=>''];
+    }
 
     corebb_mod_settle_visible_counts($boardId, $topicId, [$posterId]);
     corebb_notifications_notify_moderated_post($post, 'deleted', $deletedBy, corebb_mod_current_username(), $reason);
@@ -994,7 +1001,7 @@ function corebb_mod_remove_post(int $postId, string $reason = ''): array
  * @param string $reason Moderator-provided reason.
  * @return array{ok: bool, message: string, redirect: string} Operation result.
  */
-function corebb_mod_remove_topic(int $topicId, string $reason = ''): array
+function corebb_mod_remove_topic(int $topicId, string $reason = '', ?callable $onRemoval = null): array
 {
     corebb_mod_ensure_schema();
     $topic = corebb_mod_get_topic($topicId, true);
@@ -1025,13 +1032,20 @@ function corebb_mod_remove_topic(int $topicId, string $reason = ''): array
         'UPDATE posts SET is_deleted = 1, deleted_at = ?, deleted_by = ?, delete_reason = ? WHERE threadid = ? AND is_deleted = 0',
         [$deletedAt, $deletedBy, $reason, $topicId]
     );
+    if ($onRemoval && (!$postsOk || corebb_db_last_affected_rows() < 1)) {
+        db_rollback();
+        return ['ok'=>false,'message'=>'The topic has changed. Refresh the report.','redirect'=>''];
+    }
     $topicOk = db_run('UPDATE topics SET is_deleted = 1, deleted_at = ?, deleted_by = ?, delete_reason = ?, postcount = 0, replycount = 0 WHERE id = ?', [$deletedAt, $deletedBy, $reason, $topicId]);
     if (!$postsOk || !$topicOk) {
         db_rollback();
         return ['ok' => false, 'message' => 'Error moving topic to deleted-posts bin: ' . db_error(), 'redirect' => corebb_mod_thread_redirect($topicId)];
     }
     corebb_mod_apply_visible_count_delta($boardId, $topicId, 0, -$visiblePostsBefore, $topicWasVisible ? -1 : 0);
-    db_commit();
+    if (($onRemoval && !$onRemoval()) || !db_commit()) {
+        db_rollback();
+        return ['ok'=>false,'message'=>'Could not finish the removal. Refresh the report before trying again.','redirect'=>''];
+    }
 
     corebb_mod_settle_visible_counts($boardId, 0, $affectedUsers);
     if ($firstPost) {
@@ -1051,7 +1065,7 @@ function corebb_mod_remove_topic(int $topicId, string $reason = ''): array
  * @param int $postId Deleted-bin post id to restore.
  * @return array{ok: bool, message: string, redirect: string} Operation result.
  */
-function corebb_mod_restore_post(int $postId): array
+function corebb_mod_restore_post(int $postId, ?bool $expectedWholeTopic = null): array
 {
     corebb_mod_ensure_schema();
     $post = corebb_mod_get_post($postId, true);
@@ -1075,55 +1089,49 @@ function corebb_mod_restore_post(int $postId): array
     if ($rankError !== '') {
         return ['ok' => false, 'message' => $rankError, 'redirect' => '/admin/?act=deleted_posts'];
     }
-    $topic = corebb_mod_get_topic($topicId, true);
-    if (!$topic) {
-        return ['ok' => false, 'message' => 'The parent topic no longer exists, so this post cannot be restored safely.', 'redirect' => '/admin/?act=deleted_posts'];
-    }
-    $firstTopicPostId = (int)db_value(
-        'SELECT id FROM posts WHERE threadid = ? ORDER BY id ASC LIMIT 1',
-        [$topicId],
-        0
-    );
-    if ($firstTopicPostId === $postId && (int)($topic['is_deleted'] ?? 0) === 1) {
-        $affectedUsers = array_filter(array_map('intval', db_column('SELECT DISTINCT posterid FROM posts WHERE threadid = ?', [$topicId])));
-        if (!db_begin()) {
-            return ['ok' => false, 'message' => 'Could not start topic restore transaction: ' . db_error(), 'redirect' => '/admin/?act=deleted_posts'];
+    $bin = '/admin/?act=deleted_posts';
+    if (!db_begin()) { return ['ok'=>false,'message'=>'Could not start the restore.','redirect'=>$bin]; }
+    try {
+        $lock = corebb_db_connection()->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql' ? ' FOR UPDATE' : '';
+        $topic = db_one('SELECT id,boardid,is_deleted FROM topics WHERE id=?' . $lock, [$topicId]);
+        if (!$topic || (int)$topic['boardid'] !== $boardId) {
+            return ['ok'=>false,'message'=>'The parent topic is unavailable.','redirect'=>$bin];
         }
-        // Restoring the original post restores the topic as a unit. That mirrors
-        // the delete path and prevents a thread from coming back with replies
-        // still stranded in the bin.
-        $postsOk = db_run("UPDATE posts SET is_deleted = 0, deleted_at = '', deleted_by = 0, delete_reason = NULL WHERE threadid = ? AND is_deleted = 1", [$topicId]);
-        $topicOk = db_run("UPDATE topics SET is_deleted = 0, deleted_at = '', deleted_by = 0, delete_reason = NULL WHERE id = ?", [$topicId]);
-        if (!$postsOk || !$topicOk) {
-            db_rollback();
-            return ['ok' => false, 'message' => 'Error restoring topic: ' . db_error(), 'redirect' => '/admin/?act=deleted_posts'];
+        $current = db_one('SELECT id,posterid FROM posts WHERE id=? AND threadid=? AND boardid=? AND is_deleted=1' . $lock, [$postId,$topicId,$boardId]);
+        if (!$current || (int)$current['posterid'] !== $posterId) {
+            return ['ok'=>false,'message'=>'This deletion changed. Refresh the queue.','redirect'=>$bin];
         }
-        db_commit();
-
-        corebb_mod_settle_visible_counts($boardId, $topicId, $affectedUsers);
-        corebb_mod_log("Restored deleted topic {$topicId} from original post {$postId}");
-        return ['ok' => true, 'message' => 'Topic restored with all deleted posts.', 'redirect' => corebb_mod_thread_redirect($topicId, $postId)];
+        $first = db_value('SELECT id FROM posts WHERE threadid=? ORDER BY id LIMIT 1', [$topicId]);
+        if (!$first) { return ['ok'=>false,'message'=>'Could not verify the first post.','redirect'=>$bin]; }
+        $whole = $topic['is_deleted'] && (int)$first === $postId;
+        if ($expectedWholeTopic !== null && $whole !== $expectedWholeTopic) {
+            return ['ok'=>false,'message'=>'The topic changed. Review the restore action again.','redirect'=>$bin];
+        }
+        $affected = [$posterId];
+        if ($whole) {
+            $authors = db_all('SELECT p.boardid,p.posterid,u.accesslevel FROM posts p LEFT JOIN users u ON u.id=p.posterid
+                WHERE p.threadid=? AND p.is_deleted=1 GROUP BY p.boardid,p.posterid,u.accesslevel', [$topicId]);
+            if (!$authors) { return ['ok'=>false,'message'=>'Could not verify the posts in this topic.','redirect'=>$bin]; }
+            foreach ($authors as $author) {
+                if ((int)$author['boardid'] !== $boardId || ((int)$author['posterid'] !== corebb_mod_current_user_id()
+                    && (int)$author['accesslevel'] >= corebb_mod_actor_level())) {
+                    return ['ok'=>false,'message'=>'This topic contains a post you cannot restore.','redirect'=>$bin];
+                }
+            }
+            $affected = array_map('intval',array_column($authors,'posterid'));
+        }
+        $scope = $whole ? 'threadid=?' : 'id=?';
+        $postsOk = db_run("UPDATE posts SET is_deleted=0,deleted_at='',deleted_by=0,delete_reason=NULL WHERE $scope AND is_deleted=1", [$whole ? $topicId : $postId]);
+        $topicOk = db_run("UPDATE topics SET is_deleted=0,deleted_at='',deleted_by=0,delete_reason=NULL WHERE id=?", [$topicId]);
+        if (!$postsOk || !$topicOk || !db_commit()) {
+            return ['ok'=>false,'message'=>'Could not restore the post. Please try again.','redirect'=>$bin];
+        }
+    } finally {
+        if (corebb_db_connection()->inTransaction()) { db_rollback(); }
     }
-
-    $visiblePostsBefore = corebb_mod_visible_post_count_for_topic($topicId);
-    $topicWasVisible = ((int)($topic['is_deleted'] ?? 0) === 0) && $visiblePostsBefore > 0;
-    $topicDelta = $topicWasVisible ? 0 : 1;
-
-    if (!db_begin()) {
-        return ['ok' => false, 'message' => 'Could not start restore transaction: ' . db_error(), 'redirect' => '/admin/?act=deleted_posts'];
-    }
-    $ok = db_run("UPDATE posts SET is_deleted = 0, deleted_at = '', deleted_by = 0, delete_reason = NULL WHERE id = ?", [$postId]);
-    $topicOk = db_run("UPDATE topics SET is_deleted = 0, deleted_at = '', deleted_by = 0, delete_reason = NULL WHERE id = ?", [$topicId]);
-    if (!$ok || !$topicOk) {
-        db_rollback();
-        return ['ok' => false, 'message' => 'Error restoring post: ' . db_error(), 'redirect' => '/admin/?act=deleted_posts'];
-    }
-    corebb_mod_apply_visible_count_delta($boardId, $topicId, $posterId, 1, $topicDelta);
-    db_commit();
-
-    corebb_mod_settle_visible_counts($boardId, $topicId, [$posterId]);
-    corebb_mod_log("Restored deleted post {$postId} to topic {$topicId}");
-    return ['ok' => true, 'message' => 'Post restored.', 'redirect' => corebb_mod_thread_redirect($topicId, $postId)];
+    corebb_mod_settle_visible_counts($boardId,$topicId,$affected);
+    corebb_mod_log($whole ? "Restored deleted topic {$topicId} from original post {$postId}" : "Restored deleted post {$postId} to topic {$topicId}");
+    return ['ok'=>true,'message'=>$whole ? 'Topic restored with all deleted posts.' : 'Post restored.', 'redirect'=>corebb_mod_thread_redirect($topicId,$postId)];
 }
 
 /**
@@ -1158,19 +1166,23 @@ function corebb_mod_purge_post(int $postId): array
     }
 
     if (!db_begin()) {
-        return ['ok' => false, 'message' => 'Could not start purge transaction: ' . db_error(), 'redirect' => '/admin/?act=deleted_posts'];
+        return ['ok' => false, 'message' => 'Could not start the permanent deletion.', 'redirect' => '/admin/?act=deleted_posts'];
     }
-    if (!db_run('DELETE FROM posts WHERE id = ? AND is_deleted = 1', [$postId])) {
+    $lock = corebb_db_connection()->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql' ? ' FOR UPDATE' : '';
+    db_one('SELECT id FROM topics WHERE id=?' . $lock, [$topicId]);
+    if (db_error() !== '' || !db_run('DELETE FROM posts WHERE id=? AND boardid=? AND threadid=? AND posterid=? AND is_deleted=1', [$postId,$boardId,$topicId,$posterId])
+        || corebb_db_last_affected_rows() !== 1) {
         db_rollback();
-        return ['ok' => false, 'message' => 'Error purging post: ' . db_error(), 'redirect' => '/admin/?act=deleted_posts'];
+        return ['ok'=>false,'message'=>'Could not delete this post. Refresh the queue.','redirect'=>'/admin/?act=deleted_posts'];
     }
-    $remainingTotal = corebb_mod_total_post_count_for_topic($topicId);
-    if ($remainingTotal <= 0) {
-        db_run('DELETE FROM topics WHERE id = ?', [$topicId]);
+    $removed = db_run('DELETE FROM topics WHERE id=? AND NOT EXISTS (SELECT 1 FROM posts WHERE threadid=?)', [$topicId,$topicId]);
+    $topicRemoved = corebb_db_last_affected_rows() > 0;
+    if (!$removed || !db_commit()) {
+        db_rollback();
+        return ['ok'=>false,'message'=>'Could not finish the permanent deletion.','redirect'=>'/admin/?act=deleted_posts'];
     }
-    db_commit();
 
-    if ($remainingTotal > 0) {
+    if (!$topicRemoved) {
         corebb_mod_settle_visible_counts($boardId, $topicId);
     } else {
         corebb_mod_settle_visible_counts($boardId);

@@ -1,181 +1,100 @@
 <?php
-require_once __DIR__ . '/../helpers/admin_log_helpers.php';
-/*                        ''~``
-                         ( o o )
- +------------------.oooO--(_)--Oooo.--------------------+
- |                        CoreBB                         |
- |        Developed by -Prismatic- / HannsGruber         |
- |                Copyright (c) 2005 - 2026              |
- |                  All Rights Reserved.                 |
- |                    .oooO                              |
- |                    (   )   Oooo.                      |
- +---------------------\ (----(   )----------------------+
-                        \_)    ) /
-                              (_/
 
- +-------------------------------------------------------+
- |  admin_global_messages_view_model.php  - Admin        |
- |  global-message models.                               |
- +-------------------------------------------------------+*/
+require_once __DIR__ . '/admin_user_tools_view_model.php';
 
-if (!defined('COREBB_ADMIN_GLOBAL_MESSAGES_LOADED')) {
-    define('COREBB_ADMIN_GLOBAL_MESSAGES_LOADED', true);
-}
-
-require_once __DIR__ . '/../helpers/admin_helpers.php';
-
-/**
- * Usage: Return all rows needed by this admin page.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @return array Data prepared for the admin template or caller.
- */
-function corebb_admin_global_messages_all(): array
+function corebb_admin_global_messages_model(array $viewer, array $request, array $post): array
 {
-    $rows = [];
-    foreach (db_all('SELECT id, message, poster FROM globalmessages ORDER BY id ASC') as $row) {
-        $rows[] = [
-            'id' => (int)($row['id'] ?? 0),
-            'message' => (string)($row['message'] ?? ''),
-            'poster' => (string)($row['poster'] ?? ''),
-        ];
+    $tools = corebb_admin_global_message_tools();
+    $allowed = [];
+    foreach ($tools as $action => $key) {
+        $allowed[$action] = corebb_admin_can_access_tool($viewer, $key);
     }
-    return $rows;
-}
-
-/**
- * Usage: Build the shared page model for global message tools.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @param array $viewer Current admin user row.
- * @param string $mode Admin page mode.
- * @return array Data prepared for the admin template or caller.
- */
-function corebb_admin_global_messages_base(array $viewer, string $mode): array
-{
-    return [
-        'viewer_accesslevel' => (int)($viewer['accesslevel'] ?? 0),
-        'viewer' => $viewer,
-        'mode' => $mode,
-        'messages' => [],
-        'global_messages' => corebb_admin_global_messages_all(),
+    $model = [
+        'allowed' => $allowed, 'global_messages' => [], 'messages' => [], 'errors' => [],
+        'editing' => filter_var($request['edit'] ?? null, FILTER_VALIDATE_INT) ?: 0,
+        'adding' => ($request['act'] ?? '') === 'global_message', 'draft' => null,
     ];
-}
+    if (!in_array(true, $allowed, true)) {
+        $model['errors'][] = 'You do not have access to global messages.';
+        return $model;
+    }
 
-/**
- * Usage: Build and process the global message add admin page model.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @param array $viewer Current admin user row.
- * @param array $get Query parameters from admin.php.
- * @param array $post Posted form data from admin.php.
- * @return array Data prepared for the admin template or caller.
- */
-function corebb_admin_global_message_add_model(array $viewer, array $get, array $post): array
-{
-    $model = corebb_admin_global_messages_base($viewer, 'add');
-    $method = (string)($get['method'] ?? '');
-    $model['message_value'] = '';
-
-    if ($method === 'post') {
-        $message = trim((string)($post['message'] ?? ''));
-        $model['message_value'] = $message;
-        if ($message === '') {
-            $model['messages'][] = 'Global message cannot be empty.';
-        } elseif (strlen($message) > 255) {
-            $model['messages'][] = 'Global message must be 255 characters or less.';
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+        $legacyAction = array_search($request['act'] ?? '', $tools, true);
+        if ($legacyAction === false) {
+            $action = $post['action'] ?? '';
         } else {
-            $poster = (string)($viewer['username'] ?? 'System');
-            if (db_run('INSERT INTO globalmessages (message, poster) VALUES (?, ?)', [$message, $poster])) {
-                {
-                    corebb_adminlog_entry((string)($viewer['username'] ?? ''), (int)($viewer['accesslevel'] ?? 0), 'Added global message');
-                }
-                $model['messages'][] = 'Successfully created global message.';
-                $model['message_value'] = '';
-                $model['global_messages'] = corebb_admin_global_messages_all();
-            } else {
-                $model['messages'][] = 'Error creating global message: ' . db_error();
-            }
+            $method = $legacyAction === 'remove' ? 'delete' : 'post';
+            $action = ($request['method'] ?? '') === $method ? $legacyAction : '';
+        }
+
+        if (!is_string($action) || empty($allowed[$action])) {
+            $model['errors'][] = 'You do not have permission to perform that action.';
+        } else {
+            $id = filter_var($post['id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) ?: 0;
+            $text = is_string($post['message'] ?? null) ? trim($post['message']) : '';
+            $model['editing'] = $action === 'edit' ? $id : 0;
+            $model['adding'] = $action === 'add';
+            $model['draft'] = $text;
+            [$saved, $feedback] = corebb_admin_global_message_write($viewer, $action, $id, $text, $post['revision'] ?? '', $legacyAction !== false);
+            $model[$saved ? 'messages' : 'errors'][] = $feedback;
         }
     }
 
+    $rows = db_all('SELECT id, message, poster FROM globalmessages ORDER BY id ASC');
+    if (db_error() !== '') {
+        $model['errors'][] = 'Could not load the published messages.';
+    }
+    foreach ($rows as $row) {
+        $row['revision'] = hash('sha256', (string)$row['message']);
+        $model['global_messages'][] = $row;
+    }
     return $model;
 }
 
-/**
- * Usage: Build and process the global message edit admin page model.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @param array $viewer Current admin user row.
- * @param array $get Query parameters from admin.php.
- * @param array $post Posted form data from admin.php.
- * @return array Data prepared for the admin template or caller.
- */
-function corebb_admin_global_message_edit_model(array $viewer, array $get, array $post): array
+/** Called after the operation-specific grant and request method have been checked. */
+function corebb_admin_global_message_write(array $viewer, string $action, int $id, string $text, $revision, bool $legacy): array
 {
-    $model = corebb_admin_global_messages_base($viewer, 'edit');
-    $method = (string)($get['method'] ?? '');
-
-    if ($method === 'post') {
-        $id = (int)($post['id'] ?? 0);
-        $message = trim((string)($post['message'] ?? ''));
-        if ($id <= 0) {
-            $model['messages'][] = 'Choose a message to edit.';
-        } elseif ($message === '') {
-            $model['messages'][] = 'Message text cannot be empty.';
-        } elseif (strlen($message) > 255) {
-            $model['messages'][] = 'Global message must be 255 characters or less.';
-        } else {
-            if (db_run('UPDATE globalmessages SET message = ? WHERE id = ?', [$message, $id])) {
-                {
-                    corebb_adminlog_entry((string)($viewer['username'] ?? ''), (int)($viewer['accesslevel'] ?? 0), 'Edited global message: ' . $id);
-                }
-                $model['messages'][] = 'Global message updated.';
-            } else {
-                $model['messages'][] = 'Error updating global message: ' . db_error();
-            }
-        }
-        $model['global_messages'] = corebb_admin_global_messages_all();
+    if ($action !== 'remove' && ($text === '' || !preg_match('/\A.{1,255}\z/us', $text))) {
+        return [false, 'Enter a message between 1 and 255 characters.'];
     }
-
-    return $model;
-}
-
-/**
- * Usage: Build and process the global message remove admin page model.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @param array $viewer Current admin user row.
- * @param array $get Query parameters from admin.php.
- * @param array $post Posted form data from admin.php.
- * @return array Data prepared for the admin template or caller.
- */
-function corebb_admin_global_message_remove_model(array $viewer, array $get, array $post): array
-{
-    $model = corebb_admin_global_messages_base($viewer, 'remove');
-    $method = (string)($get['method'] ?? '');
-
-    if ($method === 'delete') {
-        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
-            $model['messages'][] = 'Use the remove button to delete a global message.';
-            return $model;
+    if ($action === 'add') {
+        $stmt = db_prepare_statement('INSERT INTO globalmessages (message, poster) VALUES (?, ?)', [$text, $viewer['username']]);
+        $audit = 'Added global message';
+        $notice = 'Global message added.';
+    } else {
+        $row = $id ? db_one('SELECT message FROM globalmessages WHERE id = ?', [$id]) : false;
+        if (!$row) {
+            return [false, 'That global message could not be found.'];
         }
-
-        $id = (int)($post['id'] ?? 0);
-        if ($id <= 0) {
-            $model['messages'][] = 'Choose a message to remove.';
+        $stored = (string)$row['message'];
+        if (!$legacy && $revision !== hash('sha256', $stored)) {
+            return [false, 'This message has changed. Review the current text before trying again.'];
+        }
+        if ($action === 'edit' && $text === $stored) {
+            return [true, 'No changes to save.'];
+        }
+        // Compare the original bytes as well as the ID, even on case-insensitive databases.
+        $where = " WHERE id = ? AND HEX(COALESCE(message, '')) = ?";
+        $match = [$id, strtoupper(bin2hex($stored))];
+        if ($action === 'edit') {
+            $stmt = db_prepare_statement('UPDATE globalmessages SET message = ?' . $where, array_merge([$text], $match));
+            $audit = 'Edited global message: ' . $id;
+            $notice = 'Global message updated.';
+        } elseif ($action === 'remove') {
+            $stmt = db_prepare_statement('DELETE FROM globalmessages' . $where, $match);
+            $audit = 'Removed global message: ' . $id;
+            $notice = 'Global message removed.';
         } else {
-            if (db_run('DELETE FROM globalmessages WHERE id = ?', [$id])) {
-                {
-                    corebb_adminlog_entry((string)($viewer['username'] ?? ''), (int)($viewer['accesslevel'] ?? 0), 'Removed global message: ' . $id);
-                }
-                $model['messages'][] = 'Global message removed.';
-            } else {
-                $model['messages'][] = 'Error removing global message: ' . db_error();
-            }
+            return [false, 'Unknown global message action.'];
         }
-        $model['global_messages'] = corebb_admin_global_messages_all();
     }
-
-    return $model;
+    if (!$stmt) {
+        return [false, 'Could not save the change. Please try again.'];
+    }
+    if ($stmt->rowCount() !== 1) {
+        return [false, 'This message has changed. Review the list before trying again.'];
+    }
+    corebb_adminlog_viewer($viewer, $audit, 'global_message');
+    return [true, $notice];
 }

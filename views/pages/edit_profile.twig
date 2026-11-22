@@ -1,6 +1,6 @@
 {% set profile = model.profile|default({}) %}
 {% set basicKeys = ['country', 'company', 'jobtitle', 'profiletitle', 'gender', 'birthday'] %}
-{% set contactKeys = ['websiteurl', 'pubemail', 'privemail'] %}
+{% set contactKeys = ['websiteurl', 'pubemail'] %}
 <table class="wb-cellspace-1 wb-cellpad-3 BoardRowB wb-usercp-workspace wb-table" style="width: 100%;">
     <tr class="wb-text-left wb-valign-top">
         <td class="wb-valign-top wb-usercp-nav-cell" style="width: 250px; width: 250px; min-width: 250px; max-width: 250px; padding-right: 6px;">
@@ -63,7 +63,7 @@
                                 {% endfor %}
                                 <tr class="BoardRowA">
                                     <td>&nbsp;</td>
-                                    <td class="InputNotes">Public Email may be displayed on your profile. Private Boards Email Address is not shown publicly.</td>
+                                    <td class="InputNotes">Public Email may be displayed on your profile.</td>
                                 </tr>
 
                                 <tr>
@@ -101,10 +101,27 @@
                         <td class="wb-text-center" style="padding: 6px 8px;"><input type="submit" name="Submit" value="Save Profile" class="formsubmit"></td>
                     </tr>
                     <tr>
-                        <td class="MainMenuRow wb-text-right" style="height: 15px;"><input type="button" onclick="window.location.href='/';" value="Forum Index &raquo;" class="formsubmit" /> &nbsp;</td>
+                        <td class="MainMenuRow wb-text-right" style="height: 15px;"><input type="button" data-forum-nav="{{ url('/') }}" value="Forum Index &raquo;" class="formsubmit" /> &nbsp;</td>
                     </tr>
                 </table>
             </form>
+            <form method="post" action="/user-cp/profile/?act=recovery_email">
+                {% include 'partials/csrf_field.twig' %}
+                <fieldset>
+                    <legend>Recovery email</legend>
+                    <p>Current address: {{ profile.privemail|default('None') }}</p>
+                    <label>New email address <input type="email" name="new_email" maxlength="255" required></label>
+                    <label>Current password <input type="password" name="current_password" autocomplete="current-password" required></label>
+                    <button type="submit" name="step" value="request">Send confirmation code</button>
+                </fieldset>
+            </form>
+            {% if model.pending_email %}
+            <form method="post" action="/user-cp/profile/?act=recovery_email">
+                {% include 'partials/csrf_field.twig' %}
+                <label>Code sent to {{ model.pending_email }} <input name="code" autocomplete="one-time-code" required></label>
+                <button type="submit" name="step" value="confirm">Confirm email change</button>
+            </form>
+            {% endif %}
         </td>
     </tr>
 </table>

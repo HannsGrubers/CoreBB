@@ -1,0 +1,79 @@
+<main aria-labelledby="kb-topic-heading">
+    <table class="wb-table wb-w-full wb-cellspace-1 wb-cellpad-3">
+        {% if model.discussion %}
+        <tr><td class="BoardColumn"><h1 id="kb-topic-heading" class="wb-kb-heading">{{ model.topicTitle }}</h1></td></tr>
+        {% endif %}
+        <tr><td class="MainMenuRow">
+            <nav class="wb-kb-controls" aria-label="Article views">
+                <a class="MainMenuLink" href="{{ model.articleUrl }}"{% if not model.discussion %} aria-current="page"{% endif %}>Article</a>
+                <a class="MainMenuLink" href="{{ model.articleUrl }}?tab=discussion"{% if model.discussion %} aria-current="page"{% endif %}>Discussion ({{ model.replyCount }})</a>
+                {% if model.discussion %}
+                    {% if model.canReply %}<a class="MainMenuLink" href="{{ model.replyUrl }}">Post a reply</a>{% elseif model.locked %}<span class="MainMenuFont">Discussion locked</span>{% endif %}
+                {% elseif model.canModerate %}
+                    <a class="MainMenuLink" href="{{ (model.posts|first).moderator_edit_url }}">Edit article</a>
+                {% endif %}
+            </nav>
+        </td></tr>
+    </table>
+    {% if model.discussion %}
+        {% include 'partials/board_pagination.twig' with {pagination: model.pagination} only %}
+        {% block discussion_posts %}
+        <table class="wb-table wb-w-full wb-cellspace-1 wb-cellpad-3">
+            {% if model.posts %}
+                <tr class="wb-text-left wb-valign-top">
+                    <th scope="col" class="BoardColumn wb-w-17p">Author</th>
+                    <th scope="col" class="BoardColumn wb-w-83p">Discussion</th>
+                </tr>
+                {% for post in model.posts %}
+                    {% include 'partials/thread_post.twig' with {post: post, locked: model.locked, canModerate: model.canModerate, archiveReadOnly: model.archiveReadOnly, pollModel: {}} only %}
+                {% endfor %}
+            {% else %}
+                <tr><td class="BoardRowB">No replies yet.</td></tr>
+            {% endif %}
+        </table>
+        {% endblock %}
+        {% include 'partials/board_pagination.twig' with {pagination: model.pagination} only %}
+    {% else %}
+        {% set opener = model.posts|first %}
+        <article id="post{{ opener.post_id }}" aria-labelledby="kb-topic-heading">
+            <table class="wb-table wb-w-full wb-cellspace-1 wb-cellpad-3 wb-kb-reader">
+                <tr class="wb-thread-post-head"><td class="BoardRowA">
+                    <header class="wb-kb-intro">
+                        <div>
+                            {% if model.topic.kb_category %}
+                                <a class="BoardRowALink wb-kb-category" href="{{ model.boardUrl }}?category={{ model.topic.kb_category|url_encode }}">{{ model.topic.kb_category }}</a>
+                            {% endif %}
+                            <h1 id="kb-topic-heading" class="wb-kb-title">{{ model.topicTitle }}</h1>
+                            {% if model.topic.kb_summary %}<p class="wb-kb-summary">{{ model.topic.kb_summary }}</p>{% endif %}
+                        </div>
+                        <dl class="wb-kb-facts">
+                            <dt>Written by</dt><dd>{% include 'partials/user_name.twig' with {user: user_name_model(opener.poster_id, opener.poster_name)} only %}</dd>
+                            {% if model.topic.kb_versions %}<dt>Applies to</dt><dd>{{ model.topic.kb_versions }}</dd>{% endif %}
+                            {% if model.topic.kb_verified %}<dt>Last verified</dt><dd><time datetime="{{ model.topic.kb_verified }}">{{ model.topic.kb_verified }}</time></dd>{% endif %}
+                        </dl>
+                    </header>
+                </td></tr>
+                <tr class="wb-thread-post-body-row"><td class="BoardRowB wb-post-body-cell">
+                    {% include 'partials/formatted_content.twig' with {content: post_body_model(opener.post_body, opener.author_access_level)} only %}
+                    {% if model.poll.exists|default(false) %}{% include 'partials/thread_poll.twig' with {pollModel: model.poll, pollMessage: model.pollMessage, topicId: model.topicId} only %}{% endif %}
+                </td></tr>
+            </table>
+        </article>
+    {% endif %}
+</main>
+<script nonce="{{ csp_nonce() }}">
+(function () {
+    // Notification and last-post links use the standard forum post fragment.
+    function showLinkedReply() {
+        var match = /^#post([0-9]+)$/.exec(location.hash);
+        if (!match || document.getElementById('post' + match[1])) return;
+        var target = new URL(location.href);
+        if (target.searchParams.get('post') === match[1]) return;
+        target.searchParams.set('tab', 'discussion');
+        target.searchParams.set('post', match[1]);
+        location.replace(target.href);
+    }
+    showLinkedReply();
+    window.addEventListener('hashchange', showLinkedReply);
+}());
+</script>

@@ -17,6 +17,7 @@
  |  controller helpers.                                  |
  +-------------------------------------------------------+*/
 
+require_once __DIR__ . '/../helpers/knowledge_base_helpers.php';
 require_once __DIR__ . '/../helpers/moderation_helpers.php';
 require_once __DIR__ . '/../helpers/rate_limit_helpers.php';
 require_once __DIR__ . '/../helpers/performance_helpers.php';
@@ -62,15 +63,7 @@ function corebb_post_fetch_board(int $boardId): array|false
         return false;
     }
 
-    return corebb_post_fetch_one(
-        'SELECT f.id, f.name, f.description, f.edittimer, f.postcount, f.topiccount, f.lastpstdate, f.lastpstdatets,
-                f.private, f.categoryid, b.private AS category_private, b.name AS category_name
-           FROM forums f
-           LEFT JOIN boards b ON b.id = f.categoryid
-          WHERE f.id = ?
-          LIMIT 1',
-        [$boardId]
-    );
+    return corebb_private_board_row($boardId);
 }
 
 /**
@@ -328,6 +321,18 @@ function corebb_post_process_edit(array $post, array $user): array
     if (!corebb_secure_archive_user_can_write_board_row($board, (int)($user['accesslevel'] ?? 0))) {
         return corebb_post_result_model('error', corebb_secure_archive_denied_message());
     }
+    $article = corebb_kb_board($board) && corebb_kb_opener((int)$existing['threadid']) === $postId;
+    if ($article && !corebb_mod_can_moderate()) {
+        return corebb_post_result_model('error', 'Only forum staff can edit articles.');
+    }
+    $metadata = null;
+    if ($article && array_key_exists('kb_summary', $post)) {
+        try {
+            $metadata = corebb_kb_metadata($post);
+        } catch (InvalidArgumentException $e) {
+            return corebb_post_result_model('error', $e->getMessage());
+        }
+    }
     $isModeratorEdit = corebb_mod_can_moderate() && (((string)($post['from_mod'] ?? '') === '1') || ((int)($existing['posterid'] ?? 0) !== (int)($user['id'] ?? 0)));
 
     if ((int)($existing['posterid'] ?? 0) !== (int)($user['id'] ?? 0) && !$isModeratorEdit) {
@@ -370,7 +375,8 @@ function corebb_post_process_edit(array $post, array $user): array
     $uploadedImagePath = (string)($prepared['uploaded_path'] ?? '');
     $now = convert_to_timestamp_raw(time());
 
-    if ($stickyChanged) {
+    $atomicEdit = $stickyChanged || $metadata !== null;
+    if ($atomicEdit) {
         if (!db_begin()) {
             corebb_post_cleanup_uploaded_image($uploadedImagePath);
             return corebb_post_result_model('error', 'Error starting edit transaction: ' . db_error());
@@ -385,8 +391,8 @@ function corebb_post_process_edit(array $post, array $user): array
         $now
     );
 
-    if (!$ok) {
-        if ($stickyChanged) {
+    if (!$ok || ($metadata !== null && !corebb_kb_save_metadata($topicId, $metadata))) {
+        if ($atomicEdit) {
             db_rollback();
         }
         corebb_post_cleanup_uploaded_image($uploadedImagePath);
@@ -400,6 +406,8 @@ function corebb_post_process_edit(array $post, array $user): array
             corebb_post_cleanup_uploaded_image($uploadedImagePath);
             return corebb_post_result_model('error', (string)($stickyResult['message'] ?? 'Error updating sticky state.'));
         }
+    }
+    if ($atomicEdit) {
         if (!db_commit()) {
             db_rollback();
             corebb_post_cleanup_uploaded_image($uploadedImagePath);
@@ -530,10 +538,14 @@ function corebb_post_process_reply(array $post, array $user): array
         $boardName
     );
 
+    $messageUrl = corebb_post_thread_url($topicId, $boardId);
+    if (corebb_kb_board(corebb_private_board_row($boardId) ?: [])) {
+        $messageUrl = corebb_thread_url($topicId, $boardId, 1, $boardName) . '?tab=discussion&post=' . (int)$newPostId . '#post' . (int)$newPostId;
+    }
     $kind = 'message';
     return corebb_post_result_model('success', "Your " . $kind . ", '" . $subject . "', has been successfully posted to the " . $boardName . ' message board.', [
         ['href' => corebb_post_board_url($boardId, $boardName), 'text' => $boardName],
-        ['href' => corebb_post_thread_url($topicId, $boardId), 'text' => 'View your newly posted message'],
+        ['href' => $messageUrl, 'text' => 'View your newly posted message'],
     ]);
 }
 
@@ -557,6 +569,17 @@ function corebb_post_process_new_topic(array $post, array $user): array
         return corebb_post_result_model('error', corebb_secure_archive_denied_message());
     }
 
+    $metadata = null;
+    if (corebb_kb_board($board)) {
+        if (!corebb_mod_can_moderate()) {
+            return corebb_post_result_model('error', 'Only forum staff can publish articles.');
+        }
+        try {
+            $metadata = corebb_kb_metadata($post);
+        } catch (InvalidArgumentException $e) {
+            return corebb_post_result_model('error', $e->getMessage());
+        }
+    }
     $pollPayload = corebb_poll_payload_from_post($post);
     if (!empty($pollPayload['error'])) {
         return corebb_post_result_model('error', (string)$pollPayload['error']);
@@ -604,6 +627,11 @@ function corebb_post_process_new_topic(array $post, array $user): array
         return corebb_post_result_model('error', 'Topic was created, but the first post failed: ' . db_error());
     }
     $firstPostId = db_insert_id();
+    if ($metadata !== null && !corebb_kb_save_metadata($topicId, $metadata)) {
+        db_rollback();
+        corebb_post_cleanup_uploaded_image($uploadedImagePath);
+        return corebb_post_result_model('error', 'Unable to save article details.');
+    }
 
     if (!empty($pollPayload['enabled'])) {
         $pollResult = corebb_poll_create_for_topic($topicId, $userId, (string)$pollPayload['question'], (array)$pollPayload['options']);
@@ -704,6 +732,10 @@ function corebb_post_edit_form_model(int $postId, array $user): array
     if (!corebb_secure_archive_user_can_write_board_row($board, (int)($user['accesslevel'] ?? 0))) {
         return ['error' => corebb_secure_archive_denied_message()];
     }
+    $article = corebb_kb_board($board) && corebb_kb_opener((int)$post['threadid']) === $postId;
+    if ($article && !corebb_mod_can_moderate()) {
+        return ['error' => 'Only forum staff can edit articles.'];
+    }
     $topic = corebb_mod_get_topic((int)($post['threadid'] ?? 0)) ?: [];
     $boardTimer = (int)($board['edittimer'] ?? 0);
     $timeMessage = 'Moderator Edit: no time limit applies.';
@@ -723,6 +755,8 @@ function corebb_post_edit_form_model(int $postId, array $user): array
 
     return [
         'mode' => 'edit',
+        'articleEditor' => $article,
+        'article' => $article ? db_one('SELECT kb_summary, kb_category, kb_versions, kb_verified FROM topics WHERE id = ?', [(int)$post['threadid']]) : [],
         'subject' => (string)($post['title'] ?? ''),
         'body' => (string)($post['body'] ?? ''),
         'timeMessage' => $timeMessage,
@@ -829,14 +863,19 @@ function corebb_post_new_form_model(int $boardId, array $user, bool $pollMode = 
         return ['error' => corebb_secure_archive_denied_message()];
     }
 
+    if (corebb_kb_board($board) && !corebb_mod_can_moderate()) {
+        return ['error' => 'Only forum staff can publish articles.'];
+    }
+
     $cookieBody = '';
     if (isset($_COOKIE['MyCookie'])) {
         $cookieBody = corebb_post_limit_text((string)$_COOKIE['MyCookie'], 65535);
-        setcookie('MyCookie', '', 1, '/');
+        corebb_security_clear_cookie('MyCookie');
     }
 
     return [
         'mode' => 'new',
+        'articleEditor' => corebb_kb_board($board),
         'board' => $board,
         'subject' => '',
         'body' => $cookieBody,
@@ -845,7 +884,7 @@ function corebb_post_new_form_model(int $boardId, array $user, bool $pollMode = 
         'pollChecked' => $pollMode,
         'pollQuestion' => '',
         'pollOptions' => array_fill(0, 10, ''),
-        'submitLabel' => $pollMode ? 'Post Poll' : 'Post New Topic',
+        'submitLabel' => corebb_kb_board($board) ? 'Publish article' : ($pollMode ? 'Post Poll' : 'Post New Topic'),
         'hidden' => [
             'boardtopost' => (string)$boardId,
             'posttype' => 'new',
@@ -897,7 +936,7 @@ function corebb_post_reply_form_model(int $topicId, int $boardId, array $user, i
     $cookieBody = '';
     if (isset($_COOKIE['MyCookie'])) {
         $cookieBody = corebb_post_limit_text((string)$_COOKIE['MyCookie'], 65535);
-        setcookie('MyCookie', '', 1, '/');
+        corebb_security_clear_cookie('MyCookie');
     }
 
     $prefillBody = $cookieBody;

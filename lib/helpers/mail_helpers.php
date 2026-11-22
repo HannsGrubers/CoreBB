@@ -52,6 +52,29 @@ function corebb_mail_config(string $key, $default = '')
  *
  * @return string Host name safe for headers and HELO fallback.
  */
+function corebb_mail_account_base_url(): string
+{
+    $base = trim((string)corebb_mail_config('COREBB_ACCOUNT_BASE_URL', ''));
+    if ($base === '') {
+        // Older loaders can synthesize COREBB_PUBLIC_BASE_URL from the request.
+        // Explicit environment settings remain usable on these installations.
+        $base = trim((string)(getenv('COREBB_PUBLIC_BASE_URL') ?: ''));
+    }
+    $parts = parse_url($base);
+    if (!is_array($parts) || empty($parts['host']) || isset($parts['user']) || isset($parts['pass'])
+        || isset($parts['query']) || isset($parts['fragment']) || preg_match('~[\x00-\x20\x7f\\\\]~', $base)) {
+        return '';
+    }
+    $scheme = strtolower((string)($parts['scheme'] ?? ''));
+    if ($scheme === 'http' && defined('COREBB_ENV') && in_array(COREBB_ENV, ['live','staging'], true)) {
+        $base = 'https://' . $parts['host'] . (isset($parts['port']) && $parts['port'] !== 80 ? ':' . $parts['port'] : '')
+            . ($parts['path'] ?? '');
+    } elseif ($scheme !== 'https' && !($scheme === 'http' && defined('COREBB_ENV') && COREBB_ENV === 'local')) {
+        return '';
+    }
+    return rtrim($base, '/');
+}
+
 function corebb_mail_public_host(): string
 {
     $host = '';
@@ -571,6 +594,10 @@ function corebb_mail_send_smtp(string $to, string $subject, string $body, array 
         'Subject: ' . $subject,
     ];
     foreach ($headers as $name => $value) {
+        // SMTP blind copies are envelope recipients only.
+        if (strcasecmp((string)$name, 'Bcc') === 0) {
+            continue;
+        }
         $headerLines[] = corebb_mail_header_encode((string)$name) . ': ' . corebb_mail_header_encode((string)$value);
     }
     $message = implode("\r\n", $headerLines) . "\r\n\r\n" . str_replace("\n.", "\n..", str_replace("\r\n", "\n", $body));

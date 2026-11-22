@@ -27,6 +27,13 @@ require_once __DIR__ . '/public_style_helpers.php';
 require_once __DIR__ . '/performance_helpers.php';
 require_once __DIR__ . '/view.php';
 
+/** Display the legacy four-part IPv4 format used in imported member records. */
+function corebb_admin_display_ip(string $ip): string
+{
+    $ip = trim($ip);
+    return preg_match('/^\d{1,3}(?:-\d{1,3}){3}$/D', $ip) ? str_replace('-', '.', $ip) : $ip;
+}
+
 /**
  * Usage: Read one system setting with a caller-supplied fallback.
  * Referenced by: admin settings, style, and content tools.
@@ -73,33 +80,32 @@ function corebb_admin_setting_upsert(string $name, string $setting, ?int $id = n
  */
 function corebb_admin_rate_limit_setting_labels(): array
 {
+    $labels = [];
+    $defaults = corebb_rate_limit_default_settings();
+    foreach (corebb_admin_rate_limit_groups() as $action => $group) {
+        $prefix = 'rate_limit_' . $action . '_';
+        $labels[$prefix . 'enabled'] = [$group['title'] . ' rate limiting', $defaults[$prefix . 'enabled']];
+        foreach ($group['rules'] as $rule => $label) {
+            foreach (['max' => $group['unit'], 'window' => 'Window in seconds'] as $suffix => $unit) {
+                $name = $prefix . $rule . '_' . $suffix;
+                $labels[$name] = [$group['title'] . ' · ' . $label . ' · ' . $unit, $defaults[$name]];
+            }
+        }
+    }
+    return $labels;
+}
+
+function corebb_admin_rate_limit_groups(): array
+{
     return [
-        'rate_limit_login_enabled' => ['Rate limiting: login enabled', '1'],
-        'rate_limit_login_ip_10m_max' => ['Login: max attempts per IP, short window', '8'],
-        'rate_limit_login_ip_10m_window' => ['Login: short IP window in seconds', '600'],
-        'rate_limit_login_ip_1h_max' => ['Login: max attempts per IP, long window', '25'],
-        'rate_limit_login_ip_1h_window' => ['Login: long IP window in seconds', '3600'],
-        'rate_limit_login_user_ip_15m_max' => ['Login: max attempts per username/IP', '6'],
-        'rate_limit_login_user_ip_15m_window' => ['Login: username/IP window in seconds', '900'],
-        'rate_limit_pm_enabled' => ['Rate limiting: private messages enabled', '1'],
-        'rate_limit_pm_user_10m_max' => ['PMs: max sends per user, short window', '10'],
-        'rate_limit_pm_user_10m_window' => ['PMs: short user window in seconds', '600'],
-        'rate_limit_pm_user_1h_max' => ['PMs: max sends per user, long window', '40'],
-        'rate_limit_pm_user_1h_window' => ['PMs: long user window in seconds', '3600'],
-        'rate_limit_post_enabled' => ['Rate limiting: posting enabled', '1'],
-        'rate_limit_post_user_20s_max' => ['Posting: max posts per user, burst window', '1'],
-        'rate_limit_post_user_20s_window' => ['Posting: burst user window in seconds', '20'],
-        'rate_limit_post_user_10m_max' => ['Posting: max posts per user, short window', '15'],
-        'rate_limit_post_user_10m_window' => ['Posting: short user window in seconds', '600'],
-        'rate_limit_post_user_1h_max' => ['Posting: max posts per user, long window', '60'],
-        'rate_limit_post_user_1h_window' => ['Posting: long user window in seconds', '3600'],
-        'rate_limit_report_enabled' => ['Rate limiting: post reports enabled', '1'],
-        'rate_limit_report_user_10m_max' => ['Reports: max reports per user, short window', '5'],
-        'rate_limit_report_user_10m_window' => ['Reports: short user window in seconds', '600'],
-        'rate_limit_report_user_1d_max' => ['Reports: max reports per user, daily window', '25'],
-        'rate_limit_report_user_1d_window' => ['Reports: daily user window in seconds', '86400'],
-        'rate_limit_report_ip_1h_max' => ['Reports: max reports per IP, hourly window', '30'],
-        'rate_limit_report_ip_1h_window' => ['Reports: hourly IP window in seconds', '3600'],
+        'login' => ['title' => 'Sign-in attempts', 'unit' => 'Attempts', 'note' => 'Applies to all accounts.',
+            'rules' => ['ip_10m' => 'Per IP · short window', 'ip_1h' => 'Per IP · long window', 'user_ip_15m' => 'Per username and IP']],
+        'pm' => ['title' => 'Private messages', 'unit' => 'Sends', 'note' => 'Moderators and higher are exempt.',
+            'rules' => ['user_10m' => 'Per member · short window', 'user_1h' => 'Per member · long window']],
+        'post' => ['title' => 'Posting', 'unit' => 'Posts', 'note' => 'Moderators and higher are exempt.',
+            'rules' => ['user_20s' => 'Per member · burst', 'user_10m' => 'Per member · short window', 'user_1h' => 'Per member · long window']],
+        'report' => ['title' => 'Reports and Contact Mods', 'unit' => 'Submissions', 'note' => 'Applies to all accounts.',
+            'rules' => ['user_10m' => 'Per member · short window', 'user_1d' => 'Per member · long window', 'ip_1h' => 'Per IP']],
     ];
 }
 
@@ -163,45 +169,49 @@ function corebb_admin_normalize_system_setting(string $name, string $value): str
     return $value;
 }
 
-/**
- * Usage: Build the editable settings list shown in the admin settings page.
- * Referenced by: lib/models/admin_settings_view_model.php.
- *
- * @return array<string, array{id: int, label: string, value: string}> Settings keyed by name.
- */
+/** Settings offered by this tool. The section definitions also bound each section's POST. */
+function corebb_admin_settings_sections(): array
+{
+    return [
+        'appearance' => ['title' => 'Appearance', 'fields' => [
+            'defaultstyle' => ['Default theme', 'style_vn_eol.css', 'style'],
+            'showbasicstats' => ['Show basic forum statistics', '1', 'boolean'],
+        ]],
+        'forum' => ['title' => 'Forum options', 'fields' => [
+            'allowguests' => ['Guest browsing', '1', 'boolean'],
+            'customtitles' => ['Custom member titles', '1', 'boolean'],
+        ]],
+        'limits' => ['title' => 'Rate limits', 'fields' => corebb_admin_rate_limit_setting_labels()],
+        'maintenance' => ['title' => 'Maintenance', 'fields' => [
+            'maintenancemode' => ['Maintenance mode', '0', 'boolean'],
+            'maintenancesubject' => ['Notice subject', 'Boards Offline', 'text'],
+            'maintenancemessage' => ['Notice message', 'The boards are temporarily unavailable.', 'textarea'],
+        ]],
+        'terms' => ['title' => 'Terms of service', 'fields' => [
+            'terms_of_service' => ['Forum terms of service', '', 'textarea'],
+        ]],
+    ];
+}
+
+function corebb_admin_editable_settings(): array
+{
+    return array_merge(...array_column(corebb_admin_settings_sections(), 'fields'));
+}
+
 function corebb_admin_system_settings(): array
 {
-    $known = [
-        'defaultstyle' => ['Default stylesheet', 'style_vn_eol.css'],
-        'theme_vn_eol' => ['Use VNBoards end-of-life public theme', '1'],
-        'encaseboards' => ['Use wrapped board chrome', '1'],
-        'showbasicstats' => ['Show basic board/message stats', '1'],
-        'allowguests' => ['Allow guests to browse forums', '1'],
-        'customtitles' => ['Enable custom titles', '1'],
-        'quickreply' => ['Enable quick reply', '1'],
-        'markupcode' => ['Markup/code allowed in posts', '1'],
-        'maintenancemode' => ['Maintenance mode', '0'],
-        'maintenancesubject' => ['Maintenance message subject', 'Boards Offline'],
-        'maintenancemessage' => ['Maintenance message body', 'The boards are temporarily unavailable.'],
-        'terms_of_service' => ['Terms of Service body', ''],
-        'installed_version' => ['Installed CoreBB version', defined('COREBB_VERSION') ? COREBB_VERSION : '1.0.0'],
-        'schema_version' => ['Installed CoreBB schema version', defined('COREBB_SCHEMA_VERSION') ? (string)COREBB_SCHEMA_VERSION : '1'],
-        'last_update_check_at' => ['Last update check time', ''],
-        'last_update_check_status' => ['Last update check status', 'never'],
-        'last_update_manifest' => ['Cached update manifest', ''],
-        'last_successful_update_check_at' => ['Last successful update check time', ''],
-        'last_update_check_error' => ['Last update check error', ''],
-        'update_manifest_signature_status' => ['Update manifest signature status', 'unsigned'],
-    ];
-    $known += corebb_admin_rate_limit_setting_labels();
+    $known = corebb_admin_editable_settings();
 
     $settings = [];
-    foreach (db_all('SELECT id, name, setting FROM systemsettings ORDER BY id ASC, name ASC') as $row) {
+    $placeholders = implode(',', array_fill(0, count($known), '?'));
+    $rows = db_all("SELECT id, name, setting FROM systemsettings WHERE name IN ($placeholders)
+        OR (id = 1 AND (name = '' OR name IS NULL)) ORDER BY id", array_keys($known));
+    foreach ($rows as $row) {
         $name = (string)($row['name'] ?? '');
         if ($name === '' && (int)($row['id'] ?? 0) === 1) {
             $name = 'defaultstyle';
         }
-        if ($name === '') {
+        if (!isset($known[$name])) {
             continue;
         }
         $settings[$name] = [
@@ -220,48 +230,67 @@ function corebb_admin_system_settings(): array
     return $settings;
 }
 
-/**
- * Usage: Persist all settings submitted from the admin settings form.
- * Referenced by: corebb_admin_settings_model().
- *
- * @param array<string, mixed> $posted Raw POST payload.
- * @return array<int, string> User-facing result messages.
- */
-function corebb_admin_save_system_settings(array $posted): array
+/** Validate the entire submission before writing. An empty error list means success. */
+function corebb_admin_save_system_settings(array $posted, array $sectionFields, int &$changeCount): array
 {
-    $messages = [];
-    foreach (($posted['settings'] ?? []) as $name => $value) {
-        $name = trim((string)$name);
-        if (!preg_match('/^[A-Za-z0-9_\-]+$/', $name)) {
-            $messages[] = "Skipped invalid setting name: {$name}";
+    $changeCount = 0;
+    $input = $posted['settings'] ?? null;
+    if (!is_array($input) || !$input) {
+        return ['No settings were submitted.'];
+    }
+
+    $known = corebb_admin_editable_settings();
+    $current = corebb_admin_system_settings();
+    $changes = [];
+    $errors = [];
+    foreach ($input as $name => $value) {
+        if (!isset($known[$name], $sectionFields[$name]) || !is_string($value)) {
+            return ['The submitted fields do not match this settings form. Reload the page and try again.'];
+        }
+        if ($value === $current[$name]['value']) {
             continue;
         }
-        $value = corebb_admin_normalize_system_setting($name, (string)$value);
-        $id = null;
-        if ($name === 'defaultstyle') {
-            $id = 1;
-        }
-        if (!corebb_admin_setting_upsert($name, $value, $id)) {
-            $messages[] = "Failed to save {$name}: " . db_error();
-        }
-    }
-
-    $newName = trim((string)($posted['new_setting_name'] ?? ''));
-    if ($newName !== '') {
-        if (!preg_match('/^[A-Za-z0-9_\-]+$/', $newName)) {
-            $messages[] = "Skipped invalid new setting name: {$newName}";
-        } else {
-            $newValue = corebb_admin_normalize_system_setting($newName, (string)($posted['new_setting_value'] ?? ''));
-            if (!corebb_admin_setting_upsert($newName, $newValue)) {
-                $messages[] = "Failed to add {$newName}: " . db_error();
+        $type = $known[$name][2] ?? '';
+        $label = $known[$name][0];
+        if ($type === 'boolean' || in_array($name, corebb_admin_rate_limit_boolean_settings(), true)) {
+            if (!in_array($value, ['0', '1'], true)) {
+                $errors[] = $label . ': choose Enabled or Disabled.';
+                continue;
             }
+        } elseif (in_array($name, corebb_admin_rate_limit_numeric_settings(), true)) {
+            $max = str_ends_with($name, '_max') ? 100000 : 604800;
+            if (!ctype_digit(trim($value)) || (int)$value < 1 || (int)$value > $max) {
+                $errors[] = $label . ': enter a whole number from 1 to ' . $max . '.';
+                continue;
+            }
+        } elseif ($type === 'style' && !isset(corebb_public_style_builtin_options()[corebb_public_style_canonical_file($value)])) {
+            $errors[] = 'Choose an available default theme.';
+            continue;
+        }
+        $changes[$name] = corebb_admin_normalize_system_setting($name, $value);
+    }
+    if ($errors || !$changes) {
+        return $errors;
+    }
+    if (!db_begin()) {
+        return ['Could not start the settings save. Please try again.'];
+    }
+    if (isset($changes['defaultstyle']) && db_exists("SELECT id FROM systemsettings WHERE id = 1 AND name NOT IN ('', 'defaultstyle')")) {
+        db_rollback();
+        return ['Could not save the default theme because its reserved settings row is in use.'];
+    }
+    foreach ($changes as $name => $value) {
+        if (!corebb_admin_setting_upsert($name, $value, $name === 'defaultstyle' ? 1 : null)) {
+            db_rollback();
+            return ['Could not save the settings. Please reload and try again.'];
         }
     }
-
-    if (!$messages) {
-        $messages[] = 'System settings saved.';
+    if (!db_commit()) {
+        db_rollback();
+        return ['Could not finish saving settings. Please reload and try again.'];
     }
-    return $messages;
+    $changeCount = count($changes);
+    return [];
 }
 
 /**

@@ -1,48 +1,88 @@
-{% include 'partials/admin_messages.twig' with {messages: model.messages|default([]), errors: model.errors|default([])} only %}
-{% set mode = model.mode|default('search') %}
-{% set user = model.user|default(null) %}
-
-<div class="corebb-admin-modern-page">
-    <div class="corebb-admin-modern-header">
-        <div>
-            <div class="corebb-admin-modern-eyebrow">People</div>
-            <h2>{{ mode == 'edit' and user ? 'Edit User Appearance' : 'Find User Appearance' }}</h2>
-            <div class="corebb-admin-modern-meta">
-                {% if user %}
-                    <span>{{ user.username|default('') }}</span>
-                    <span>#{{ user.id|default(0) }}</span>
-                {% else %}
-                    <span>Search by username or user ID.</span>
-                {% endif %}
-            </div>
-        </div>
-        <div class="corebb-admin-modern-actions">
-            {% if user %}
-                <a class="corebb-board-action-link" href="{{ user.profile_url|default('#') }}">Public Profile</a>
-                <a class="corebb-board-action-link" href="/admin/?act=user_pages&amp;userid={{ user.id|default(0) }}">User Portal</a>
-                <a class="corebb-board-action-link" href="/admin/?act=user_appearance">Find Another User</a>
-            {% endif %}
-            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
-        </div>
-    </div>
-
-    {% if mode == 'edit' and user %}
-        <div class="corebb-admin-modern-panel">
-            {% include 'partials/user_appearance_form.twig' with {appearance: model.appearance|default({})} only %}
-        </div>
+{% set user = model.selected_user %}
+<div class="admin-overview admin-settings admin-members admin-appearance">
+    <header class="admin-dash-heading"><h1>Edit User Appearance</h1><a href="{{ url('/admin/') }}">Dashboard</a></header>
+    <nav class="admin-settings-tabs" aria-label="Username appearance">
+        <a href="{{ url('/admin/?act=user_appearance') }}"{% if not model.library|default(false) %} aria-current="page"{% endif %}>Members</a>
+        <a href="{{ url('/admin/?act=user_appearance&section=presets') }}"{% if model.library|default(false) %} aria-current="page"{% endif %}>Presets</a>
+    </nav>
+    {% if model.library|default(false) %}
+        {% include 'partials/admin_appearance_library.twig' with {model:model} only %}
     {% else %}
-        <div class="corebb-admin-modern-panel">
-            <form class="corebb-admin-modern-form" method="get" action="/admin/">
-                <input type="hidden" name="act" value="user_appearance">
-                <div class="corebb-admin-modern-grid">
-                    <label for="corebbUserAppearanceUser">User</label>
-                    <span>
-                        <input id="corebbUserAppearanceUser" type="text" name="user" value="{{ model.search_value|default('') }}">
-                        <button class="corebb-board-action-link" type="submit">Submit</button>
-                        <span class="corebb-admin-modern-help">Username or user ID.</span>
-                    </span>
-                </div>
-            </form>
+    <form class="admin-settings-form admin-member-search" method="get" action="{{ url('/admin/') }}">
+        <input type="hidden" name="act" value="user_appearance">
+        <div class="admin-auth-field"><label for="appearance-member">Username or user ID</label>
+            <input id="appearance-member" type="search" name="user" value="{{ model.search_value }}" required autocomplete="off" spellcheck="false">
         </div>
+        <div class="admin-settings-save"><button type="submit">Find member</button></div>
+    </form>
+    {% include 'partials/admin_messages.twig' with {messages:model.messages, errors:model.errors} only %}
+    {% if user %}
+    {% set appearance = model.appearance %}
+    <section class="admin-title-editor" aria-labelledby="appearance-heading">
+        <header class="admin-member-head">
+            <div><h2 id="appearance-heading">{{ user.username }}</h2><p class="admin-history-count">#{{ user.id }} · {{ user.level_name }}</p></div>
+            <div class="admin-member-links">
+                {% if model.can_view_member %}<a href="{{ url('/admin/?act=user_pages&userid=' ~ user.id) }}">User Pages</a>{% endif %}
+                <a href="{{ url(user.profile_url) }}">Public profile</a>
+            </div>
+        </header>
+        {% if model.presets %}
+        <section class="appearance-membership">
+            <h3>Assigned preset</h3>
+            {% if model.assigned %}<p><strong>{{ model.assigned.name }}</strong> · Managed by staff</p>{% endif %}
+            <details{% if not model.assigned %} open{% endif %}><summary>{{ model.assigned ? 'Change preset' : 'Choose a preset' }}</summary>
+                <form method="post" action="{{ url(appearance.form_action) }}">
+                    {{ _self.fields(user.id, appearance.token, model.revision, 'assign_preset') }}
+                    <fieldset class="appearance-choices"><legend>Available presets</legend>
+                    {% for preset in model.presets %}
+                        <label><input name="preset_choice" type="radio" value="{{ preset.id }}:{{ preset.revision }}" required{% if model.assigned.id|default(0) == preset.id %} checked{% endif %}>
+                            <strong>{{ preset.name }}</strong> <span style="{{ preset.css }}">{{ user.username }}</span></label>
+                    {% endfor %}
+                    </fieldset>
+                    <div class="admin-settings-save"><button type="submit">Assign preset</button></div>
+                </form>
+            </details>
+            {% if model.assigned %}
+            <details><summary>Unlink preset</summary><p>The member keeps these colors and formatting. Future preset changes will no longer apply.</p>
+                <form method="post" action="{{ url(appearance.form_action) }}">
+                    {{ _self.fields(user.id, appearance.token, model.revision, 'unlink_preset') }}
+                    <button type="submit" class="admin-member-remove">Confirm unlink</button>
+                </form>
+            </details>{% endif %}
+        </section>
+        {% endif %}
+        <div class="appearance-workspace">
+            <section class="appearance-preview" aria-labelledby="appearance-preview-heading">
+                {% include 'partials/appearance_samples.twig' with {css:appearance.preview.style_css, label:user.username} only %}
+                {% if model.legacy_only %}<p class="admin-history-count">This member has an older custom style. The preview shows the settings in this editor. Saving a change replaces the older style.</p>{% endif %}
+            </section>
+            {% if not model.assigned %}
+            <form method="post" id="appearance-editor" class="admin-settings-form" action="{{ url(appearance.form_action) }}">
+                {{ _self.fields(user.id, appearance.token, model.revision) }}
+                {% include 'partials/appearance_style_fields.twig' with {values:appearance.values} only %}
+                <div class="admin-settings-save"><button type="submit">Save appearance</button></div>
+            </form>
+            {% endif %}
+        </div>
+        {% if not model.assigned and model.has_custom %}
+        <details class="admin-title-remove">
+            <summary>Clear custom appearance</summary>
+            <p>Restore the forum theme’s username styling for {{ user.username }}?</p>
+            <form method="post" action="{{ url(appearance.form_action) }}">
+                {{ _self.fields(user.id, appearance.token, model.revision) }}
+                <button type="submit" name="clear_vip_style" value="1" class="admin-member-remove">Confirm removal</button>
+            </form>
+        </details>
+        {% endif %}
+    </section>
+    <script defer src="{{ asset('scripts/admin_user_appearance.js') }}"></script>
+    {% endif %}
     {% endif %}
 </div>
+{% macro fields(id, token, revision, action = 'save_appearance') %}
+    {% include 'partials/csrf_field.twig' %}
+    <input type="hidden" name="action" value="{{ action }}">
+    <input type="hidden" name="userid" value="{{ id }}">
+    <input type="hidden" name="user_appearance_token" value="{{ token }}">
+    <input type="hidden" name="revision" value="{{ revision }}">
+{% endmacro %}

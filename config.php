@@ -304,6 +304,14 @@ if (!defined('COREBB_CONFIG_LOADED')) {
         }
     }
 
+    // Preserve the operator-supplied origin separately. Request-derived display
+    // defaults below must never determine where a mailed credential is sent.
+    if (!defined('COREBB_ACCOUNT_BASE_URL')) {
+        define('COREBB_ACCOUNT_BASE_URL', (string)(getenv('COREBB_ACCOUNT_BASE_URL') ?:
+            (defined('COREBB_PUBLIC_BASE_URL') ? COREBB_PUBLIC_BASE_URL :
+                (defined('WB_PUBLIC_BASE_URL') ? WB_PUBLIC_BASE_URL : ($BoardURL ?? '')))));
+    }
+
     // Safe public/site defaults. Private config may override any of these.
     $SQLPrefix = $SQLPrefix ?? '';
     $CookieDomain = $CookieDomain ?? '';

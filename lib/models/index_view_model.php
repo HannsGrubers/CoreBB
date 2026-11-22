@@ -338,6 +338,6 @@ function corebb_index_new_mark(array $forum): string
 
     // Preserve the old index behavior: once the board is not newer than the
     // marker cookie, clear the cookie so the next visit can re-check cleanly.
-    setcookie($cookieName, '', time() - 3600);
+    corebb_security_clear_cookie($cookieName, '/', $GLOBALS['CookieDomain'] ?? '');
     return '&nbsp;';
 }

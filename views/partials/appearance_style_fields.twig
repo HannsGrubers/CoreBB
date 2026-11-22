@@ -1,0 +1,18 @@
+<fieldset><legend>Username colors</legend>
+    <p class="admin-history-count" id="color-help">Leave a color blank to use the forum theme. Border color applies when Border is on.</p>
+    {% for key, label in {'vip_text_color':'Text','vip_bg_color':'Background','vip_border_color':'Border'} %}
+    <div class="appearance-color">
+        <label for="{{ key }}">{{ label }}</label>
+        <div>
+            <input type="color" data-color-for="{{ key }}" aria-label="Pick {{ label|lower }} color" hidden>
+            <input id="{{ key }}" type="text" name="{{ key }}" value="{{ values[key] }}" placeholder="Default" aria-describedby="color-help" pattern="#?([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})" maxlength="7" autocomplete="off" spellcheck="false">
+            <button type="button" data-clear-for="{{ key }}" aria-label="Clear {{ label|lower }} color" hidden>Clear</button>
+        </div>
+    </div>
+    {% endfor %}
+</fieldset>
+<fieldset><legend>Formatting</legend><div class="appearance-options">
+    {% for key, label in {'vip_bold':'Bold','vip_italic':'Italic','vip_strike':'Strikethrough','vip_border':'Border'} %}
+    <label><input type="checkbox" name="{{ key }}" value="1"{% if values[key] %} checked{% endif %}> {{ label }}</label>
+    {% endfor %}
+</div></fieldset>

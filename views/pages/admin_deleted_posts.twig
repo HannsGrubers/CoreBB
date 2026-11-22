@@ -1,131 +1,96 @@
-{% include 'partials/admin_messages.twig' with {messages: model.messages|default([]), errors: model.errors|default([])} only %}
-{% set rows = model.rows|default([]) %}
-{% set actionResult = model.action_result|default({}) %}
-
-<div class="corebb-admin-modern-page">
-    <div class="corebb-admin-modern-header">
-        <div>
-            <div class="corebb-admin-modern-eyebrow">Content</div>
-            <h2>Deleted Posts</h2>
-            <div class="corebb-admin-modern-meta">
-                <span>{{ model.total|default(0)|number_format }} deleted-bin posts</span>
-                <span>{{ rows|length|number_format }} shown</span>
-                {% if model.selected_board_label|default('') != '' %}<span>{{ model.selected_board_label }}</span>{% endif %}
-            </div>
-        </div>
-        <div class="corebb-admin-modern-actions">
-            <a class="corebb-board-action-link" href="/admin/?act=mod_requests">Mod Requests</a>
-            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
-        </div>
-    </div>
-
-    <div class="corebb-admin-modern-note is-muted">
-        Deleted posts are hidden from public board/topic views, user post counts, board counts, and last-post activity.
-        Restore makes the post visible again. Purge permanently deletes it from the database.
-    </div>
-
-    <div class="corebb-admin-filter-bar">
-        <form method="get" action="/admin/">
-            <input type="hidden" name="act" value="deleted_posts">
-            <label class="corebb-admin-modern-label" for="corebbDeletedPostsBoard">Board</label>
-            <select id="corebbDeletedPostsBoard" name="boardid">
-                <option value="0">All visible boards</option>
-                {% for board in model.board_options|default([]) %}
-                    <option value="{{ board.id|default(0) }}"{% if model.selected_board_id|default(0) == board.id|default(0) %} selected{% endif %}>{{ board.label|default('Board') }}</option>
-                {% endfor %}
-            </select>
-            <button class="corebb-board-action-link" type="submit">Apply</button>
-            <a class="corebb-board-action-link" href="/admin/?act=deleted_posts">Clear</a>
-        </form>
-    </div>
-
-    {% if actionResult.redirect|default('') != '' and actionResult.ok|default(false) %}
-        <div class="corebb-admin-modern-panel">
-            <div class="corebb-admin-section-title">Next Step</div>
-            <a class="corebb-board-action-link" href="{{ actionResult.redirect }}">Continue</a>
-        </div>
+{% set base = '/admin/?act=deleted_posts' %}
+<div class="admin-overview admin-settings deleted-queue">
+    <header class="admin-dash-heading"><h1>Deleted Posts</h1>
+        <nav class="board-dir-links" aria-label="Moderation links">
+            {% if model.can_view_requests %}<a href="{{ url('/admin/?act=mod_requests') }}">Mod requests</a>{% endif %}
+            <a href="{{ url('/admin/') }}">Dashboard</a>
+        </nav>
+    </header>
+    {% if model.board_options is defined %}
+    <form class="admin-settings-form deleted-filter" method="get" action="{{ url('/admin/') }}">
+        <input type="hidden" name="act" value="deleted_posts">
+        <div class="admin-auth-field"><label for="deleted-board">Board</label><select id="deleted-board" name="boardid">
+            <option value="0">All visible boards</option>
+            {% for board in model.board_options %}<option value="{{ board.id }}"{% if board.id == model.selected_board_id %} selected{% endif %}>{{ board.label }}</option>{% endfor %}
+        </select></div>
+        <div class="admin-settings-save"><button type="submit">Apply filter</button>
+            {% if model.selected_board_id %}<a href="{{ url(base) }}">Reset</a>{% endif %}</div>
+    </form>
     {% endif %}
-
-    <table class="corebb-admin-modern-table wb-table">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Author</th>
-                <th>Topic / Board</th>
-                <th>Post Preview</th>
-                <th>Deleted</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% if rows is empty %}
-                <tr>
-                    <td colspan="6" class="corebb-admin-modern-empty">No deleted posts are waiting for review.</td>
-                </tr>
-            {% else %}
-                {% for row in rows %}
-                    <tr>
-                        <td>#{{ row.id|default(0) }}</td>
-                        <td>
-                            {% if row._author_url|default('') != '' %}
-                                <a class="corebb-admin-text-link" href="{{ row._author_url }}">{{ row._author_name|default('Unknown') }}</a>
-                            {% else %}
-                                {{ row._author_name|default('Unknown') }}
-                            {% endif %}
-                            <br><span class="corebb-admin-modern-help">User ID: {{ row.posterid|default(0) }}</span>
-                        </td>
-                        <td>
-                            <strong>{{ row.topic_title|default(row.title|default('Untitled')) }}</strong><br>
-                            {% if row._board_url|default('') != '' %}
-                                <a class="corebb-admin-text-link" href="{{ row._board_url }}">{{ row.board_name|default('Board') }}</a>
-                            {% else %}
-                                {{ row.board_name|default('Board') }}
-                            {% endif %}
-                            {% if row.topic_is_deleted|default(0) == 1 %}
-                                <br><span class="corebb-admin-modern-help">Parent topic currently hidden.</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            <strong>{{ row.title|default('') }}</strong><br>
-                            <span class="corebb-admin-prewrap">{{ row._preview|default('') }}</span>{% if row._has_more_preview|default(false) %}...{% endif %}<br>
-                            <a class="corebb-admin-text-link" href="{{ row._view_url|default('#') }}">View full message</a>
-                        </td>
-                        <td>
-                            {{ row.deleted_at|default('') }}<br>
-                            <span class="corebb-admin-modern-help">by {{ row._deleted_by_display|default('Unknown') }}</span><br>
-                            {% if row.delete_reason|default('')|trim != '' %}
-                                <span class="corebb-admin-modern-help">Reason: {{ row.delete_reason }}</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if row._rights_error|default('') != '' %}
-                                <span class="corebb-admin-modern-help">{{ row._rights_error }}</span>
-                            {% else %}
-                                <div class="corebb-admin-modern-submit">
-                                    <form class="corebb-admin-modern-form" method="post" action="{{ model.action_url|default('/admin/?act=deleted_posts') }}">
-                                        {% include 'partials/csrf_field.twig' %}
-                                        <input type="hidden" name="admin_deleted_posts_token" value="{{ model.token|default('') }}">
-                                        <input type="hidden" name="postid" value="{{ row.id|default(0) }}">
-                                        <input type="hidden" name="action" value="restore">
-                                        <button class="corebb-board-action-link" type="submit">Restore</button>
-                                    </form>
-                                    <form class="corebb-admin-modern-form" method="post" action="{{ model.action_url|default('/admin/?act=deleted_posts') }}" onsubmit="return confirm('Permanently purge this deleted post? This cannot be undone.');">
-                                        {% include 'partials/csrf_field.twig' %}
-                                        <input type="hidden" name="admin_deleted_posts_token" value="{{ model.token|default('') }}">
-                                        <input type="hidden" name="postid" value="{{ row.id|default(0) }}">
-                                        <input type="hidden" name="action" value="purge">
-                                        <button class="corebb-board-action-link is-danger" type="submit">Purge</button>
-                                    </form>
-                                </div>
-                            {% endif %}
-                        </td>
-                    </tr>
-                {% endfor %}
-            {% endif %}
-        </tbody>
-    </table>
-
-    {% if model.pagination.visible|default(false) %}
-        <div class="corebb-admin-modern-panel wb-text-center">{% include 'partials/board_pagination.twig' with {pagination: model.pagination} only %}</div>
+    {% include 'partials/admin_messages.twig' with {messages:model.messages|default([]),errors:model.errors|default([])} only %}
+    {% if model.total is defined %}
+    <section class="deleted-list" aria-labelledby="deleted-queue-title">
+        <header class="deleted-list-head"><h2 id="deleted-queue-title">{% if model.selected_board_id and model.rows %}<a href="{{ model.rows[0].board_url }}">{{ model.selected_board_label }}</a>{% else %}{{ model.selected_board_label ?: 'All visible boards' }}{% endif %}</h2>
+            <p class="admin-history-count">{% if model.pagination.visible %}{{ model.first|number_format }}–{{ model.last|number_format }} of {% endif %}{{ model.total|number_format }} deleted {{ model.total == 1 ? 'post' : 'posts' }}{% if model.total > 1 %} · Newest first{% endif %}</p></header>
+        {{ _self.pager(model.pagination, 'top') }}
+        {% if model.rows %}<div class="deleted-columns" aria-hidden="true"><span>Message</span><span>Author</span><span>Deleted</span></div>{% endif %}
+        {% for row in model.rows %}
+        <details class="deleted-entry" name="deleted-post-review">
+            <summary>
+                <span class="deleted-subject"><strong>{{ row.title ?: 'Untitled message' }}</strong> <small class="deleted-id deleted-expanded">#{{ row.id }}</small>
+                    {% if not model.selected_board_id %}<small class="deleted-board"><span class="deleted-collapsed">{{ row.board_name }}</span><a class="deleted-expanded" href="{{ row.board_url }}">{{ row.board_name }}</a></small>{% endif %}
+                </span>
+                <span class="deleted-author"><span class="deleted-mobile-label">By </span>{% if row.posterid and model.can_view_member %}<span class="deleted-collapsed">{{ row.author_label }}</span><a class="deleted-expanded" href="{{ url('/admin/?act=user_pages&userid=' ~ row.posterid) }}">{{ row.author_label }}</a>{% else %}{{ row.author_label }}{% endif %}{% if row.posterid %} <small class="deleted-id deleted-expanded">#{{ row.posterid }}</small>{% endif %}</span>
+                <span class="deleted-date"><span class="deleted-mobile-label">Deleted </span>{% if row.deleted_at matches '/^\\\\d{4}-\\\\d{2}-\\\\d{2} /' %}{{ row.deleted_at|slice(0,10) }}<small class="deleted-time deleted-expanded">{{ row.deleted_at|slice(11) }}</small>{% else %}{{ row.deleted_at ?: 'Date unknown' }}{% endif %}</span>
+            </summary>
+            <div class="deleted-detail">
+                <div class="deleted-context">
+                    <div>
+                        {% if row.context_topic %}<p class="deleted-topic">Topic · {{ row.context_topic }}</p>{% endif %}
+                        {% if row.preview %}<p class="deleted-excerpt">{{ row.preview }}</p>{% endif %}
+                    </div>
+                    <div class="deleted-audit"><p>{% if row.posterid > 0 and row.posterid == row.deleted_by %}Deleted by author{% else %}Deleted by {{ row.deleted_by_label }}{% endif %}</p>
+                        {% if row.delete_reason|trim %}<p>Reason · {{ row.delete_reason }}</p>{% endif %}
+                    </div>
+                </div>
+                {% if row.blocked %}
+                    {% if row.topic_is_deleted %}<p class="admin-history-count">Parent topic hidden</p>{% endif %}
+                    <p class="admin-history-count">{{ row.blocked }}</p>
+                {% elseif not row.topic_id %}<p class="admin-history-count">The parent topic is unavailable for restore.</p>
+                {% elseif row.topic_is_deleted and not row.restore_topic %}<p class="admin-history-count">Restoring this reply also reopens its topic.</p>{% endif %}
+                <div class="deleted-review">
+                {% if not row.blocked and row.topic_id %}
+                    {% if row.restore_topic %}
+                        <details class="deleted-topic-confirm"><summary>Restore topic…</summary>
+                            <p>Restoring the original post also restores every deleted reply in this topic.</p>
+                            {{ _self.restore(model,row,'topic','Confirm topic restore') }}
+                        </details>
+                    {% else %}
+                        {{ _self.restore(model,row,'post','Restore post') }}
+                    {% endif %}
+                {% endif %}
+                {% if model.can_view_message %}<a href="{{ url('/admin/?act=view_message&method=view&messageid=' ~ row.id) }}">View full message</a>{% endif %}
+                {% if not row.blocked %}
+                    <details class="deleted-purge"><summary>Delete permanently…</summary>
+                        <p>Delete post #{{ row.id }} permanently? {% if row.topic_id %}If this is the last remaining post, its topic is also removed. {% endif %}This cannot be undone.</p>
+                        <form method="post" action="{{ url(model.action_url) }}">
+                            {{ _self.fields(model,row,'purge') }}
+                            <button type="submit" class="admin-member-remove" name="confirm_purge" value="1">Permanently delete #{{ row.id }}</button>
+                        </form>
+                    </details>
+                {% endif %}
+                </div>
+            </div>
+        </details>
+        {% else %}<p class="deleted-empty">{% if model.selected_board_id %}No deleted posts in this board. <a href="{{ url(base) }}">Show all visible boards</a>{% else %}No deleted posts are waiting for review.{% endif %}</p>{% endfor %}
+        {{ _self.pager(model.pagination, 'bottom') }}
+    </section>
     {% endif %}
 </div>
+{% macro fields(model,row,action) %}
+    {% include 'partials/csrf_field.twig' %}
+    <input type="hidden" name="admin_deleted_posts_token" value="{{ model.token }}">
+    <input type="hidden" name="postid" value="{{ row.id }}"><input type="hidden" name="action" value="{{ action }}">
+{% endmacro %}
+{% macro restore(model,row,scope,label) %}
+    <form class="admin-settings-save" method="post" action="{{ url(model.action_url) }}">
+        {{ _self.fields(model,row,'restore') }}<input type="hidden" name="restore_scope" value="{{ scope }}"><button type="submit">{{ label }}</button>
+    </form>
+{% endmacro %}
+{% macro pager(p,position) %}
+    {% if p.visible %}<nav class="admin-latest-pager" aria-label="Deleted post pages, {{ position }}">
+        {% if p.prev.enabled %}<a rel="prev" href="{{ url(p.prev.url) }}">Previous</a>{% endif %}
+        {% for item in p.items %}{% if item.type == 'ellipsis' %}<span>…</span>{% elseif item.current %}<strong aria-current="page">{{ item.page }}</strong>{% else %}<a href="{{ url(item.url) }}" aria-label="Page {{ item.page }}">{{ item.page }}</a>{% endif %}{% endfor %}
+        {% if p.next.enabled %}<a rel="next" href="{{ url(p.next.url) }}">Next</a>{% endif %}
+    </nav>{% endif %}
+{% endmacro %}

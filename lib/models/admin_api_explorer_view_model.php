@@ -17,20 +17,16 @@
  |  Explorer model.                                      |
  +-------------------------------------------------------+*/
 
-require_once __DIR__ . '/admin_user_tools_view_model.php';
 require_once __DIR__ . '/../helpers/corebb_url_helpers.php';
 
 /**
  * Usage: Build and process the api explorer admin page model.
  * Referenced by: admin route handlers and helper chains in this file.
  *
- * @param array $viewer Current admin user row.
- * @param array $request Query/request values from admin.php.
  * @return array Data prepared for the admin template or caller.
  */
-function corebb_admin_api_explorer_model(array $viewer, array $request): array
+function corebb_admin_api_explorer_model(): array
 {
-    $model = corebb_admin_require_model_base($viewer, 'API Explorer', $request);
     $model['api_base_path'] = rtrim(corebb_public_join_base_path('/api/v1'), '/');
     $model['default_endpoint'] = corebb_public_join_base_path('/api/v1/health');
     $model['endpoints'] = [

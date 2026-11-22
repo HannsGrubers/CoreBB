@@ -21,229 +21,145 @@ require_once __DIR__ . '/../helpers/admin_log_helpers.php';
 require_once __DIR__ . '/../helpers/admin_helpers.php';
 require_once __DIR__ . '/admin_user_tools_view_model.php';
 
-/**
- * Usage: Quote and validate an identifier used by the title-assignment tool.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @param string $identifier User, table, or column identifier.
- * @return string Normalized or display-ready string.
- */
-function corebb_assign_title_identifier(string $identifier): string
-{
-    if (!preg_match('/^[A-Za-z0-9_]+$/', $identifier)) {
-        throw new InvalidArgumentException('Invalid database identifier.');
-    }
-    return '`' . str_replace('`', '``', $identifier) . '`';
-}
+require_once __DIR__ . '/../helpers/forum_access.php';
 
-/**
- * Usage: Normalize input before it is displayed or saved.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @param string $value Raw value to normalize.
- * @param int $maxBytes Maximum bytes to keep.
- * @return string Normalized or display-ready string.
- */
-function corebb_assign_title_limit_text(string $value, int $maxBytes): string
-{
-    if ($maxBytes <= 0) {
-        return '';
-    }
-    if (function_exists('mb_strcut')) {
-        return mb_strcut($value, 0, $maxBytes, 'UTF-8');
-    }
-    return substr($value, 0, $maxBytes);
-}
-
-/**
- * Usage: Check whether a title-assignment column exists before using it.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @param string $table Database table name.
- * @param string $column Database column name.
- * @return bool True when the check passes or mutation succeeds.
- */
-function corebb_assign_title_column_exists(string $table, string $column): bool
-{
-    $tableSafe = corebb_assign_title_identifier($table);
-    return db_exists("SHOW COLUMNS FROM {$tableSafe} LIKE ?", [$column]);
-}
-
-/**
- * Usage: Ensure required database structures exist before this admin page runs.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @return void No return value.
- */
-function corebb_assign_title_ensure_schema(): void
-{
-    if (!corebb_assign_title_column_exists('users', 'title')) {
-        db_run("ALTER TABLE `users` ADD COLUMN `title` varchar(255) NOT NULL DEFAULT ''");
-    }
-}
-
-/**
- * Usage: Return the form token for this admin page.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @return string Normalized or display-ready string.
- */
 function corebb_assign_title_token(): string
 {
     return corebb_security_named_token('admin_assign_title_token');
 }
 
-/**
- * Usage: Validate the form token before accepting an admin mutation.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @param array $post Posted form data from admin.php.
- * @return bool True when the check passes or mutation succeeds.
- */
-function corebb_assign_title_token_ok(array $post): bool
-{
-    return corebb_security_named_token_valid('admin_assign_title_token', $post, 'admin_assign_title_token');
-}
-
-/**
- * Usage: Find the target user for the title-assignment form.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @param array $request Query/request values from admin.php.
- * @param array $post Posted form data from admin.php.
- * @return array Data prepared for the admin template or caller.
- */
-function corebb_assign_title_find_user(array $request, array $post): array
-{
-    $username = corebb_assign_title_limit_text(trim((string)($request['username'] ?? $request['usr'] ?? $post['username'] ?? $post['usr'] ?? '')), 255);
-    $userId = corebb_assign_title_limit_text(trim((string)($request['userid'] ?? $request['uid'] ?? $post['userid'] ?? $post['uid'] ?? '')), 32);
-
-    $selected = null;
-    if ($userId !== '' && ctype_digit($userId)) {
-        $selected = corebb_admin_find_user($userId);
-    }
-    if (!$selected && $username !== '') {
-        $selected = corebb_admin_find_user($username);
-    }
-
-    return [$username, $userId, $selected];
-}
-
-/**
- * Usage: Clean an assigned title before previewing or saving it.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @param string $title Title text.
- * @return string Normalized or display-ready string.
- */
+/** Store the same normalized board markup used for preview; the title column is VARCHAR(255). */
 function corebb_assign_title_prepare_title(string $title): string
 {
-    $title = str_replace(["\r\n", "\r"], "\n", $title);
-    $title = trim(strip_tags($title));
-    $title = corebb_prepare_post_data($title);
-    return corebb_assign_title_limit_text($title, 255);
+    $title = trim(strip_tags(str_replace(["\r\n", "\r"], "\n", $title)));
+    return corebb_prepare_post_data($title);
 }
 
-/**
- * Usage: Build a compact display summary for Twig.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @param array $user User row being displayed or edited.
- * @return array Data prepared for the admin template or caller.
- */
-function corebb_assign_title_user_summary(array $user): array
-{
-    $userId = (int)($user['id'] ?? 0);
-    return [
-        'id' => $userId,
-        'username' => (string)($user['username'] ?? ''),
-        'current_title' => (string)($user['title'] ?? ''),
-        'posts' => number_format((int)($user['posts'] ?? 0)),
-        'registered' => (string)($user['regdate'] ?? ''),
-        'profile_url' => '/admin/?act=user_pages&userid=' . $userId,
-    ];
-}
-
-/**
- * Usage: Build and process the assign title admin page model.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @param array $viewer Current admin user row.
- * @param array $request Query/request values from admin.php.
- * @param array $post Posted form data from admin.php.
- * @return array Data prepared for the admin template or caller.
- */
 function corebb_admin_assign_title_model(array $viewer, array $request, array $post): array
 {
-    corebb_assign_title_ensure_schema();
-
-    $model = corebb_admin_require_model_base($viewer, 'Assign Title', $request);
-    $model['token'] = corebb_assign_title_token();
-    $model['search'] = ['username' => '', 'userid' => ''];
-    $model['selected_user'] = null;
-    $model['form_title'] = '';
-
+    $model = ['messages'=>[], 'errors'=>[], 'selected_user'=>null, 'search_value'=>'', 'saved'=>false,
+        'previewing'=>false, 'can_view_member'=>corebb_admin_can_access_tool($viewer, 'user_pages')];
+    if (corebb_admin_viewer_id($viewer) <= 0 || !corebb_admin_can_access_tool($viewer, 'assign_title')) {
+        $model['errors'][] = 'You do not have access to this tool.';
+        return $model;
+    }
     $isPost = ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST';
-    $action = (string)($post['action'] ?? $request['action'] ?? '');
-
-    [$username, $userId, $selectedUser] = corebb_assign_title_find_user($request, $post);
-
-    if ($isPost && in_array($action, ['save_title', 'clear_title'], true)) {
-        if (!corebb_assign_title_token_ok($post)) {
-            $model['errors'][] = 'Security token expired. Please reload the page and try again.';
-        } elseif (!$selectedUser) {
-            $model['errors'][] = 'No user selected.';
-        } elseif ((int)($viewer['id'] ?? 0) <= 0) {
-            $model['errors'][] = 'Unknown admin user.';
-        } elseif (($targetError = corebb_admin_target_content_error($viewer, $selectedUser)) !== '') {
-            $model['errors'][] = $targetError;
-        } else {
-            $targetId = (int)$selectedUser['id'];
-            $newTitle = $action === 'clear_title' ? '' : corebb_assign_title_prepare_title((string)($post['title'] ?? ''));
-            $ok = db_run('UPDATE users SET title = ? WHERE id = ?', [$newTitle, $targetId]);
-            if ($ok) {
-                $plainName = (string)($selectedUser['username'] ?? ('User #' . $targetId));
-                $model['messages'][] = $action === 'clear_title'
-                    ? 'Title cleared for ' . $plainName . '.'
-                    : 'Title updated for ' . $plainName . '.';
-                {
-                    $description = $action === 'clear_title'
-                        ? 'Cleared title for user: ' . $targetId
-                        : 'Assigned title for user: ' . $targetId;
-                    corebb_adminlog_entry(
-                        (string)($viewer['username'] ?? $viewer['id'] ?? 'Unknown'),
-                        (int)($viewer['accesslevel'] ?? 0),
-                        $description,
-                        'assign_title',
-                        $description
-                    );
-                }
-                $selectedUser = corebb_admin_find_user((string)$targetId);
-            } else {
-                $model['errors'][] = 'Error updating title: ' . db_error();
-            }
+    $action = $isPost ? ($post['action'] ?? $request['action'] ?? '') : '';
+    if ($action !== '') {
+        if (!in_array($action, ['preview_title','save_title','clear_title'], true)) {
+            $model['errors'][] = 'Unknown title action.';
+            return $model;
         }
-    }
-
-    if ($selectedUser) {
-        // Title writes allow self-edits while still protecting peers and seniors.
-        $targetError = corebb_admin_target_content_error($viewer, $selectedUser);
-        $model['selected_user'] = corebb_assign_title_user_summary($selectedUser);
-        $model['selected_user']['can_edit_title'] = $targetError === '';
-        if ($targetError !== '' && !in_array($targetError, $model['errors'], true)) {
-            $model['errors'][] = $targetError;
+        if (!corebb_security_csrf_valid($post) || !corebb_security_named_token_valid('admin_assign_title_token', $post, 'admin_assign_title_token')) {
+            $model['errors'][] = 'Your form expired. Find the member again.';
+            return $model;
         }
-        $model['search'] = [
-            'username' => (string)($selectedUser['username'] ?? $username),
-            'userid' => (string)($selectedUser['id'] ?? $userId),
-        ];
-        $model['form_title'] = (string)($selectedUser['title'] ?? '');
+        $id = filter_var($post['userid'] ?? $post['uid'] ?? null, FILTER_VALIDATE_INT, ['options'=>['min_range'=>1]]);
+        $requestedId = $request['userid'] ?? $request['uid'] ?? (string)$id;
+        if (!$id || !is_scalar($requestedId) || (string)$requestedId !== (string)$id) {
+            $model['errors'][] = 'Find the member again before editing their title.';
+            return $model;
+        }
+        $target = corebb_admin_find_user((string)$id);
+        $model['search_value'] = (string)$id;
     } else {
-        $model['search'] = ['username' => $username, 'userid' => $userId];
-        if ($username !== '' || $userId !== '') {
-            $model['errors'][] = 'No user with the requested name or ID exists.';
-        }
+        $name = $request['user'] ?? $request['username'] ?? $request['usr'] ?? $post['username'] ?? $post['usr'] ?? '';
+        $id = $request['userid'] ?? $request['uid'] ?? $post['userid'] ?? $post['uid'] ?? '';
+        $name = is_string($name) ? trim($name) : '';
+        $id = is_scalar($id) ? trim((string)$id) : '';
+        $model['search_value'] = $name ?: $id;
+        if ($name === '' && $id === '') { return $model; }
+        $target = ctype_digit($id) ? corebb_admin_find_user($id) : null;
+        if (!$target && $name !== '') { $target = corebb_admin_find_user($name); }
+    }
+    if (!$target) {
+        $model['errors'][] = 'No member found for that username or ID.';
+        return $model;
+    }
+    $id = (int)$target['id'];
+    $model['selected_user'] = corebb_admin_user_summary($target);
+    $model['search_value'] = $target['username'];
+    $model['current_title'] = (string)($target['title'] ?? '');
+    $model['form_title'] = $model['current_title'];
+    $model['member_title'] = corebb_forum_access_settings()['member_titles'] ? (string)($target['profiletitle'] ?? '') : '';
+    $error = corebb_admin_target_content_error($viewer, $target);
+    $model['can_edit'] = $error === '';
+    if ($error !== '') {
+        $model['errors'][] = $error;
+        return $model;
+    }
+    $model['token'] = corebb_assign_title_token();
+    $model['revision'] = hash('sha256', $model['current_title']);
+    if ($action === '') { return $model; }
+    if (isset($post['title_revision']) && $post['title_revision'] !== $model['revision']) {
+        $model['errors'][] = 'The assigned title changed. Review the current title before continuing.';
+        return $model;
+    }
+    $draft = $action === 'clear_title' ? '' : ($post['title'] ?? null);
+    if (!is_string($draft)) {
+        $model['errors'][] = 'Enter a title before continuing.';
+        return $model;
+    }
+    $model['form_title'] = $draft;
+    $title = corebb_assign_title_prepare_title($draft);
+    if (!preg_match('/\A.{0,255}\z/us', $title)) {
+        $model['errors'][] = 'Use up to 255 characters, including board codes.';
+        return $model;
+    }
+    $model['form_title'] = $title;
+    if ($action === 'preview_title') {
+        $model['previewing'] = true;
+        return $model;
+    }
+    if ($action === 'save_title' && $title === '' && $model['current_title'] !== '' && isset($post['title_revision'])) {
+        $model['errors'][] = 'Use Clear assigned title to confirm removal.';
+        return $model;
+    }
+    if ($title === $model['current_title']) {
+        $model['messages'][] = 'No title changes to save.';
+        return $model;
     }
 
+    // Older installations may lack this column. Only provision it on an authorized save.
+    if (!isset(corebb_admin_table_columns('users')['title'])
+        && !db_run("ALTER TABLE users ADD COLUMN title VARCHAR(255) NOT NULL DEFAULT ''")
+        && !corebb_user_column_exists('title')) {
+        $model['errors'][] = 'Could not prepare the assigned-title field.';
+        return $model;
+    }
+    corebb_admin_tool_permissions_ensure_schema();
+    if (!db_begin()) {
+        $model['errors'][] = 'Could not start the title change.';
+        return $model;
+    }
+    try {
+        $actorId = corebb_admin_viewer_id($viewer);
+        $lock = corebb_db_connection()->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql' ? ' FOR UPDATE' : '';
+        $rows = db_all('SELECT id, username, accesslevel, title FROM users WHERE id IN (?, ?) ORDER BY id' . $lock, [$actorId, $id]);
+        $accounts = array_column($rows, null, 'id');
+        $actor = $accounts[$actorId] ?? [];
+        $member = $accounts[$id] ?? null;
+        corebb_admin_user_granted_tool_keys($actorId, true);
+        if (!$actor || db_error() !== '' || !corebb_admin_can_access_tool($actor, 'assign_title')
+            || corebb_admin_target_content_error($actor, $member) !== '') {
+            $model['can_edit'] = false;
+            $model['errors'][] = 'You can no longer change this title.';
+            return $model;
+        }
+        if ((string)$member['title'] !== $model['current_title']) {
+            $model['errors'][] = 'The assigned title changed during this save. Reopen the member before continuing.';
+            return $model;
+        }
+        if (!db_run('UPDATE users SET title = ? WHERE id = ?', [$title,$id]) || !db_commit()) {
+            $model['errors'][] = 'Could not save the title change. Please try again.';
+            return $model;
+        }
+    } finally {
+        if (corebb_db_connection()->inTransaction()) { db_rollback(); }
+    }
+    $verb = $title === '' ? 'Cleared' : 'Assigned';
+    corebb_adminlog_viewer($actor, $verb . ' title for ' . $member['username'] . ' (#' . $id . ')', 'assign_title');
+    $model['messages'][] = 'Title ' . ($title === '' ? 'cleared' : 'saved') . ' for ' . $member['username'] . '.';
+    $model['saved'] = true;
     return $model;
 }

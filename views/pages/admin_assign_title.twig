@@ -1,103 +1,73 @@
-{% include 'partials/admin_messages.twig' with {messages: model.messages|default([]), errors: model.errors|default([])} only %}
-{% set search = model.search|default({username: '', userid: ''}) %}
-{% set user = model.selected_user|default(null) %}
-{% set formTitle = model.form_title|default('') %}
-
-<div class="corebb-admin-modern-page">
-    <div class="corebb-admin-modern-header">
-        <div>
-            <div class="corebb-admin-modern-eyebrow">People</div>
-            <h2>Assign Title</h2>
-            <div class="corebb-admin-modern-meta">
-                {% if user %}
-                    <span>{{ user.username|default('Unknown User') }}</span>
-                    <span>#{{ user.id|default(0) }}</span>
-                {% else %}
-                    <span>Find a user by username or ID.</span>
-                {% endif %}
-            </div>
+{% set page = '/admin/?act=assign_title' %}
+{% set user = model.selected_user %}
+<div class="admin-overview admin-settings admin-members admin-titles">
+    <header class="admin-dash-heading"><h1>Assign Title</h1><a href="{{ url('/admin/') }}">Dashboard</a></header>
+    <form class="admin-settings-form admin-member-search" method="get" action="{{ url('/admin/') }}">
+        <input type="hidden" name="act" value="assign_title">
+        <div class="admin-auth-field"><label for="title-lookup">Username or user ID</label>
+            <input type="search" id="title-lookup" name="user" value="{{ model.search_value }}" autocomplete="off" spellcheck="false" required>
         </div>
-        <div class="corebb-admin-modern-actions">
-            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
-        </div>
-    </div>
-
-    <div class="corebb-admin-modern-panel">
-        <form class="corebb-admin-modern-form" method="post" action="/admin/?act=assign_title">
-            {% include 'partials/csrf_field.twig' %}
-            <div class="corebb-admin-modern-grid">
-                <label for="corebbAssignTitleUsername">User Name</label>
-                <input id="corebbAssignTitleUsername" name="username" type="text" value="{{ search.username|default('') }}">
-
-                <label for="corebbAssignTitleUserId">User ID</label>
-                <span>
-                    <input id="corebbAssignTitleUserId" name="userid" type="text" value="{{ search.userid|default('') }}">
-                    <button class="corebb-board-action-link" type="submit">Find</button>
-                </span>
-            </div>
-        </form>
-    </div>
-
+        <div class="admin-settings-save"><button type="submit">Find member</button></div>
+    </form>
+    {% include 'partials/admin_messages.twig' with {messages:model.messages, errors:model.errors} only %}
     {% if user %}
-        <table class="corebb-admin-modern-table corebb-admin-profile-summary-table wb-table">
-            <tbody>
-                <tr>
-                    <th>User Name</th>
-                    <td>{{ user.username|default('') }}</td>
-                </tr>
-                <tr>
-                    <th>User ID</th>
-                    <td>{{ user.id|default(0) }}</td>
-                </tr>
-                <tr>
-                    <th>Current Title</th>
-                    <td>{% include 'partials/user_title.twig' with {title: user_title_model(formTitle)} only %}{% if formTitle|trim == '' %}&nbsp;{% endif %}</td>
-                </tr>
-                <tr>
-                    <th>User Info</th>
-                    <td><a class="corebb-board-action-link" href="{{ user.profile_url|default('#') }}">View User Page</a></td>
-                </tr>
-            </tbody>
-        </table>
-
-        {% if user.can_edit_title|default(false) %}
-            <div class="corebb-admin-modern-panel">
-                <form class="corebb-admin-modern-form" method="post" action="/admin/?act=assign_title&amp;userid={{ user.id|default(0) }}">
-                    {% include 'partials/csrf_field.twig' %}
-                    <input type="hidden" name="action" value="save_title">
-                    <input type="hidden" name="userid" value="{{ user.id|default(0) }}">
-                    <input type="hidden" name="admin_assign_title_token" value="{{ model.token|default('') }}">
-                    <div class="corebb-admin-modern-grid">
-                        <label for="corebbAssignedTitle">Title</label>
-                        <span>
-                            <textarea id="corebbAssignedTitle" name="title" rows="3" cols="65" wrap="soft" maxlength="255">{{ formTitle }}</textarea><br />
-                            <span class="corebb-admin-modern-help">Board codes are allowed. HTML is not allowed. Maximum length is 255 characters.</span>
-                        </span>
-
-                        <div class="corebb-admin-modern-submit corebb-admin-modern-full">
-                            <button class="corebb-board-action-link" type="submit">Submit</button>
-                        </div>
-                    </div>
-                </form>
-
-                {% if formTitle|trim != '' %}
-                    <form class="corebb-admin-modern-form corebb-admin-inline-form" method="post" action="/admin/?act=assign_title&amp;userid={{ user.id|default(0) }}">
-                        {% include 'partials/csrf_field.twig' %}
-                        <input type="hidden" name="action" value="clear_title">
-                        <input type="hidden" name="userid" value="{{ user.id|default(0) }}">
-                        <input type="hidden" name="admin_assign_title_token" value="{{ model.token|default('') }}">
-                        <button class="corebb-board-action-link is-danger" type="submit" onclick="return confirm('Are you sure you want to clear this user title?');">Clear Title</button>
-                    </form>
-                {% endif %}
+    <section class="admin-title-editor" aria-labelledby="title-member">
+        <header class="admin-member-head">
+            <div><h2 id="title-member">{{ user.username }}</h2><p class="admin-history-count">#{{ user.id }} · {{ user.level_name }}</p></div>
+            <div class="admin-member-links">
+                {% if model.can_view_member %}<a href="{{ url('/admin/?act=user_pages&userid=' ~ user.id ~ '&section=profile') }}">User Pages</a>{% endif %}
+                <a href="{{ url(user.profile_url) }}">Public profile</a>
             </div>
-        {% endif %}
-
-        <div class="corebb-admin-modern-panel">
-            <div class="corebb-admin-modern-label">Title Preview</div>
-            <div class="corebb-admin-modern-help">This preview uses the same small title renderer used under names in forum and blog posts.</div>
-            <div class="corebb-admin-title-preview">
-                <strong>Title:</strong> {% include 'partials/user_title.twig' with {title: user_title_model(formTitle)} only %}{% if formTitle|trim == '' %}&nbsp;{% endif %}
-            </div>
+        </header>
+        <div class="admin-title-workspace">
+            {% if model.can_edit %}
+            <form class="admin-settings-form" method="post" action="{{ url(page ~ '&userid=' ~ user.id) }}">
+                {% include 'partials/csrf_field.twig' %}
+                <input type="hidden" name="userid" value="{{ user.id }}">
+                <input type="hidden" name="admin_assign_title_token" value="{{ model.token }}">
+                <input type="hidden" name="title_revision" value="{{ model.revision }}">
+                <div class="admin-auth-field"><label for="assigned-title">Staff-assigned title</label>
+                    <textarea id="assigned-title" name="title" rows="3" aria-describedby="assigned-title-help">{{ model.form_title }}</textarea>
+                    <small id="assigned-title-help">Up to 255 characters including board codes. HTML tags are stripped.</small>
+                </div>
+                <details class="admin-title-help"><summary>Formatting examples</summary>
+                    <dl><dt>Bold</dt><dd><code>[b]Guide[/b]</code></dd>
+                        <dt>Italic</dt><dd><code>[i]Contributor[/i]</code></dd>
+                        <dt>Color</dt><dd><code>[color=blue]Community team[/color]</code></dd></dl>
+                </details>
+                <div class="admin-settings-save admin-title-actions">
+                    <button name="action" value="save_title" type="submit">Save title</button>
+                    <button name="action" value="preview_title" type="submit" class="title-secondary">Preview title</button>
+                </div>
+            </form>
+            {% endif %}
+            {% set assigned = model.previewing ? model.form_title : model.current_title %}
+            <section class="admin-title-sample" aria-labelledby="title-sample-label">
+                <h3 id="title-sample-label">{{ model.previewing ? 'Unsaved preview' : 'Current post byline' }}</h3>
+                <div class="admin-title-byline">
+                    <strong>{{ user.username }}</strong>
+                    {% if assigned|trim != '' %}
+                        <div>{% include 'partials/user_title.twig' with {title:user_title_model(assigned)} only %}</div>
+                    {% elseif model.member_title|trim != '' %}
+                        <div>{{ model.member_title }}</div>
+                    {% endif %}
+                </div>
+                <p>{{ assigned|trim != '' ? 'Staff-assigned title' : (model.member_title|trim != '' ? 'Member title' : 'No title displayed') }}</p>
+            </section>
         </div>
+        {% if model.can_edit and model.current_title != '' %}
+        <details class="admin-title-remove">
+            <summary>Clear assigned title</summary>
+            <p>Remove the staff-assigned title for {{ user.username }}?{% if model.member_title|trim != '' %} Their member title will appear on posts.{% endif %}</p>
+            <form method="post" action="{{ url(page ~ '&userid=' ~ user.id) }}">
+                {% include 'partials/csrf_field.twig' %}
+                <input type="hidden" name="userid" value="{{ user.id }}">
+                <input type="hidden" name="admin_assign_title_token" value="{{ model.token }}">
+                <input type="hidden" name="title_revision" value="{{ model.revision }}">
+                <button type="submit" class="admin-member-remove" name="action" value="clear_title">Confirm removal</button>
+            </form>
+        </details>
+        {% endif %}
+    </section>
     {% endif %}
 </div>

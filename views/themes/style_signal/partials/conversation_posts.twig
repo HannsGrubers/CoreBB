@@ -1,0 +1,58 @@
+{% set locked = model.locked %}
+{% set canModerate = model.canModerate %}
+{% set archiveReadOnly = model.archiveReadOnly %}
+{% for post in model.posts %}
+    {% set postId = post.post_id|default(post.id|default(0)) %}
+    {% set posterId = post.poster_id|default(post.posterid|default(0)) %}
+    {% set user = user_name_model(posterId, post.poster_name|default('Unknown')) %}
+    {% set icon = user_icon_model(posterId) %}
+    {% set level = post.author_access_level|default(post._author_accesslevel|default(0)) %}
+    {% set subject = post.post_title|default('')|trim %}
+    {% set topic = model.topicTitle|default('')|trim|lower %}
+    {% set repeatsTopic = subject|lower == topic or (subject|lower starts with 're:' and subject|slice(3)|trim|lower == topic) %}
+    <article class="signal-message" id="post{{ postId }}" aria-labelledby="signal-author-{{ postId }}">
+        <header class="signal-post-head">
+            <div class="signal-avatar" aria-hidden="true">
+                {% if icon.visible and icon.src %}<img src="{{ icon.src }}" alt="">
+                {% else %}{{ post.poster_name|default('?')|first|upper }}{% endif %}
+            </div>
+            <div class="signal-author">
+                <div id="signal-author-{{ postId }}" class="signal-author-name">{% include 'partials/user_name.twig' with {user: user} only %}</div>
+                <details class="signal-author-info">
+                    <summary>Author details</summary>
+                    <div>
+                        {% if post.author_title %}{% include 'partials/user_title.twig' with {title: user_title_model(post.author_title)} only %} · {% endif %}
+                        {% if post.member_title %}Member title: {{ post.member_title }} · {% endif %}
+                        {{ post.author_posts_display|default('0') }} posts · Registered {{ post.author_regdate|default('—') }}
+                        {% include 'partials/user_star.twig' with {star: user_star_model(post.author_posts_count|default(0), posterId)} only %}
+                        {% if icon.prompt_url %}<a href="{{ icon.prompt_url }}">{{ icon.prompt_label }}</a>{% endif %}
+                    </div>
+                </details>
+            </div>
+            <a class="signal-permalink" href="#post{{ postId }}" aria-label="Link to post by {{ post.poster_name }} at {{ post.post_time_display }}">{{ post.post_time_display }}</a>
+        </header>
+
+        <div class="signal-post-reading">
+            {% if subject and not repeatsTopic %}<h2>{{ subject }}</h2>{% endif %}
+            {% if loop.first and not model.discussion and model.poll.exists %}{% include 'partials/thread_poll.twig' with {pollModel: model.poll, pollMessage: model.pollMessage, topicId: model.topicId} only %}{% endif %}
+            <div class="signal-message-text">{% include 'partials/formatted_content.twig' with {content: post_body_model(post.post_body|default(''), level)} only %}</div>
+            {% if post.was_edited %}<p class="signal-edit-note">Edited {{ post.edit_time_display }} ({{ post.edit_count_text|default('1 edit total') }}) by {% include 'partials/user_name.twig' with {user: user_name_model(post.edited_by_id|default(0), post.edited_by_name|default(''))} only %}</p>{% endif %}
+        </div>
+
+        {% if post.signature|default('')|trim or post.show_actions %}
+        <footer class="signal-post-foot">
+            {% if post.signature|default('')|trim %}
+                <details class="signal-post-signature"><summary>Signature</summary>
+                    <div class="signal-signature-text">{% include 'partials/formatted_content.twig' with {content: post_body_model(post.signature, level)} only %}</div>
+                </details>
+            {% endif %}
+            {% if post.show_actions %}
+                {% if model.canReply %}<div class="signal-quick-actions">{{ block('reply_actions', 'partials/thread_post_actions.twig') }}</div>{% endif %}
+                <details class="signal-other-actions"><summary>More actions</summary><div>{{ block('extra_actions', 'partials/thread_post_actions.twig') }}</div></details>
+            {% endif %}
+        </footer>
+        {% endif %}
+    </article>
+{% else %}
+    <p>No replies yet.</p>
+{% endfor %}

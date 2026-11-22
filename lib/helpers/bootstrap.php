@@ -53,4 +53,8 @@ corebb_security_enforce_csrf_if_needed();
 
 require_once __DIR__ . '/auth_session_helpers.php';
 require_once __DIR__ . '/corebb_browser_helpers.php';
-corebb_load_logged_in_user();
+$signedIn = corebb_load_logged_in_user();
+if (!defined('IN_ADMIN') || !IN_ADMIN) {
+    require_once __DIR__ . '/forum_access.php';
+    corebb_forum_enforce_browser_access($signedIn, defined('COREBB_AUTH_ACTION') ? COREBB_AUTH_ACTION : null);
+}

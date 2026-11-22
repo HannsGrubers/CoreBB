@@ -1,0 +1,6 @@
+{% extends '@shared/pages/kb_topic.twig' %}
+{% block discussion_posts %}
+    <div class="signal-conversation">
+        {% include 'partials/conversation_posts.twig' with {model: model} only %}
+    </div>
+{% endblock %}

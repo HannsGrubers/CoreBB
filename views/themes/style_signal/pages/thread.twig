@@ -1,0 +1,15 @@
+<main class="signal-conversation">
+{% if model.missing %}
+    <p>{{ model.message|default('Topic not found.') }}</p>
+{% else %}
+    <header class="signal-directory-heading">
+        <div><h1>{{ model.topicTitle|default('Untitled topic') }}</h1>
+            <p class="signal-thread-count">{{ model.replyCount|default(0)|number_format }} {{ model.replyCount == 1 ? 'reply' : 'replies' }}</p></div>
+        {% if model.isLoggedIn and model.canReply %}<a class="signal-register" href="{{ model.replyUrl }}">Post reply</a>{% endif %}
+    </header>
+    {% if model.archiveReadOnly %}<p>Secure Archive · Read only</p>{% elseif model.locked %}<p>{{ model.canModerate and model.canReply ? 'Locked · Moderator override' : 'Topic locked' }}</p>{% endif %}
+    {% include 'partials/board_pagination.twig' with {pagination: model.pagination} only %}
+    {% include 'partials/conversation_posts.twig' with {model: model} only %}
+    {% include 'partials/board_pagination.twig' with {pagination: model.pagination} only %}
+{% endif %}
+</main>

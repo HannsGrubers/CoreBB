@@ -1,167 +1,80 @@
-{% include 'partials/admin_messages.twig' with {messages: model.messages|default([]), errors: model.errors|default([])} only %}
-{% set detail = model.detail|default(null) %}
-{% set rows = model.requests|default([]) %}
-{% set old = model.old|default(false) %}
-
-<div class="corebb-admin-modern-page">
-    <div class="corebb-admin-modern-header">
-        <div>
-            <div class="corebb-admin-modern-eyebrow">Moderation</div>
-            <h2>{{ old ? 'Old Private Message Reports' : 'Private Message Reports' }}</h2>
-            <div class="corebb-admin-modern-meta">
-                <span>{{ rows|length|number_format }} shown</span>
-                {% if detail %}<span>Viewing report #{{ detail.id|default(0) }}</span>{% endif %}
+{% set base = '/admin/?act=pm_reports' %}
+{% set report = model.detail|default(null) %}
+<div class="admin-overview admin-settings admin-members appeals-workspace contact-inbox pm-report-workspace">
+    <header class="admin-dash-heading">
+        <h1>{{ report ? 'Review private message report' : 'Private Message Reports' }}</h1>
+        {% if model.requests is defined %}<a href="{{ url('/admin/') }}">Dashboard</a>
+        {% elseif model.queue_url %}<a href="{{ url(model.queue_url) }}">Back to {{ model.old ? 'handled reports' : 'open reports' }}</a>{% endif %}
+    </header>
+    {% include 'partials/admin_messages.twig' with {messages:model.messages|default([]), errors:model.errors|default([])} only %}
+    {% if model.requests is defined %}
+        <nav class="appeal-tabs" aria-label="Report queues">
+            <a href="{{ url(base) }}"{% if not model.old %} aria-current="page"{% endif %}>Open reports</a>
+            <a href="{{ url(base ~ '&old=yes') }}"{% if model.old %} aria-current="page"{% endif %}>Handled reports</a>
+        </nav>
+        {% if model.requests %}
+            <p class="admin-history-count">{{ model.first|number_format }}–{{ model.last|number_format }} of {{ model.total|number_format }} · Highest severity first</p>
+            <table class="contact-list">
+                <thead><tr><th scope="col">Reported message</th><th scope="col">Severity</th><th scope="col">{{ model.old ? 'Outcome' : 'Reported by' }}</th><th scope="col">Received</th></tr></thead>
+                <tbody>{% for item in model.requests %}<tr>
+                    <td><a class="report-subject" href="{{ url(item.detail_url) }}">{{ item.title ?: 'Private message #' ~ item.pmid }}</a>
+                        <span class="contact-preview">{{ item.reason_type|replace({'_':' '}) }}</span></td>
+                    <td><span class="report-severity" data-high="{{ item.severity >= 4 ? 'yes' : 'no' }}"><span class="contact-mobile-label">Severity </span>{{ item.severity }}</span></td>
+                    <td>{% if model.old %}{{ item.outcome }}{% else %}<span class="contact-mobile-label">By </span>{{ item.reporter_username ?: 'Member #' ~ item.reporterid }}{% endif %}</td>
+                    <td>{{ item.created_at ?: 'Date unavailable' }}</td>
+                </tr>{% endfor %}</tbody>
+            </table>
+            {% include 'partials/admin_queue_pager.twig' with {pager:model.pagination, label:'Report pages'} only %}
+        {% else %}<p class="appeal-empty">{{ model.old ? 'No handled reports yet.' : 'No open private message reports.' }}</p>{% endif %}
+    {% elseif report %}
+        <article class="admin-title-editor">
+            <header class="admin-member-head"><div>
+                <h2>{{ report.title ?: (report.message_id ? 'Untitled private message' : 'Message unavailable') }}</h2>
+                <p class="admin-history-count">Report #{{ report.id }} · PM #{{ report.pmid }}</p>
+            </div></header>
+            <div class="report-reading">
+                <section class="report-complaint">
+                    <h3>{{ report.reason_type|replace({'_':' '}) ?: 'Report' }}</h3>
+                    <p class="admin-history-count">Severity {{ report.severity }} · Reported by {{ _self.member(report.reporter_username,report.reporterid,model.can_view_member) }}
+                        {% if report.created_at %} · {{ report.created_at }}{% endif %}</p>
+                    {% if report.comments %}<blockquote>{{ report.comments }}</blockquote>{% endif %}
+                </section>
+                <section>
+                    <h3>Reported message</h3>
+                    <p class="admin-history-count">From {{ _self.member(report.sender_username,report.senderid,model.can_view_member) }}
+                        to {{ _self.member(report.receiver_username,report.recieveid,model.can_view_member) }}{% if report.datesent %} · {{ report.datesent }}{% endif %}</p>
+                    {% if report.message_id %}<div class="contact-body">{{ report.message }}</div>
+                    {% else %}<p>The original message is unavailable.</p>{% endif %}
+                    {% if report.is_deleted and (report.status != 'deleted' or report.deleted_by != report.handled_by or report.deleted_at != report.handled_at) %}
+                        <p class="admin-history-count">Removed from mailboxes{% if report.deleted_by_username or report.deleted_by %} by {{ report.deleted_by_username ?: 'staff #' ~ report.deleted_by }}{% endif %}{% if report.deleted_at %} · {{ report.deleted_at }}{% endif %}</p>
+                    {% elseif report.status == 'deleted' and report.message_id and not report.is_deleted %}
+                        <p class="admin-history-count">Currently visible in mailboxes.</p>
+                    {% endif %}
+                </section>
             </div>
-        </div>
-        <div class="corebb-admin-modern-actions">
-            <a class="corebb-board-action-link" href="/admin/?act=pm_reports">New PM Reports</a>
-            <a class="corebb-board-action-link" href="/admin/?act=pm_reports&amp;old=yes">Old PM Reports</a>
-            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
-        </div>
-    </div>
-
-    <div class="corebb-admin-modern-note is-muted">
-        Users can report private messages here. Moderators can review only reported private messages, cancel the report, or delete the reported PM from user mailboxes.
-    </div>
-
-    {% if detail %}
-        <table class="corebb-admin-modern-table corebb-admin-detail-table wb-table">
-            <tbody>
-                <tr>
-                    <th>Reported PM</th>
-                    <td>#{{ detail.pmid|default(0) }}</td>
-                </tr>
-                <tr>
-                    <th>Status</th>
-                    <td><span class="corebb-admin-status-pill">{{ detail._status_label|default('') }}</span></td>
-                </tr>
-                <tr>
-                    <th>Reported By</th>
-                    <td><a class="corebb-admin-text-link" href="{{ detail._reporter_url|default('#') }}">{{ detail.reporter_username|default('') != '' ? detail.reporter_username : '#' ~ detail.reporterid|default(0) }}</a></td>
-                </tr>
-                <tr>
-                    <th>From</th>
-                    <td><a class="corebb-admin-text-link" href="{{ detail._sender_url|default('#') }}">{{ detail.sender_username|default('') != '' ? detail.sender_username : '#' ~ detail.senderid|default(0) }}</a></td>
-                </tr>
-                <tr>
-                    <th>To</th>
-                    <td><a class="corebb-admin-text-link" href="{{ detail._receiver_url|default('#') }}">{{ detail.receiver_username|default('') != '' ? detail.receiver_username : '#' ~ detail.recieveid|default(0) }}</a></td>
-                </tr>
-                <tr>
-                    <th>Date Sent</th>
-                    <td>{{ detail.datesent|default('') }}</td>
-                </tr>
-                <tr>
-                    <th>Subject</th>
-                    <td>{{ detail.title|default('') }}</td>
-                </tr>
-                <tr>
-                    <th>Message</th>
-                    <td><div class="corebb-admin-prewrap">{{ detail.message|default('') }}</div></td>
-                </tr>
-                <tr>
-                    <th>Report Reason</th>
-                    <td>{{ detail.reason_type|default('')|replace({'_': ' '}) }}, severity {{ detail.severity|default(1) }}</td>
-                </tr>
-                <tr>
-                    <th>Reporter Comments</th>
-                    <td><div class="corebb-admin-prewrap">{{ detail.comments|default('') }}</div></td>
-                </tr>
-                {% if detail.is_deleted|default(0) == 1 %}
-                    <tr>
-                        <th>PM State</th>
-                        <td><strong>Deleted from user mailboxes.</strong> Deleted {{ detail.deleted_at|default('') }} by {{ detail.deleted_by_username|default('') != '' ? detail.deleted_by_username : '#' ~ detail.deleted_by|default(0) }}</td>
-                    </tr>
-                {% endif %}
-            </tbody>
-        </table>
-
-        <div class="corebb-admin-modern-panel">
-            <div class="corebb-admin-section-title">Actions</div>
-            {% if not detail._can_act|default(false) %}
-                <span class="corebb-admin-modern-help">{{ detail._block_reason|default('You cannot moderate this private message.') }}</span>
-            {% elseif detail.status|default('new') != 'new' %}
-                <span class="corebb-admin-modern-help">This report is already closed.</span>
-            {% else %}
-                <div class="corebb-admin-modern-split">
-                    <form class="corebb-admin-modern-form" method="post" action="/admin/?act=pm_reports&amp;report={{ detail.id|default(0) }}" onsubmit="return confirm('Delete this private message from user mailboxes?');">
-                        {% include 'partials/csrf_field.twig' %}
-                        <input type="hidden" name="action" value="delete_pm">
-                        <input type="hidden" name="report_id" value="{{ detail.id|default(0) }}">
-                        <div class="corebb-admin-modern-grid">
-                            <label for="corebbPmReportDeleteNote">Staff Note</label>
-                            <textarea id="corebbPmReportDeleteNote" name="handler_note" rows="3"></textarea>
-                            <div class="corebb-admin-modern-submit corebb-admin-modern-full">
-                                <button class="corebb-board-action-link is-danger" type="submit">Delete Private Message</button>
-                            </div>
-                        </div>
-                    </form>
-                    <form class="corebb-admin-modern-form" method="post" action="/admin/?act=pm_reports&amp;report={{ detail.id|default(0) }}">
-                        {% include 'partials/csrf_field.twig' %}
-                        <input type="hidden" name="action" value="cancel_report">
-                        <input type="hidden" name="report_id" value="{{ detail.id|default(0) }}">
-                        <div class="corebb-admin-modern-grid">
-                            <label for="corebbPmReportCancelNote">Staff Note</label>
-                            <textarea id="corebbPmReportCancelNote" name="handler_note" rows="3"></textarea>
-                            <div class="corebb-admin-modern-submit corebb-admin-modern-full">
-                                <button class="corebb-board-action-link" type="submit">Cancel Report</button>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-            {% endif %}
-        </div>
-    {% endif %}
-
-    <table class="corebb-admin-modern-table wb-table">
-        <thead>
-            <tr>
-                <th>Severity</th>
-                <th>PM</th>
-                <th>Reporter</th>
-                <th>From</th>
-                <th>To</th>
-                <th>Reason</th>
-                <th>Date Added</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% if rows is empty %}
-                <tr>
-                    <td colspan="8" class="corebb-admin-modern-empty">No {{ old ? 'old' : 'new' }} private-message reports found.</td>
-                </tr>
-            {% else %}
-                {% for row in rows %}
-                    <tr>
-                        <td><span class="corebb-admin-status-pill">{{ row.severity|default(1) }}</span></td>
-                        <td>
-                            <a class="corebb-admin-text-link" href="{{ row._moderate_url|default('#') }}">#{{ row.pmid|default(0) }}</a><br>
-                            <span class="corebb-admin-message-preview">{{ row.title|default('') }}</span>
-                            {% if row.is_deleted|default(0) == 1 %}<br><span class="corebb-admin-modern-help">Deleted</span>{% endif %}
-                        </td>
-                        <td><a class="corebb-admin-text-link" href="{{ row._reporter_url|default('#') }}">{{ row.reporter_username|default('') != '' ? row.reporter_username : '#' ~ row.reporterid|default(0) }}</a></td>
-                        <td><a class="corebb-admin-text-link" href="{{ row._sender_url|default('#') }}">{{ row.sender_username|default('') != '' ? row.sender_username : '#' ~ row.senderid|default(0) }}</a></td>
-                        <td><a class="corebb-admin-text-link" href="{{ row._receiver_url|default('#') }}">{{ row.receiver_username|default('') != '' ? row.receiver_username : '#' ~ row.recieveid|default(0) }}</a></td>
-                        <td>{{ row.reason_type|default('')|replace({'_': ' '}) }}</td>
-                        <td class="wb-nowrap">{{ row.created_at|default('') }}</td>
-                        <td>
-                            <div class="corebb-admin-modern-submit">
-                                <a class="corebb-board-action-link" href="{{ row._moderate_url|default('#') }}">Moderate</a>
-                                {% if row.status|default('new') != 'new' %}<span class="corebb-admin-modern-help">{{ row._status_label|default('') }}</span>{% endif %}
-                            </div>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td></td>
-                        <td colspan="7"><strong>Comments:</strong> <span class="corebb-admin-prewrap">{{ row.comments|default('') }}</span></td>
-                    </tr>
-                {% endfor %}
-            {% endif %}
-        </tbody>
-    </table>
-
-    {% if model.pagination.visible|default(false) %}
-        <div class="corebb-admin-modern-panel wb-text-center">{% include 'partials/board_pagination.twig' with {pagination: model.pagination} only %}</div>
+            {% if report.status != 'new' %}
+                <section class="contact-compose"><h3>{{ model.outcome }}</h3>
+                    <p class="admin-history-count">{{ report.handler_username ?: (report.handled_by ? 'Staff #' ~ report.handled_by : 'Staff member unavailable') }}{% if report.handled_at %} · {{ report.handled_at }}{% endif %}</p>
+                    {% if report.handler_note %}<h4>Staff note</h4><div class="contact-body">{{ report.handler_note }}</div>{% endif %}
+                </section>
+            {% elseif model.can_act %}
+                <form class="admin-settings-form appeal-decision" method="post" action="{{ url(model.action_url) }}">
+                    {% include 'partials/csrf_field.twig' %}
+                    <input type="hidden" name="report_id" value="{{ report.id }}">
+                    <fieldset><legend>Decision</legend><div class="appeal-options">
+                        <label><input type="radio" name="action" value="cancel_report" required>
+                            <span><strong>Close report</strong><small>Keep the message as it is.</small></span></label>
+                        {% if model.can_remove %}<label><input type="radio" name="action" value="delete_pm" required>
+                            <span><strong>Remove message</strong><small>Remove it from both mailboxes and close its open reports.</small></span></label>{% endif %}
+                    </div></fieldset>
+                    <div class="admin-auth-field"><label for="pm-report-note">Staff note (optional)</label>
+                        <textarea rows="3" id="pm-report-note" maxlength="65535" name="handler_note">{{ model.draft_note }}</textarea></div>
+                    <div class="admin-settings-save"><button type="submit">Confirm decision</button><a href="{{ url(model.queue_url) }}">Cancel</a></div>
+                </form>
+            {% else %}<p class="contact-compose">{{ model.blocked_reason }}</p>{% endif %}
+        </article>
     {% endif %}
 </div>
+{% macro member(name,id,linked) %}
+    {% if linked and name %}<a href="{{ url('/admin/?act=user_pages&userid=' ~ id) }}">{{ name }}</a>{% else %}{{ name ?: 'Member #' ~ id }}{% endif %}
+{% endmacro %}

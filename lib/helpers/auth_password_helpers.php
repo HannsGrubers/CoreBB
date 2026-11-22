@@ -254,14 +254,12 @@ function corebb_auth_revoke_login_token(string $selector): void
  * Referenced by: password recovery and admin user tools.
  *
  * @param int $userId User id whose tokens should be deleted.
- * @return void
+ * @return bool Whether the revocation completed.
  */
-function corebb_auth_revoke_user_login_tokens(int $userId): void
+function corebb_auth_revoke_user_login_tokens(int $userId): bool
 {
     corebb_auth_ensure_schema();
-    if ($userId > 0) {
-        @db_run('DELETE FROM user_login_tokens WHERE user_id = ?', [$userId]);
-    }
+    return $userId > 0 && db_run('DELETE FROM user_login_tokens WHERE user_id = ?', [$userId]);
 }
 
 ?>

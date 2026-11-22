@@ -22,6 +22,7 @@ require_once __DIR__ . '/../helpers/pm_helpers.php';
 require_once __DIR__ . '/../helpers/notification_helpers.php';
 require_once __DIR__ . '/../helpers/public_style_helpers.php';
 require_once __DIR__ . '/../helpers/vip_style_helpers.php';
+require_once __DIR__ . '/../helpers/forum_access.php';
 
 /**
  * Usage: Build the common User CP model shared by edit-profile/settings pages.
@@ -37,7 +38,7 @@ function corebb_usercp_base_model(int $uid): array
         'unreadPmCount' => corebb_pm_count($uid, 'unread'),
         'notificationCount' => $uid > 0 ? corebb_notifications_uncleared_count($uid, false) : 0,
         'message' => trim((string)($_GET['msg'] ?? '')),
-        'canEditAppearance' => corebb_vip_style_user_can_self_manage($uid),
+        'canEditAppearance' => corebb_user_can_view_appearance($uid),
     ];
 }
 
@@ -69,21 +70,24 @@ function corebb_usercp_drop_legacy_messenger_columns(): void
  *
  * @return array<int, array<string, mixed>> Field definitions for profile-edit templates.
  */
-function corebb_profile_fields(): array
+function corebb_profile_fields(bool $staffEdit = false): array
 {
-    corebb_usercp_drop_legacy_messenger_columns();
+    // A staff lookup should only read the profile, including on older installations.
+    if (!$staffEdit) { corebb_usercp_drop_legacy_messenger_columns(); }
 
-    return [
+    $fields = [
         ['key' => 'country', 'label' => 'Country:', 'type' => 'text', 'maxlength' => 255],
         ['key' => 'company', 'label' => 'Company', 'type' => 'text', 'maxlength' => 255],
         ['key' => 'jobtitle', 'label' => 'Job Title:', 'type' => 'text', 'maxlength' => 255],
         ['key' => 'websiteurl', 'label' => 'Website URL:', 'type' => 'text', 'maxlength' => 255],
         ['key' => 'pubemail', 'label' => 'Public Email:', 'type' => 'text', 'maxlength' => 255],
-        ['key' => 'privemail', 'label' => 'Private Boards Email Address:', 'type' => 'text', 'maxlength' => 255],
-        ['key' => 'profiletitle', 'label' => 'Title of your profile page:', 'type' => 'text', 'maxlength' => 255],
         ['key' => 'gender', 'label' => 'Gender:', 'type' => 'text', 'maxlength' => 255],
         ['key' => 'birthday', 'label' => 'Birthday (This will be public):', 'type' => 'text', 'maxlength' => 255],
     ];
+    if ($staffEdit || corebb_forum_access_settings()['member_titles']) {
+        $fields[] = ['key' => 'profiletitle', 'label' => 'Member title:', 'type' => 'text', 'maxlength' => 255];
+    }
+    return $fields;
 }
 
 /**
@@ -124,10 +128,10 @@ function corebb_clean_profile_value_from(array $source, string $key, int $maxLen
  *
  * @return string Comma-separated, backtick-escaped user column list.
  */
-function corebb_usercp_profile_columns_sql(): string
+function corebb_usercp_profile_columns_sql(bool $staffEdit = false): string
 {
-    $columns = ['id', 'username'];
-    foreach (corebb_profile_fields() as $field) {
+    $columns = ['id', 'username', 'privemail'];
+    foreach (corebb_profile_fields($staffEdit) as $field) {
         $columns[] = (string)$field['key'];
     }
     $columns[] = 'profpic';
@@ -145,12 +149,12 @@ function corebb_usercp_profile_columns_sql(): string
  * @param int $uid User id to load.
  * @return array<string, mixed> User profile row, or an empty array for invalid/missing users.
  */
-function corebb_usercp_load_profile(int $uid): array
+function corebb_usercp_load_profile(int $uid, bool $staffEdit = false): array
 {
     if ($uid <= 0) {
         return [];
     }
-    $row = db_one('SELECT ' . corebb_usercp_profile_columns_sql() . ' FROM users WHERE id = ? LIMIT 1', [$uid]);
+    $row = db_one('SELECT ' . corebb_usercp_profile_columns_sql($staffEdit) . ' FROM users WHERE id = ? LIMIT 1', [$uid]);
     return is_array($row) ? $row : [];
 }
 
@@ -162,19 +166,35 @@ function corebb_usercp_load_profile(int $uid): array
  * @param array<string, mixed> $source Submitted profile fields.
  * @return bool True when the profile update succeeds.
  */
-function corebb_usercp_save_profile_from_array(int $uid, array $source): bool
+function corebb_usercp_save_profile_from_array(int $uid, array $source, bool $staffEdit = false): bool
 {
     if ($uid <= 0) {
         return false;
     }
 
     $fields = [];
-    foreach (corebb_profile_fields() as $field) {
-        $fields[$field['key']] = corebb_clean_profile_value_from($source, $field['key'], (int)($field['maxlength'] ?? 255));
+    foreach (corebb_profile_fields($staffEdit) as $field) {
+        if ($staffEdit && !array_key_exists($field['key'], $source)) { continue; }
+        if ($field['key'] === 'profiletitle') {
+            // Old forms can omit the field. Personal titles are single-line, plain text.
+            if (!isset($source['profiletitle'])) { continue; }
+            if (!is_string($source['profiletitle'])) { return false; }
+            $title = preg_replace('/[\x00-\x1f\x7f]+/u', ' ', strip_tags($source['profiletitle']));
+            if ($title === null || !preg_match('/^.{0,255}/us', trim($title), $match)) { return false; }
+            $fields['profiletitle'] = $match[0];
+            continue;
+        }
+        // The staff editor validates VARCHAR limits in characters before saving.
+        $fields[$field['key']] = corebb_clean_profile_value_from($source, $field['key'], $staffEdit ? 0 : (int)($field['maxlength'] ?? 255));
     }
-    $fields['profpic'] = corebb_clean_profile_value_from($source, 'profpic', 255);
+    if (!$staffEdit || array_key_exists('profpic', $source)) {
+        $fields['profpic'] = corebb_clean_profile_value_from($source, 'profpic', $staffEdit ? 0 : 255);
+    }
     // Bio may contain board markup, so strip HTML but preserve BBCode-ish text.
-    $fields['bio'] = corebb_usercp_truncate_bytes(trim(strip_tags((string)($source['bio'] ?? ''))), 65535);
+    if (!$staffEdit || array_key_exists('bio', $source)) {
+        $fields['bio'] = corebb_usercp_truncate_bytes(trim(strip_tags((string)($source['bio'] ?? ''))), 65535);
+    }
+    if (!$fields) { return false; }
     if (corebb_user_column_exists('profupdated')) {
         $fields['profupdated'] = date('M y');
     }

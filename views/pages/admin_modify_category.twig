@@ -2,17 +2,17 @@
 {% set category = model.category|default(null) %}
 {% set secureLocked = category and category.secure_archive|default(0) and not model.can_manage_secure_archive|default(false) %}
 
-<div class="corebb-admin-modern-page">
+<div class="admin-overview admin-settings board-dir-form">
     {% if not category %}
         <div class="corebb-admin-modern-panel">
             Unknown category.
-            <a class="corebb-board-action-link" href="/admin/?act=manageboards">Return to Manage Boards</a>
+            <a href="{{ url('/admin/') }}?act=manageboards">Return to Manage Boards</a>
         </div>
     {% else %}
-        <div class="corebb-admin-modern-header">
+        <div class="admin-dash-heading">
             <div>
-                <div class="corebb-admin-modern-eyebrow">Manage Boards</div>
-                <h2>Modify Category</h2>
+                <div class="board-dir-parent"><a href="{{ url('/admin/?act=manageboards') }}">Manage Boards</a></div>
+                <h1>Modify Category</h1>
                 <div class="corebb-admin-modern-meta">
                     <span>{{ category.name|default('Unnamed Category') }}</span>
                     <span>{{ category.board_count|default(0)|number_format }} boards</span>
@@ -22,7 +22,7 @@
                 </div>
             </div>
             <div class="corebb-admin-modern-actions">
-                <a class="corebb-board-action-link" href="/admin/?act=manageboards">Manage Boards</a>
+                <a href="{{ url('/admin/') }}?act=manageboards">Manage Boards</a>
             </div>
         </div>
 
@@ -31,7 +31,7 @@
         {% endif %}
 
         <div class="corebb-admin-modern-panel">
-            <form class="corebb-admin-modern-form" name="form1" method="post" action="/admin/?act=manageboards_cat&amp;id={{ category.id|default(0) }}">
+            <form class="admin-settings-form" name="form1" method="post" action="{{ url('/admin/') }}?act=manageboards_cat&amp;id={{ category.id|default(0) }}">
                 {% include 'partials/csrf_field.twig' %}
                 <div class="corebb-admin-modern-grid">
                     <label for="corebbCategoryName">Change Category Title</label>
@@ -71,12 +71,12 @@
 
                     <div class="corebb-admin-modern-submit corebb-admin-modern-full">
                         {% if secureLocked %}
-                            <button class="corebb-board-action-link" type="button" disabled>Save Disabled</button>
+                            <button class="board-editor-button" type="button" disabled>Save Disabled</button>
                         {% else %}
-                            <button class="corebb-board-action-link" type="submit" name="Submit" value="Save">Save</button>
+                            <button class="board-editor-button" type="submit" name="Submit" value="Save">Save</button>
                         {% endif %}
                         <input type="hidden" name="boardid" value="{{ category.id|default(0) }}">
-                        <a class="corebb-board-action-link" href="/admin/?act=manageboards">Return to Manage Boards</a>
+                        <a href="{{ url('/admin/') }}?act=manageboards">Return to Manage Boards</a>
                     </div>
                 </div>
             </form>

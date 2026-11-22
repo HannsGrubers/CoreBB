@@ -1,5 +1,3 @@
-<script type="text/javascript">
-<!--
 function swapImg(img, type){
   src = img.src;
   switch(type)
@@ -44,13 +42,20 @@ var offsetfromcursorY=10 //Customize y offset of tooltip
 var offsetdivfrompointerX=10 //Customize x offset of tooltip DIV relative to pointer image
 var offsetdivfrompointerY=14 //Customize y offset of tooltip DIV relative to pointer image. Tip: Set it to (height_of_pointer_image-1).
 
-document.write('<div id="dhtmltooltip"><div id="dttext"></div></div>') //write out tooltip DIV
-document.write('<img id="dhtmlpointer" src="http://graphics.classmates.com/graphics/spacer.gif">') //write out pointer image
+const tooltipHost = document.currentScript?.parentElement || document.body;
+const tooltip = document.createElement('div');
+tooltip.id = 'dhtmltooltip';
+const textBox = document.createElement('div');
+textBox.id = 'dttext';
+tooltip.append(textBox);
+const pointer = document.createElement('span');
+pointer.id = 'dhtmlpointer';
+tooltipHost.append(tooltip, pointer);
 
-if (navigator.appName == "Microsoft Internet Explorer"){
-  document.getElementById('dhtmltooltip').style.filter = "progid:DXImageTransform.Microsoft.AlphaImageLoader(src='http://graphics.classmates.com/graphics/reg/promotions/info_bubble.png', sizingMethod='scale')";
-}else{
-  document.getElementById('dhtmltooltip').innerHTML = '<img alt="" border="0" src="http://graphics.classmates.com/graphics/reg/promotions/info_bubble.png"><div id="dttext"></div>';
+function showTooltipText(title, firstLine, secondLine) {
+  const heading = document.createElement('strong');
+  heading.textContent = title;
+  textBox.replaceChildren(heading, document.createElement('br'), firstLine, document.createElement('br'), secondLine);
 }
 
 var ie=document.all
@@ -58,7 +63,6 @@ var ns6=document.getElementById && !document.all
 var enabletip=false
 if (ie||ns6)
   var tipobj=document.all? document.all["dhtmltooltip"] : document.getElementById? document.getElementById("dhtmltooltip") : ""
-  var tiptxtobj=document.all? document.all["dttext"] : document.getElementById? document.getElementById("dhtmltooltip") : ""
   var pointerobj=document.all? document.all["dhtmlpointer"] : document.getElementById? document.getElementById("dhtmlpointer") : ""
 
 function ietruebody(){
@@ -67,13 +71,12 @@ function ietruebody(){
 
 function infoBox(stateName,count1,count2){
 
-  var thetext = '<b>' + stateName + '</b><br>' + count1 + '+ Schools<br>' + count2 + '+ Members'; 
   var thewidth = '160';  
   var thecolor = '';
   if (ns6||ie){
     if (typeof thewidth!="undefined") tipobj.style.width=thewidth+"px"
     if (typeof thecolor!="undefined" && thecolor!="") tipobj.style.backgroundColor=thecolor
-    tiptxtobj.innerHTML=thetext
+    showTooltipText(stateName, count1 + '+ Schools', count2 + '+ Members');
     enabletip=true
     return false
   }
@@ -81,13 +84,12 @@ function infoBox(stateName,count1,count2){
 }
 
 function infoBoxSideLinks(communityType,count1,count2,title){
-  var thetext = '<b>' + title + '</b><br>' + count1 + '+ ' + communityType + '<br>' + count2 + '+ Members'; 
   var thewidth = '160';  
   var thecolor = '';
   if (ns6||ie){
     if (typeof thewidth!="undefined") tipobj.style.width=thewidth+"px"
     if (typeof thecolor!="undefined" && thecolor!="") tipobj.style.backgroundColor=thecolor
-    tiptxtobj.innerHTML=thetext
+    showTooltipText(title, count1 + '+ ' + communityType, count2 + '+ Members');
     enabletip=true
     return false
   }
@@ -150,5 +152,3 @@ function hideinfoBox(){
 }
 
 document.onmousemove=positiontip
-// -->
-</script>

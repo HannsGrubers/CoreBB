@@ -84,7 +84,7 @@ function corebb_recover_account_model(array $post = [], string $method = 'GET'):
         $email = trim((string)($post['email'] ?? ''));
         $result = corebb_password_recovery_send_request($email);
         $model['submitted'] = true;
-        $model['message'] = (string)($result['message'] ?? 'If that email address belongs to an account, a password reset link has been sent.');
+        $model['message'] = (string)($result['message'] ?? 'If that email address belongs to an account, password reset instructions have been sent.');
         $model['mail_error'] = (string)($result['mail_error'] ?? '');
         $model['debug_status'] = is_array($result['debug_status'] ?? null) ? $result['debug_status'] : [];
         $model['email'] = $email;
@@ -116,14 +116,14 @@ function corebb_reset_password_model(array $get = [], array $post = [], string $
         'username' => is_array($status['row'] ?? null) ? (string)(($status['row']['username'] ?? '')) : '',
     ];
 
-    if ($method === 'POST') {
+    if ($method === 'POST' && empty($post['check_code'])) {
         $result = corebb_password_recovery_complete(
             $token,
             (string)($post['pass1'] ?? ''),
             (string)($post['pass2'] ?? '')
         );
         $model['done'] = !empty($result['ok']);
-        $model['valid'] = empty($result['ok']);
+        $model['valid'] = !empty($status['valid']) && empty($result['ok']);
         $model['message'] = (string)($result['message'] ?? '');
     }
 
@@ -181,7 +181,7 @@ function corebb_resend_verification_model(array $post = [], string $method = 'GE
         $email = trim((string)($post['email'] ?? ''));
         $result = corebb_email_verification_resend_by_email($email);
         $model['submitted'] = true;
-        $model['message'] = (string)($result['message'] ?? 'If that email address has an unverified account, a new verification link has been sent.');
+        $model['message'] = (string)($result['message'] ?? 'If that email address has an unverified account, verification instructions have been sent.');
         $model['mail_error'] = (string)($result['mail_error'] ?? '');
         $model['email'] = $email;
     }
@@ -305,15 +305,15 @@ function corebb_registration_model(array $post = [], string $method = 'GET', str
         }
 
         if (!$errors) {
-            $create = corebb_create_user($old['username'], $old['email'], $pass1);
+            $create = corebb_register_pending_user($old['username'], $old['email'], $pass1);
             if ($create['ok']) {
                 $userId = (int)$create['id'];
-                $mailResult = corebb_email_verification_send($userId, $old['username'], $old['email']);
+                $mailResult = corebb_email_verification_deliver($old['username'], $old['email'], $create['verification_token']);
                 $success = true;
                 $outcome = 'created';
                 if (empty($mailResult['sent'])) {
                     $outcome = 'created_mail_failed';
-                    $mailWarning = 'Account created, but the verification email could not be sent: ' . (string)($mailResult['error'] ?? 'unknown mail error');
+                    $mailWarning = 'Account created, but verification email could not be sent. Please request a new message later.';
                 }
                 $old = ['username' => '', 'email' => ''];
             } else {

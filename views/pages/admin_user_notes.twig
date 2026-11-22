@@ -1,103 +1,67 @@
-{% include 'partials/admin_messages.twig' with {messages: model.messages|default([]), errors: model.errors|default([])} only %}
-{% set search = model.search|default({username: '', userid: ''}) %}
-{% set user = model.selected_user|default(null) %}
-{% set notes = model.notes|default([]) %}
-{% set noteTypes = model.note_types|default({}) %}
-{% set selectedType = model.selected_type|default('Misc') %}
-
-<div class="corebb-admin-modern-page">
-    <div class="corebb-admin-modern-header">
-        <div>
-            <div class="corebb-admin-modern-eyebrow">People</div>
-            <h2>Admin Notes</h2>
-            <div class="corebb-admin-modern-meta">
-                {% if user %}
-                    <span>{{ user.username|default('Unknown User') }}</span>
-                    <span>#{{ user.id|default(0) }}</span>
-                    <span>{{ notes|length|number_format }} notes</span>
-                {% else %}
-                    <span>Find a user by username or ID.</span>
-                {% endif %}
-            </div>
+{% set member = model.selected_user %}
+<div class="admin-overview admin-settings admin-members admin-notes">
+    <header class="admin-dash-heading"><h1>User’s Admin Notes</h1><a href="{{ url('/admin/') }}">Dashboard</a></header>
+    <form class="admin-settings-form admin-member-search" method="get" action="{{ url('/admin/') }}">
+        <input type="hidden" name="act" value="admin_notes">
+        <div class="admin-auth-field"><label for="notes-member">Username or user ID</label>
+            <input type="search" id="notes-member" name="user" value="{{ model.search_value }}" autocomplete="off" spellcheck="false" required>
         </div>
-        <div class="corebb-admin-modern-actions">
-            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
-        </div>
-    </div>
-
-    <div class="corebb-admin-modern-panel">
-        <form class="corebb-admin-modern-form" method="get" action="/admin/">
-            <input type="hidden" name="act" value="admin_notes">
-            <div class="corebb-admin-modern-grid">
-                <label for="corebbAdminNotesUsername">User Name</label>
-                <input id="corebbAdminNotesUsername" name="username" type="text" value="{{ search.username|default('') }}">
-
-                <label for="corebbAdminNotesUserId">User ID</label>
-                <span>
-                    <input id="corebbAdminNotesUserId" name="userid" type="text" value="{{ search.userid|default('') }}">
-                    <button class="corebb-board-action-link" type="submit">Find</button>
-                </span>
+        <div class="admin-settings-save"><button type="submit">Find member</button></div>
+    </form>
+    {% include 'partials/admin_messages.twig' with {messages:model.messages, errors:model.errors} only %}
+    {% if member %}
+    {% set page_url = '/admin/?act=admin_notes&userid=' ~ member.id %}
+    <section class="admin-notes-record" aria-labelledby="notes-owner">
+        <header class="admin-member-head">
+            <div><h2 id="notes-owner">{{ member.username }}</h2><p class="admin-history-count">#{{ member.id }} · {{ member.level_name }}</p></div>
+            <div class="admin-member-links">
+                {% if model.can_view_member %}<a href="{{ url('/admin/?act=user_pages&userid=' ~ member.id ~ '&section=notes') }}">User Pages</a>{% endif %}
+                <a href="{{ url(member.profile_url) }}">Public profile</a>
             </div>
-        </form>
-    </div>
-
-    {% if user %}
-        <div class="corebb-admin-modern-panel">
-            <form class="corebb-admin-modern-form" method="post" action="/admin/?act=admin_notes&amp;userid={{ user.id|default(0) }}">
-                {% include 'partials/csrf_field.twig' %}
-                <input type="hidden" name="action" value="add_note">
-                <input type="hidden" name="userid" value="{{ user.id|default(0) }}">
-                <input type="hidden" name="admin_user_notes_token" value="{{ model.token|default('') }}">
-                <div class="corebb-admin-modern-grid">
-                    <label for="corebbAdminNoteBody">Note</label>
-                    <span>
-                        <textarea id="corebbAdminNoteBody" name="note" rows="5" cols="65" wrap="soft"></textarea>
-                        <span class="corebb-admin-modern-help">Required input. Board codes are allowed. HTML is not allowed.</span>
-                    </span>
-
-                    <label for="corebbAdminNoteType">Note Type</label>
-                    <select id="corebbAdminNoteType" name="note_type">
-                        {% for value, label in noteTypes %}
-                            <option value="{{ value }}"{% if selectedType == value %} selected{% endif %}>{{ label }}</option>
-                        {% endfor %}
-                    </select>
-
-                    <div class="corebb-admin-modern-submit corebb-admin-modern-full">
-                        <button class="corebb-board-action-link" type="submit">Submit</button>
+        </header>
+        <div class="admin-notes-content">
+            <div class="admin-notes-heading">
+                <h3>Staff notes{% if model.history_loaded|default(false) %} <span>({{ model.total|number_format }})</span>{% endif %}</h3>
+                <p class="admin-history-count">Visible only to authorized staff.</p>
+            </div>
+            <details class="admin-notes-compose"{% if model.errors or (model.history_loaded|default(false) and model.total == 0) %} open{% endif %}>
+                <summary>Add a staff note</summary>
+                <form method="post" class="admin-settings-form" action="{{ url(page_url) }}">
+                    {% include 'partials/csrf_field.twig' %}
+                    <input type="hidden" name="action" value="add_note">
+                    <input type="hidden" name="userid" value="{{ member.id }}">
+                    <input type="hidden" name="admin_user_notes_token" value="{{ model.token }}">
+                    <div class="admin-auth-field"><label for="note-type">Note type</label>
+                        <select id="note-type" name="note_type">
+                            {% for value, label in model.note_types %}<option value="{{ value }}"{% if value == model.selected_type %} selected{% endif %}>{{ label }}</option>{% endfor %}
+                        </select>
                     </div>
-                </div>
-            </form>
-        </div>
-
-        <section class="corebb-admin-modern-panel">
-            <div class="corebb-admin-section-title">
-                Notes For: <a class="corebb-admin-text-link" target="_top" href="{{ user.profile_url|default('#') }}">{{ user.username|default('Unknown') }}</a>
-            </div>
-            <div class="corebb-admin-modern-note is-danger">
-                Admin Notes are proprietary private information. Do not distribute them outside authorized staff workflows.
-            </div>
-
-            {% if notes is empty %}
-                <span class="corebb-admin-modern-help">No admin notes for this user.</span>
-            {% else %}
-                {% for note in notes %}
-                    <article class="corebb-admin-activity-item">
-                        <div>
-                            <strong>Date:</strong> <span>{{ note.date_vn|default('') != '' ? note.date_vn : note.addtime|default('') }}</span>,
-                            <strong>Type:</strong> <span>{{ note.reason|default('') != '' ? note.reason : 'Misc' }}</span>
-                        </div>
-                        <div>
-                            <strong>Author:</strong>
-                            {% if note.author_id|default(0) > 0 %}
-                                <a class="corebb-admin-text-link" target="_top" href="{{ note.author_profile_url|default('#') }}">{{ note.author_username|default('User ' ~ note.author_id) }}</a>
-                            {% else %}
-                                {{ note.author_username|default('Unknown') }}
-                            {% endif %}
-                        </div>
-                        <div class="corebb-admin-user-content">{% include 'partials/formatted_content.twig' with {content: admin_note_body_model(note.note|default(''))} only %}</div>
-                    </article>
-                {% endfor %}
+                    <div class="admin-auth-field"><label for="note-body">Note</label>
+                        <textarea id="note-body" name="note" rows="4" aria-describedby="note-help" required>{{ model.draft }}</textarea>
+                        <small id="note-help">Board codes are supported. HTML tags are stripped.</small>
+                    </div>
+                    <div class="admin-settings-save"><button type="submit">Save note</button></div>
+                </form>
+            </details>
+            {% if model.history_loaded|default(false) %}
+            {% for note in model.notes %}
+            <article class="admin-notes-entry">
+                <header><h4>{{ note.reason }}</h4><p>
+                    {% if note.author_id %}<a href="{{ url('/profile/' ~ note.author_id ~ '/') }}">{{ note.author }}</a>{% else %}{{ note.author }}{% endif %}
+                    {% if note.date %}<span> · </span><span title="{{ note.addtime }}">{{ note.date }}</span>{% endif %}
+                </p></header>
+                <div class="admin-member-body">{% include 'partials/formatted_content.twig' with {content:admin_note_body_model(note.note|default(''))} only %}</div>
+            </article>
+            {% else %}<p class="admin-notes-empty">No staff notes for {{ member.username }} yet.</p>{% endfor %}
+            {% if model.pages > 1 %}
+                <nav class="admin-notes-pages" aria-label="Note history pages">
+                    {% if model.page > 1 %}<a href="{{ url(page_url ~ '&page=' ~ (model.page - 1)) }}">Newer notes</a>{% endif %}
+                    <span>Page {{ model.page }} of {{ model.pages }}</span>
+                    {% if model.page < model.pages %}<a href="{{ url(page_url ~ '&page=' ~ (model.page + 1)) }}">Older notes</a>{% endif %}
+                </nav>
             {% endif %}
-        </section>
+            {% endif %}
+        </div>
+    </section>
     {% endif %}
 </div>

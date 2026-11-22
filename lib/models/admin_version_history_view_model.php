@@ -28,114 +28,46 @@ function corebb_admin_version_history_markdown_path(): string
     return dirname(__DIR__, 2) . '/VERSION_HISTORY.md';
 }
 
-/**
- * Usage: Create an empty version-history entry.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @param string $version Version heading text.
- * @return array Data prepared for the admin template or caller.
- */
-function corebb_admin_version_history_empty_entry(string $version): array
-{
-    return [
-        'version' => $version,
-        'date' => '',
-        'type' => '',
-        'summary' => '',
-        'added' => [],
-        'changes' => [],
-        'removed' => [],
-        'security' => [],
-        'notes' => [],
-        'verified' => [],
-    ];
-}
-
-/**
- * Usage: Normalize a version-history section heading.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @param string $heading Markdown section heading.
- * @return string Normalized or display-ready string.
- */
-function corebb_admin_version_history_section_key(string $heading): string
-{
-    $heading = strtolower(trim($heading));
-    $map = [
-        'added' => 'added',
-        'additions' => 'added',
-        'changed' => 'changes',
-        'changes' => 'changes',
-        'removed' => 'removed',
-        'security' => 'security',
-        'notes' => 'notes',
-        'verified' => 'verified',
-        'verification' => 'verified',
-    ];
-    return $map[$heading] ?? '';
-}
-
-/**
- * Usage: Parse version-history markdown into sections.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @param string $markdown Version history markdown.
- * @return array Data prepared for the admin template or caller.
- */
+/** Split releases from the bundled file, leaving note formatting to the safe Markdown renderer. */
 function corebb_admin_version_history_parse(string $markdown): array
 {
     $entries = [];
     $entry = null;
-    $section = '';
+    $inMetadata = true;
+    $fence = '';
+    $metadata = ['date' => 'date', 'type' => 'type', 'update package base' => 'base'];
 
     foreach (preg_split('/\R/', $markdown) ?: [] as $line) {
-        $trimmed = trim($line);
-        if ($trimmed === '' || str_starts_with($trimmed, '# CoreBB Version History')) {
-            continue;
-        }
-
-        if (preg_match('/^##\s+(.+)$/', $trimmed, $m) === 1) {
+        if ($fence === '' && preg_match('/^##[ \t]+(.+)$/', $line, $match)) {
             if ($entry !== null) {
                 $entries[] = $entry;
             }
-            $entry = corebb_admin_version_history_empty_entry(trim($m[1]));
-            $section = '';
+            $entry = ['version' => trim($match[1]), 'date' => '', 'type' => '', 'base' => '', 'markdown' => ''];
+            $inMetadata = true;
             continue;
         }
-
         if ($entry === null) {
             continue;
         }
-
-        if (preg_match('/^###\s+(.+)$/', $trimmed, $m) === 1) {
-            $section = corebb_admin_version_history_section_key($m[1]);
+        if ($inMetadata && preg_match('/^(Date|Type|Update package base):\s*(.+)$/i', trim($line), $match)) {
+            $entry[$metadata[strtolower($match[1])]] = trim($match[2]);
             continue;
         }
-
-        if (preg_match('/^Date:\s*(.+)$/i', $trimmed, $m) === 1) {
-            $entry['date'] = trim($m[1]);
-            continue;
+        if (trim($line) !== '') {
+            $inMetadata = false;
         }
-
-        if (preg_match('/^Type:\s*(.+)$/i', $trimmed, $m) === 1) {
-            $entry['type'] = trim($m[1]);
-            continue;
+        if (preg_match('/^ {0,3}(`{3,}|~{3,})(.*)$/', $line, $match)) {
+            if ($fence === '') {
+                $fence = $match[1];
+            } elseif (str_starts_with($match[1], $fence) && trim($match[2]) === '') {
+                $fence = '';
+            }
         }
-
-        if ($section !== '' && preg_match('/^-\s+(.+)$/', $trimmed, $m) === 1) {
-            $entry[$section][] = trim($m[1]);
-            continue;
-        }
-
-        if ($section === '') {
-            $entry['summary'] = trim($entry['summary'] . ' ' . $trimmed);
-        }
+        $entry['markdown'] .= $line . "\n";
     }
-
     if ($entry !== null) {
         $entries[] = $entry;
     }
-
     return $entries;
 }
 

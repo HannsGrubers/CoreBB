@@ -10,6 +10,7 @@
 require_once __DIR__ . '/auth_password_helpers.php';
 require_once __DIR__ . '/email_verification_helpers.php';
 require_once __DIR__ . '/tos_helpers.php';
+require_once __DIR__ . '/rate_limit_helpers.php';
 require_once __DIR__ . '/corebb_url_helpers.php';
 require_once __DIR__ . '/corebb_forum_helpers.php';
 
@@ -634,6 +635,15 @@ function corebb_oauth_fetch_identity(array $provider, array $tokens): array
         return $userinfo;
     }
     $claims = array_merge($idClaims, (array)$userinfo['body']);
+    if ($provider['key'] === 'microsoft') {
+        $issuer = (string)($idClaims['iss'] ?? '');
+        $subject = (string)($userinfo['body']['sub'] ?? '');
+        if (!preg_match('~^https://login\.microsoftonline\.com/[0-9a-fA-F-]{36}/v2\.0$~D', $issuer)
+            || $subject === '' || !hash_equals((string)($idClaims['sub'] ?? ''), $subject)) {
+            return ['ok' => false, 'error' => 'Microsoft did not confirm the sign-in identity.'];
+        }
+        $claims['sub'] = hash('sha256', $issuer . "\0" . $subject);
+    }
     return corebb_oauth_identity_from_claims($provider, $claims);
 }
 
@@ -709,12 +719,6 @@ function corebb_oauth_identity_from_claims(array $provider, array $claims): arra
     $subject = trim((string)($claims['sub'] ?? $claims['id'] ?? ''));
     $email = strtolower(trim((string)($claims['email'] ?? $claims['preferred_username'] ?? '')));
     $verified = filter_var($claims['email_verified'] ?? false, FILTER_VALIDATE_BOOL);
-    // Microsoft commonly omits email_verified from the OIDC userinfo response.
-    // The token exchange still happened against this app's client credentials,
-    // so a syntactically valid returned email is treated as provider-verified.
-    if (!$verified && (string)($provider['key'] ?? '') === 'microsoft' && filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        $verified = true;
-    }
     if (!$verified && in_array((string)$provider['type'], ['github', 'discord'], true)) {
         $verified = !empty($claims['email_verified']);
     }
@@ -728,7 +732,7 @@ function corebb_oauth_identity_from_claims(array $provider, array $claims): arra
         'display_name' => trim((string)($claims['name'] ?? $claims['login'] ?? '')),
         'picture_url' => trim((string)($claims['picture'] ?? $claims['avatar_url'] ?? '')),
     ];
-    if ($identity['subject'] === '' || $identity['email'] === '' || !$identity['email_verified'] || !filter_var($identity['email'], FILTER_VALIDATE_EMAIL)) {
+    if ($identity['subject'] === '' || ($provider['key'] !== 'microsoft' && !corebb_oauth_email_is_linkable($identity))) {
         return ['ok' => false, 'error' => (string)$provider['label'] . ' did not provide a verified email identity.'];
     }
     if ((string)$provider['key'] === 'google' && trim((string)($provider['hosted_domain'] ?? '')) !== '') {
@@ -860,6 +864,10 @@ function corebb_oauth_login_user(array $user): string
         return '/login/?msg=' . urlencode('Archived user identities cannot log in.');
     }
 
+    if ((string)($user['status'] ?? '') === '2' || corebb_email_verification_is_pending($userId)) {
+        return '/login/?msg=' . urlencode('This account is unavailable for sign-in.');
+    }
+
     $expiresAt = time() + 2592000;
     $loginToken = corebb_auth_create_login_token($userId, $expiresAt);
     $cookie = corebb_security_sign_login_cookie([
@@ -967,15 +975,14 @@ function corebb_oauth_create_user(string $username, array $identity): array
 function corebb_oauth_handle_identity(array $provider, array $identity): string
 {
     $user = corebb_oauth_user_by_subject((string)$identity['provider'], (string)$identity['subject']);
-    if (!$user) {
-        $user = corebb_oauth_user_by_safe_email($identity);
-        if ($user) {
-            corebb_oauth_link_identity((int)$user['id'], $identity);
-        }
-    }
     if ($user) {
         corebb_oauth_touch_identity($identity);
         return corebb_oauth_login_user($user);
+    }
+    if ($provider['key'] === 'microsoft' || corebb_oauth_user_by_safe_email($identity)) {
+        $identity['link_required'] = true;
+        corebb_oauth_store_pending_identity($identity);
+        return '/login/service/done/';
     }
     if (empty($provider['allow_auto_create'])) {
         return '/login/?msg=' . urlencode('External sign-in is valid, but new account creation is disabled.');
@@ -1028,6 +1035,7 @@ function corebb_oauth_complete_model(array $post = [], string $method = 'GET'): 
     $tos = corebb_tos_load_text();
     $model = [
         'available' => $identity !== null,
+        'link_required' => !empty($identity['link_required']),
         'errors' => [],
         'identity' => $identity ?: [],
         'provider_label' => (string)($identity['provider_label'] ?? 'External'),
@@ -1040,6 +1048,36 @@ function corebb_oauth_complete_model(array $post = [], string $method = 'GET'): 
 
     $username = trim((string)($post['username'] ?? ''));
     $model['old']['username'] = $username;
+    $provider = corebb_oauth_provider((string)$identity['provider']);
+    if (empty($provider['enabled']) || empty($provider['configured'])) {
+        unset($_SESSION['corebb_oauth_pending']);
+        $model['errors'][] = 'This sign-in provider is unavailable.';
+        return $model;
+    }
+    if (!empty($identity['link_required'])) {
+        $rate = corebb_rate_limit_login_attempt($username);
+        $user = !empty($rate['allowed']) ? db_one('SELECT * FROM users WHERE username = ? LIMIT 1', [$username]) : null;
+        if (!$user || !corebb_auth_password_verify((string)($post['password'] ?? ''), (string)$user['password'])
+            || !empty($user['is_archive_user']) || (string)($user['status'] ?? '') === '2'
+            || corebb_email_verification_is_pending((int)$user['id'])) {
+            $model['errors'][] = 'Unable to confirm your CoreBB account.';
+            return $model;
+        }
+        $linked = corebb_oauth_link_identity((int)$user['id'], $identity)
+            ? corebb_oauth_user_by_subject($identity['provider'], $identity['subject']) : null;
+        if ((int)($linked['id'] ?? 0) !== (int)$user['id']) {
+            $model['errors'][] = 'Unable to link this sign-in identity.';
+            return $model;
+        }
+        unset($_SESSION['corebb_oauth_pending']);
+        corebb_rate_limit_login_success($username);
+        $model['redirect'] = corebb_oauth_login_user($user);
+        return $model;
+    }
+    if (empty($provider['allow_auto_create']) || !corebb_oauth_email_is_linkable($identity) || $provider['key'] === 'microsoft') {
+        $model['errors'][] = 'Please register a local forum account before linking this provider.';
+        return $model;
+    }
     if (trim((string)($post['website'] ?? '')) !== '') {
         $model['errors'][] = 'Registration rejected.';
     }

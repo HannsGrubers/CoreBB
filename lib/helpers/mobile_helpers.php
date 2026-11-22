@@ -84,7 +84,8 @@ function corebb_mobile_requested_view_mode(): string
             setcookie(COREBB_VIEW_MODE_COOKIE, $mode, [
                 'expires' => time() + 60 * 60 * 24 * 90,
                 'path' => corebb_mobile_cookie_path(),
-                'httponly' => false,
+                'secure' => corebb_security_is_https(),
+                'httponly' => true,
                 'samesite' => 'Lax',
             ]);
         }
@@ -163,6 +164,7 @@ function corebb_mobile_user_agent_is_mobile(): bool
  */
 function corebb_mobile_should_use_mobile(): bool
 {
+    require_once __DIR__ . '/public_style_helpers.php';
     if (!headers_sent()) {
         header('Accept-CH: Sec-CH-UA-Mobile, Sec-CH-UA-Platform');
         header('Vary: Sec-CH-UA-Mobile, Sec-CH-UA-Platform', false);
@@ -173,7 +175,7 @@ function corebb_mobile_should_use_mobile(): bool
     }
 
     $mode = corebb_mobile_requested_view_mode();
-    if ($mode === 'desktop') {
+    if ($mode === 'desktop' || corebb_signal_staging_preview()) {
         return false;
     }
     if ($mode === 'mobile') {

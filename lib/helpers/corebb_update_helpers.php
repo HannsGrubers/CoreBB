@@ -104,6 +104,7 @@ function corebb_update_default_settings(): array
         'last_update_check_at' => '',
         'last_update_check_status' => 'never',
         'last_update_manifest' => '',
+        'last_update_manifest_signature' => '',
         'last_successful_update_check_at' => '',
         'last_update_check_error' => '',
         'update_manifest_signature_status' => 'unsigned',
@@ -155,13 +156,13 @@ function corebb_update_schema_version(): string
 function corebb_update_cached_manifest(): ?array
 {
     corebb_update_ensure_settings();
-    $raw = trim(corebb_update_setting('last_update_manifest', ''));
-    if ($raw === '') {
+    $raw = corebb_update_setting('last_update_manifest', '');
+    $signature = corebb_update_setting('last_update_manifest_signature', '');
+    if ($raw === '' || !(new CoreBB_UpdateSignatureVerifier())->verify($raw, $signature)['ok']) {
         return null;
     }
-    $raw = corebb_update_json_body($raw);
-    $decoded = json_decode($raw, true);
-    return is_array($decoded) ? $decoded : null;
+    $checked = corebb_update_validate_manifest(corebb_update_json_body($raw));
+    return $checked['ok'] ? $checked['manifest'] : null;
 }
 
 /**
@@ -311,11 +312,9 @@ function corebb_update_fetch_manifest(string $url = COREBB_UPDATE_MANIFEST_URL):
         $message = 'Unable to fetch update manifest.';
         corebb_update_set_setting('last_update_check_status', 'failed');
         corebb_update_set_setting('last_update_check_error', $message);
-        return ['ok' => false, 'message' => $message, 'manifest' => null];
+        return ['ok' => false, 'offline' => true, 'message' => $message, 'manifest' => null];
     }
-    $body = corebb_update_json_body($body);
-
-    $validation = corebb_update_validate_manifest($body);
+    $validation = corebb_update_validate_manifest(corebb_update_json_body($body));
     if (!$validation['ok'] || !is_array($validation['manifest'])) {
         $message = (string)$validation['error'];
         corebb_update_set_setting('last_update_check_status', 'failed');
@@ -334,6 +333,7 @@ function corebb_update_fetch_manifest(string $url = COREBB_UPDATE_MANIFEST_URL):
     }
 
     corebb_update_set_setting('last_update_manifest', $body);
+    corebb_update_set_setting('last_update_manifest_signature', (string)$signatureBody);
     corebb_update_set_setting('last_successful_update_check_at', $now);
     corebb_update_set_setting('last_update_check_status', $signature['status']);
     corebb_update_set_setting('last_update_check_error', '');
@@ -459,17 +459,15 @@ function corebb_update_status(?array $manifest = null): array
     $detail = 'Use the Updates page to check the official CoreBB manifest.';
     $severity = 'info';
 
-    if ($checkStatus === 'failed' && !$manifest) {
-        $state = 'check_failed';
-        $headline = 'Security update status could not be checked.';
-        $detail = $error !== '' ? $error : 'The update manifest could not be loaded.';
-        $severity = 'warning';
+    $checkFailed = $checkStatus === 'failed' || str_starts_with($checkStatus, 'signature_');
+    $checkWarning = '';
+    if ($checkFailed) {
+        $checkWarning = 'The last update check failed.';
     } elseif ($stale) {
-        $state = 'stale';
-        $headline = 'Update check is stale.';
-        $detail = 'Last successful check: ' . corebb_update_format_date($lastSuccess) . '.';
-        $severity = 'warning';
-    } elseif ($minimumSafe !== '' && version_compare($installed, $minimumSafe, '<')) {
+        $checkWarning = 'The cached update check is stale.';
+    }
+
+    if ($minimumSafe !== '' && version_compare($installed, $minimumSafe, '<')) {
         $state = 'below_minimum';
         $headline = 'Warning: this CoreBB version is below the minimum safe version.';
         $detail = 'Installed version: ' . $installed . '. Minimum safe version: ' . $minimumSafe . '.';
@@ -479,6 +477,11 @@ function corebb_update_status(?array $manifest = null): array
         $headline = 'Security update available: CoreBB ' . $latestSecurity;
         $detail = 'Installed version: ' . $installed . '. Action recommended: update as soon as possible.';
         $severity = 'danger';
+    } elseif ($checkWarning !== '') {
+        $state = $checkFailed ? 'check_failed' : 'stale';
+        $headline = $checkWarning;
+        $detail = 'Last successful check: ' . corebb_update_format_date($lastSuccess) . '.';
+        $severity = 'warning';
     } elseif ($latestStable !== '' && version_compare($installed, $latestStable, '<')) {
         $state = 'maintenance_available';
         $headline = 'CoreBB ' . $latestStable . ' is available.';
@@ -515,6 +518,7 @@ function corebb_update_status(?array $manifest = null): array
         'last_checked' => corebb_update_format_date($lastCheck),
         'last_successful_check' => corebb_update_format_date($lastSuccess),
         'check_status' => $checkStatus,
+        'check_warning' => $checkWarning,
         'signature_status' => $signatureStatus,
         'error' => $error,
         'advisory' => corebb_update_advisory_summary($manifest, $installed),

@@ -9,6 +9,22 @@
 
 require_once __DIR__ . '/corebb_browser_helpers.php';
 
+// Let visitors try Signal across staging pages without altering a member or site setting.
+function corebb_signal_staging_preview(): bool
+{
+    if (!defined('COREBB_ENV') || COREBB_ENV !== 'staging') {
+        return false;
+    }
+    if (($_SERVER['REQUEST_METHOD'] ?? '') === 'GET') {
+        if (($_GET['preview_style'] ?? '') === 'signal') {
+            $_SESSION['corebb_signal_preview'] = true;
+        } elseif (($_GET['preview_style'] ?? '') === 'default') {
+            unset($_SESSION['corebb_signal_preview']);
+        }
+    }
+    return !empty($_SESSION['corebb_signal_preview']);
+}
+
 /**
  * Usage: Check whether a stylesheet path is a local CSS file CoreBB may load.
  * Referenced by: public style option, normalization, and user preference helpers.
@@ -75,6 +91,7 @@ function corebb_public_style_builtin_options(): array
         'style_modern.css' => 'CoreBB Modern 1',
         'style_modern_2.css' => 'CoreBB Modern 2',
         'style_emberline.css' => 'CoreBB Emberline',
+        'style_signal.css' => 'CoreBB Signal',
     ];
 }
 

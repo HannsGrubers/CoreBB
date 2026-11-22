@@ -1,0 +1,9 @@
+<h3 id="appearance-preview-heading">Username preview</h3>
+<div class="appearance-samples">
+    {% for tone in ['Light', 'Dark'] %}
+    <div class="appearance-sample appearance-sample-{{ tone|lower }}">
+        <span>{{ tone }} background</span>
+        <div><span data-name-sample style="{{ css }}">{{ label }}</span></div>
+    </div>
+    {% endfor %}
+</div>

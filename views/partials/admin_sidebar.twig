@@ -1,10 +1,15 @@
 <aside class="corebb-admin-sidebar" aria-label="Admin tools">
+    <details class="admin-tools" open>
+    <summary>Admin tools</summary>
+    <label class="admin-tool-search" hidden>Find a tool
+        <input type="search" autocomplete="off" placeholder="Search tools" id="admin-tool-search">
+    </label>
     {% for group in layout.nav.groups|default([]) %}
         <section class="corebb-admin-nav-group">
             <h2>{{ group.label }}</h2>
             <div class="corebb-admin-nav-links">
                 {% for item in group.items %}
-                    <a class="corebb-admin-nav-link{% if item.active %} is-active{% endif %}{% if item.special %} is-special{% endif %}" href="{{ item.url }}">
+                    <a class="corebb-admin-nav-link{% if item.active %} is-active{% endif %}{% if item.special %} is-special{% endif %}"{% if item.active %} aria-current="page"{% endif %} href="{{ item.url }}">
                         <span>{{ item.label }}</span>
                         {% if item.badge|default(0) > 0 %}
                             <strong>{{ item.badge }}</strong>
@@ -14,4 +19,6 @@
             </div>
         </section>
     {% endfor %}
+    <p class="admin-tools-empty" role="status" hidden>No matching tools.</p>
+    </details>
 </aside>

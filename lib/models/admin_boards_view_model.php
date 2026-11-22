@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../helpers/knowledge_base_helpers.php';
 require_once __DIR__ . '/../helpers/admin_log_helpers.php';
 /*                        ''~``
                          ( o o )
@@ -69,6 +70,7 @@ function corebb_admin_boards_structure(): array
             $categories[$catId] = [
                 'id' => $catId,
                 'name' => 'Unknown Category ' . $catId,
+                'missing' => true,
                 'private' => 0,
                 'secure_archive' => 0,
                 'default_open' => 0,
@@ -80,6 +82,7 @@ function corebb_admin_boards_structure(): array
             'id' => (int)($board['id'] ?? 0),
             'name' => (string)($board['name'] ?? ''),
             'description' => (string)($board['description'] ?? ''),
+            'board_type' => (string)($board['board_type'] ?? 'discussion'),
             'position' => (int)($board['position'] ?? 0),
             'categoryid' => $catId,
             'topiccount' => (int)($board['topiccount'] ?? 0),
@@ -109,14 +112,16 @@ function corebb_admin_boards_structure_for_view(array $viewer): array
     $categoryTotal = count($categories);
 
     foreach ($categories as $catIndex => $category) {
-        $categoryLocked = !empty($category['secure_archive']) && !$canManageSecureArchive;
+        $categoryLocked = !empty($category['missing']) || (!empty($category['secure_archive']) && !$canManageSecureArchive);
         $prevCategory = $catIndex > 0 ? ($categories[$catIndex - 1] ?? null) : null;
         $nextCategory = $catIndex < $categoryTotal - 1 ? ($categories[$catIndex + 1] ?? null) : null;
         $prevLocked = is_array($prevCategory) && !empty($prevCategory['secure_archive']) && !$canManageSecureArchive;
-        $nextLocked = is_array($nextCategory) && !empty($nextCategory['secure_archive']) && !$canManageSecureArchive;
+        $nextLocked = !empty($nextCategory['missing']) || (!empty($nextCategory['secure_archive']) && !$canManageSecureArchive);
 
         $categories[$catIndex]['can_move_up'] = $catIndex > 0 && !$categoryLocked && !$prevLocked;
         $categories[$catIndex]['can_move_down'] = $catIndex < $categoryTotal - 1 && !$categoryLocked && !$nextLocked;
+        $categories[$catIndex]['up_id'] = $prevCategory['id'] ?? null;
+        $categories[$catIndex]['down_id'] = $nextCategory['id'] ?? null;
         $categories[$catIndex]['can_delete'] = !$categoryLocked;
         $categories[$catIndex]['can_add_board'] = !$categoryLocked;
 
@@ -132,8 +137,12 @@ function corebb_admin_boards_structure_for_view(array $viewer): array
             $postTotal += (int)($board['postcount'] ?? 0);
 
             $categories[$catIndex]['boards'][$boardIndex]['url'] = corebb_board_url($boardId, 1, $boardName);
-            $categories[$catIndex]['boards'][$boardIndex]['can_move_up'] = $boardTotal > 1 && $boardIndex > 0 && !$boardLocked;
-            $categories[$catIndex]['boards'][$boardIndex]['can_move_down'] = $boardTotal > 1 && $boardIndex < $boardTotal - 1 && !$boardLocked;
+            $before = $boards[$boardIndex - 1] ?? null;
+            $after = $boards[$boardIndex + 1] ?? null;
+            $categories[$catIndex]['boards'][$boardIndex]['can_move_up'] = $before && !$boardLocked && ($canManageSecureArchive || empty($before['effective_secure_archive'])) && empty($category['missing']);
+            $categories[$catIndex]['boards'][$boardIndex]['can_move_down'] = $after && !$boardLocked && ($canManageSecureArchive || empty($after['effective_secure_archive'])) && empty($category['missing']);
+            $categories[$catIndex]['boards'][$boardIndex]['up_id'] = $before['id'] ?? null;
+            $categories[$catIndex]['boards'][$boardIndex]['down_id'] = $after['id'] ?? null;
             $categories[$catIndex]['boards'][$boardIndex]['can_manage_access'] = !$boardLocked;
             $categories[$catIndex]['boards'][$boardIndex]['can_delete'] = !$boardLocked;
         }
@@ -192,146 +201,73 @@ function corebb_admin_boards_base(array $viewer, string $mode = 'manage'): array
     ];
 }
 
-/**
- * Usage: Move a category up or down while respecting Secure Archive rules.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @param int $categoryId Category id.
- * @param string $direction Move direction.
- * @param array $viewer Current admin user row.
- * @return array Data prepared for the admin template or caller.
- */
-function corebb_admin_boards_move_category(int $categoryId, string $direction, array $viewer): array
+/** Swap adjacent entries in the same order as the public index, including tied legacy positions. */
+function corebb_admin_move_structure_item(bool $category, int $id, string $direction, ?int $expectedNeighbor, array $viewer): array
 {
-    if ($categoryId <= 0) {
-        return [false, 'Unknown category.'];
+    if ($id <= 0 || !in_array($direction, ['up', 'down'], true)) {
+        return [false, 'Choose a board or category and a valid direction.'];
     }
-    if (!in_array($direction, ['up', 'down'], true)) {
-        return [false, 'Unknown category movement direction.'];
-    }
-
-    corebb_admin_reindex_category_positions();
-
-    $current = db_one('SELECT id, name, position, secure_archive FROM boards WHERE id = ? LIMIT 1', [$categoryId]);
-    if (!$current) {
-        return [false, 'Unknown category.'];
-    }
-
-    $position = (int)($current['position'] ?? 0);
-    $targetPosition = $direction === 'up' ? $position - 1 : $position + 1;
-    $swap = db_one('SELECT id, name, position, secure_archive FROM boards WHERE position = ? LIMIT 1', [$targetPosition]);
-    if (!$swap) {
-        return [false, 'That category is already at the edge of the list.'];
-    }
-
-    $accessLevel = (int)($viewer['accesslevel'] ?? 0);
-    if ($accessLevel < 5 && ((int)($current['secure_archive'] ?? 0) === 1 || (int)($swap['secure_archive'] ?? 0) === 1)) {
-        return [false, corebb_secure_archive_denied_message()];
-    }
-
-    db_run('UPDATE boards SET position = ? WHERE id = ?', [$position, (int)$swap['id']]);
-    $ok = db_run('UPDATE boards SET position = ? WHERE id = ?', [$targetPosition, $categoryId]);
-    corebb_admin_reindex_category_positions();
-
-    if ($ok) {
-        {
-            corebb_adminlog_entry((string)($viewer['username'] ?? ''), $accessLevel, "Moved category {$categoryId} {$direction}");
+    if (!db_begin()) { return [false, 'Could not start the move.']; }
+    try {
+        $lock = corebb_db_connection()->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql' ? ' FOR UPDATE' : '';
+        $table = $category ? 'boards' : 'forums';
+        $scope = '';
+        $params = [];
+        $admin = (int)$viewer['accesslevel'] >= 5;
+        if (!$category) {
+            $parentId = db_value('SELECT categoryid FROM forums WHERE id=?', [$id]);
+            $parent = db_one('SELECT id,secure_archive FROM boards WHERE id=?' . $lock, [$parentId]);
+            if (!$parent) { return [false, 'The board or its category is no longer available.']; }
+            if (!$admin && $parent['secure_archive']) { return [false, corebb_secure_archive_denied_message()]; }
+            $scope = ' WHERE categoryid=?';
+            $params[] = $parentId;
         }
-        return [true, 'Successfully changed category position.'];
+        $rows = db_all("SELECT id,name,position,secure_archive FROM $table$scope ORDER BY position,id" . $lock, $params);
+        $index = array_search($id, array_map('intval', array_column($rows, 'id')), true);
+        if ($index === false) { return [false, 'The board structure changed. Review its current order.']; }
+        $neighbor = $index + ($direction === 'up' ? -1 : 1);
+        if (!isset($rows[$neighbor])) { return [false, 'This entry is already at the edge of its list.']; }
+        if ($expectedNeighbor !== null && (int)$rows[$neighbor]['id'] !== $expectedNeighbor) {
+            return [false, 'The order changed since you opened this page. Review it before moving again.'];
+        }
+        if (!$admin && ($rows[$index]['secure_archive'] || $rows[$neighbor]['secure_archive'])) {
+            return [false, corebb_secure_archive_denied_message()];
+        }
+        $name = $rows[$index]['name'];
+        [$rows[$index], $rows[$neighbor]] = [$rows[$neighbor], $rows[$index]];
+        foreach ($rows as $i => $row) {
+            $position = $i + 1;
+            if ((int)$row['position'] !== $position && !db_run("UPDATE $table SET position=? WHERE id=?", [$position, $row['id']])) {
+                return [false, 'Could not save the new order. Please try again.'];
+            }
+        }
+        if (!db_commit()) { return [false, 'Could not save the new order. Please try again.']; }
+    } finally {
+        if (corebb_db_connection()->inTransaction()) { db_rollback(); }
     }
-    return [false, 'Error changing category position: ' . db_error()];
+    corebb_adminlog_viewer($viewer, 'Moved ' . ($category ? 'category' : 'board') . " #$id $direction");
+    return [true, "Moved $name $direction."];
 }
 
-/**
- * Usage: Move a board up or down within its category.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @param int $forumId Forum/board id.
- * @param string $direction Move direction.
- * @param array $viewer Current admin user row.
- * @return array Data prepared for the admin template or caller.
- */
-function corebb_admin_boards_move_board(int $forumId, string $direction, array $viewer): array
-{
-    if ($forumId <= 0) {
-        return [false, 'Unknown board.'];
-    }
-    if (!in_array($direction, ['up', 'down'], true)) {
-        return [false, 'Unknown board movement direction.'];
-    }
-
-    $current = db_one('SELECT f.id, f.categoryid, f.position, f.name, f.secure_archive, b.secure_archive AS category_secure_archive FROM forums f LEFT JOIN boards b ON b.id = f.categoryid WHERE f.id = ? LIMIT 1', [$forumId]);
-    if (!$current) {
-        return [false, 'Unknown board.'];
-    }
-    if (corebb_secure_archive_board_is_effectively_locked($current) && (int)($viewer['accesslevel'] ?? 0) < 5) {
-        return [false, corebb_secure_archive_denied_message()];
-    }
-
-    $categoryId = (int)($current['categoryid'] ?? 0);
-    corebb_admin_reindex_forum_positions($categoryId);
-
-    $current = db_one('SELECT id, categoryid, position, name FROM forums WHERE id = ? LIMIT 1', [$forumId]);
-    $position = (int)($current['position'] ?? 0);
-    $targetPosition = $direction === 'up' ? $position - 1 : $position + 1;
-
-    $swap = db_one(
-        'SELECT id, position FROM forums WHERE categoryid = ? AND position = ? LIMIT 1',
-        [$categoryId, $targetPosition]
-    );
-    if (!$swap) {
-        return [false, 'That board is already at the edge of its category.'];
-    }
-
-    db_run('UPDATE forums SET position = ? WHERE id = ?', [$position, (int)$swap['id']]);
-    $ok = db_run('UPDATE forums SET position = ? WHERE id = ?', [$targetPosition, $forumId]);
-    corebb_admin_reindex_forum_positions($categoryId);
-
-    if ($ok) {
-        {
-            corebb_adminlog_entry((string)($viewer['username'] ?? ''), (int)($viewer['accesslevel'] ?? 0), "Moved board {$forumId} {$direction}");
-        }
-        return [true, 'Successfully changed board position.'];
-    }
-    return [false, 'Error changing board position: ' . db_error()];
-}
-
-/**
- * Usage: Build and process the manage boards admin page model.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @param array $viewer Current admin user row.
- * @param array $get Query parameters from admin.php.
- * @param array $post Posted form data from admin.php.
- * @return array Data prepared for the admin template or caller.
- */
 function corebb_admin_manage_boards_model(array $viewer, array $get, array $post): array
 {
-    $model = corebb_admin_boards_base($viewer, 'manage');
-
-    $act = (string)($get['act'] ?? 'manageboards');
-    if ($act === 'movebrd') {
-        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
-            $model['messages'][] = 'Use the move controls to reorder boards.';
-            return $model;
-        }
-        [$ok, $message] = corebb_admin_boards_move_board((int)($get['id'] ?? 0), (string)($get['pos'] ?? ''), $viewer);
-        $model['messages'][] = $message;
-        $model['categories'] = corebb_admin_boards_structure_for_view($viewer);
-    } elseif ($act === 'movecat') {
-        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
-            $model['messages'][] = 'Use the move controls to reorder categories.';
-            return $model;
-        }
-        [$ok, $message] = corebb_admin_boards_move_category((int)($get['id'] ?? 0), (string)($get['pos'] ?? ''), $viewer);
-        $model['messages'][] = $message;
-        $model['categories'] = corebb_admin_boards_structure_for_view($viewer);
+    if (!corebb_admin_can_access_tool($viewer, 'manage_boards')) {
+        return ['errors'=>['You do not have access to Manage Boards.']];
     }
-
-    if (isset($get['msg']) && (string)$get['msg'] !== '') {
-        $model['messages'][] = (string)$get['msg'];
+    $act = $get['act'] ?? 'manageboards';
+    if (in_array($act, ['movebrd', 'movecat'], true) && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
+        $id = (int)($get['id'] ?? 0);
+        if (!corebb_security_csrf_valid($post)) {
+            return ['errors'=>['Your form expired. Reopen Manage Boards before making a move.']];
+        }
+        corebb_admin_boards_ensure_schema();
+        $expected = isset($post['neighbor']) ? (int)$post['neighbor'] : null;
+        [$ok,$notice] = corebb_admin_move_structure_item($act === 'movecat', $id, (string)($get['pos'] ?? ''), $expected, $viewer);
+        return ['move_notice'=>[$ok ? 'messages' : 'errors', $notice], 'move_anchor'=>($act === 'movecat' ? 'category-' : 'board-') . $id];
     }
-
+    $model = corebb_admin_boards_base($viewer);
+    $model['can_view_stats'] = corebb_admin_can_access_tool($viewer, 'forum_statistics');
+    if (is_string($get['msg'] ?? null) && $get['msg'] !== '') { $model['messages'][] = $get['msg']; }
     return $model;
 }
 
@@ -616,6 +552,12 @@ function corebb_admin_add_board_model(array $viewer, array $get, array $post): a
         $catId = (int)($post['catid'] ?? 0);
         $isPrivate = (int)($post['private'] ?? 0) ? 1 : 0;
         $model['catid'] = $catId;
+        $type = $post['board_type'] ?? 'discussion';
+        if (!in_array($type, ['discussion', 'knowledge_base'], true) || !corebb_kb_prepare_schema()) {
+            $model['messages'][] = 'Unable to prepare the board type. Check the database migration and try again.';
+            return $model;
+        }
+        $model['board_type'] = $type;
         $model['newboardname'] = $name;
         $model['newboarddescription'] = $desc;
         $model['boardtimer'] = $timer;
@@ -631,8 +573,8 @@ function corebb_admin_add_board_model(array $viewer, array $get, array $post): a
         } else {
             $position = corebb_admin_next_forum_position($catId);
             $ok = db_run(
-                'INSERT INTO forums (categoryid, name, description, edittimer, position, private) VALUES (?, ?, ?, ?, ?, ?)',
-                [$catId, $name, $desc, $timer, $position, $isPrivate]
+                'INSERT INTO forums (categoryid, name, description, edittimer, position, private, board_type) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                [$catId, $name, $desc, $timer, $position, $isPrivate, $type]
             );
             if ($ok) {
                 $model['messages'][] = 'Successfully added board.';
@@ -718,6 +660,12 @@ function corebb_admin_modify_board_model(array $viewer, array $get, array $post)
         $name = trim((string)($post['newboardname'] ?? ''));
         $desc = trim((string)($post['newboarddesc'] ?? ''));
         $timer = max(0, min(999, (int)($post['boardtimer'] ?? 30)));
+        $existingBoard = corebb_private_board_row($id);
+        $type = $post['board_type'] ?? ($existingBoard['board_type'] ?? 'discussion');
+        if (!in_array($type, ['discussion', 'knowledge_base'], true) || !corebb_kb_prepare_schema()) {
+            $model['messages'][] = 'Unable to prepare the board type. Check the database migration and try again.';
+            return $model;
+        }
         $newCatId = (int)($post['categoryid'] ?? 0);
         $isPrivate = (int)($post['private'] ?? 0) ? 1 : 0;
         $current = db_one('SELECT f.categoryid, f.secure_archive, b.secure_archive AS category_secure_archive FROM forums f LEFT JOIN boards b ON b.id = f.categoryid WHERE f.id = ? LIMIT 1', [$id]);
@@ -735,9 +683,9 @@ function corebb_admin_modify_board_model(array $viewer, array $get, array $post)
             $oldCatId = (int)($current['categoryid'] ?? 0);
             $position = $newCatId === $oldCatId ? null : corebb_admin_next_forum_position($newCatId);
             if ($position === null) {
-                $ok = db_run('UPDATE forums SET name = ?, description = ?, edittimer = ?, categoryid = ?, private = ? WHERE id = ?', [$name, $desc, $timer, $newCatId, $isPrivate, $id]);
+                $ok = db_run('UPDATE forums SET name = ?, description = ?, edittimer = ?, categoryid = ?, private = ?, board_type = ? WHERE id = ?', [$name, $desc, $timer, $newCatId, $isPrivate, $type, $id]);
             } else {
-                $ok = db_run('UPDATE forums SET name = ?, description = ?, edittimer = ?, categoryid = ?, position = ?, private = ? WHERE id = ?', [$name, $desc, $timer, $newCatId, $position, $isPrivate, $id]);
+                $ok = db_run('UPDATE forums SET name = ?, description = ?, edittimer = ?, categoryid = ?, position = ?, private = ?, board_type = ? WHERE id = ?', [$name, $desc, $timer, $newCatId, $position, $isPrivate, $type, $id]);
                 corebb_admin_reindex_forum_positions($oldCatId);
                 corebb_admin_reindex_forum_positions($newCatId);
             }
@@ -796,6 +744,7 @@ function corebb_admin_modify_board_model(array $viewer, array $get, array $post)
     $topicCount = (int)db_value('SELECT COUNT(DISTINCT t.id) FROM topics t INNER JOIN posts p ON p.threadid = t.id AND p.is_deleted = 0 WHERE t.boardid = ? AND t.is_deleted = 0', [$id], 0);
     $postCount = (int)db_value('SELECT COUNT(*) FROM posts WHERE boardid = ? AND is_deleted = 0', [$id], 0);
     $model['board'] = [
+        'board_type' => $board['board_type'] ?? 'discussion',
         'id' => $id,
         'name' => (string)($board['name'] ?? ''),
         'description' => (string)($board['description'] ?? ''),

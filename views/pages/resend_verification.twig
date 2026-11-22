@@ -28,7 +28,7 @@
 
                 <div class="corebb-login-section-head">
                     <h3>Need a New Verification Link?</h3>
-                    <span>Enter the email address you used during registration. If it belongs to an unverified account, a new verification link will be emailed to you.</span>
+                    <span>Enter the email address you used during registration. If it belongs to an unverified account, verification instructions will be emailed to you.</span>
                 </div>
 
                 <label class="corebb-login-field">
@@ -43,4 +43,11 @@
             </form>
         {% endif %}
     </div>
+    <form class="corebb-login-panel corebb-auth-single" method="post" action="{{ url('/verify-email/') }}">
+        {% include 'partials/csrf_field.twig' %}
+        <label class="corebb-login-field">Verification code from your email
+            <input name="token" autocomplete="one-time-code" required>
+        </label>
+        <button class="formsubmit" type="submit">Verify email address</button>
+    </form>
 </div>

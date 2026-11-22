@@ -1,6 +1,33 @@
 Options -Indexes
 
+# Keep forum errors in this scope instead of dispatching to a hosting-provider page.
+ErrorDocument 403 "Access forbidden."
+ErrorDocument 404 "Page not found."
+
+# Cover static files and Apache-generated redirects/errors as well as PHP.
+# The PHP renderer supplies a per-response script policy on dynamic pages.
+<IfModule mod_headers.c>
+    Header onsuccess unset X-Powered-By
+    Header always unset X-Powered-By
+    Header onsuccess unset Server
+    Header always unset Server
+    Header always setifempty X-Frame-Options "SAMEORIGIN"
+    Header always setifempty X-Content-Type-Options "nosniff"
+    Header always setifempty Referrer-Policy "same-origin"
+    Header always setifempty Permissions-Policy "geolocation=(), microphone=(), camera=()"
+    Header always setifempty Content-Security-Policy "base-uri 'self'; object-src 'none'; frame-ancestors 'self'"
+    Header always setifempty Strict-Transport-Security "max-age=300" "expr=%{HTTPS} == 'on'"
+    <FilesMatch "(?i)\.html?$">
+        Header always set Content-Security-Policy "base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'; script-src 'self'; script-src-attr 'none'"
+    </FilesMatch>
+</IfModule>
+
 RewriteEngine On
+
+
+# Only .well-known is intentionally public among the dot directories.
+RewriteRule "(^|/)\.(?!well-known(?:/|$))" - [F,L]
+RewriteRule ^(?:vendor|accesslog_[^/]*)(?:/|$) - [F,L,NC]
 
 # Keep substitutions relative so the same rules work at the vhost root or in a
 # subdirectory such as /forum.
@@ -124,6 +151,10 @@ RewriteRule ^([a-zA-Z0-9_\-]+)/b([0-9]+)/?$ controllers/forum.php?action=board&i
 
 # Keep sensitive source/config/archive artifacts from being downloaded directly.
 <FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
+
+<FilesMatch "(?i)^htaccess(?:$|[.~_-])">
     Require all denied
 </FilesMatch>
 

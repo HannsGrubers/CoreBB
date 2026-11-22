@@ -1,50 +1,39 @@
-{% include 'partials/admin_messages.twig' with {messages: model.messages|default([]), errors: model.errors|default([])} only %}
-{% set levels = model.levels|default({}) %}
-{% set form = model.form|default({}) %}
-
-<div class="corebb-admin-modern-page">
-    {% if model.message|default('') != '' %}
-        <div class="corebb-admin-modern-note">{{ model.message|replace({'+': ' '}) }}</div>
-    {% endif %}
-
-    <div class="corebb-admin-modern-header">
-        <div>
-            <div class="corebb-admin-modern-eyebrow">People</div>
-            <h2>Add Account</h2>
-            <div class="corebb-admin-modern-meta">
-                <span>Create a forum user account.</span>
+{% set created = model.created_user %}
+<div class="admin-overview admin-settings admin-add-user">
+    <header class="admin-dash-heading"><h1>Add User</h1><a href="{{ url('/admin/') }}">Dashboard</a></header>
+    {% include 'partials/admin_messages.twig' with {errors:model.errors} only %}
+    {% if created %}
+        <section class="admin-created-account" aria-labelledby="created-account">
+            <div><h2 id="created-account">Account created</h2>
+                <p><strong>{{ created.username }}</strong> · #{{ created.id }} · {{ created.role }}</p>
             </div>
-        </div>
-        <div class="corebb-admin-modern-actions">
-            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
-        </div>
-    </div>
-
-    <div class="corebb-admin-modern-panel">
-        <form class="corebb-admin-modern-form" method="post" action="/admin/?act=add_user" autocomplete="off">
-            {% include 'partials/csrf_field.twig' %}
-            <div class="corebb-admin-modern-grid">
-                <label for="corebbAddUserName">User Name</label>
-                <input id="corebbAddUserName" name="username" type="text" value="{{ form.username|default('') }}">
-
-                <label for="corebbAddUserPassword">Password</label>
-                <input id="corebbAddUserPassword" name="password1" type="password">
-
-                <label for="corebbAddUserPasswordConfirm">Confirm Password</label>
-                <input id="corebbAddUserPasswordConfirm" name="password2" type="password">
-
-                <label for="corebbAddUserLevel">User Level</label>
-                <select id="corebbAddUserLevel" name="userlevel">
-                    {% for value, label in levels %}
-                        <option value="{{ value }}"{% if value == form.userlevel|default(1) %} selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
-
-                <div class="corebb-admin-modern-submit corebb-admin-modern-full">
-                    <button class="corebb-board-action-link" type="submit">Add User</button>
-                    <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
+            <div class="admin-member-links">
+                {% if model.can_view_member %}<a href="{{ url('/admin/?act=user_pages&userid=' ~ created.id) }}">User Pages</a>{% endif %}
+                {% if model.can_edit_rights and model.levels[created.accesslevel] is defined %}<a href="{{ url('/admin/?act=edit_rights&user=' ~ created.id) }}">Edit rights</a>{% endif %}
+                <a href="{{ url('/profile/' ~ created.id ~ '/') }}">Public profile</a>
+            </div>
+        </section>
+    {% endif %}
+    {% if model.levels %}
+    <form class="admin-settings-form admin-account-form" method="post" action="{{ url('/admin/?act=add_user') }}" autocomplete="off">
+        {% include 'partials/csrf_field.twig' %}
+        <fieldset class="admin-account-fields">
+            <legend>Account details</legend>
+            <div class="admin-auth-field admin-account-name">
+                <label for="add-username">Username</label>
+                <input id="add-username" name="username" value="{{ model.form.username }}" maxlength="255" required autocomplete="off" spellcheck="false">
+            </div>
+            <div class="admin-account-passwords">
+                <div class="admin-auth-field"><label for="add-password">Password</label>
+                    <input id="add-password" name="password1" type="password" autocomplete="new-password" required>
+                </div>
+                <div class="admin-auth-field"><label for="add-confirm-password">Confirm password</label>
+                    <input id="add-confirm-password" name="password2" type="password" autocomplete="new-password" required>
                 </div>
             </div>
-        </form>
-    </div>
+        </fieldset>
+        {% include 'partials/admin_role_choices.twig' with {levels:model.levels|reverse(true),role_details:model.role_details,selected_level:model.form.userlevel,marker_level:1,marker:'Default'} only %}
+        <div class="admin-settings-save"><button type="submit">Create account</button></div>
+    </form>
+    {% endif %}
 </div>

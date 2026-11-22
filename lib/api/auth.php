@@ -94,6 +94,9 @@ function corebb_api_auth_login(array $data): array
     }
 
     $userId = (int)($userRow['id'] ?? 0);
+    if ((string)($userRow['status'] ?? '') === '2') {
+        corebb_api_error('banned', 'This account is banned.', 403);
+    }
     if ((int)($userRow['is_archive_user'] ?? 0) === 1) {
         corebb_api_error('archive_user_login_denied', 'Archived user identities cannot log in.', 403);
     }
@@ -147,35 +150,7 @@ function corebb_api_auth_login(array $data): array
  */
 function corebb_api_auth_logout(): array
 {
-    global $CookieDomain;
-
-    $cookie = corebb_read_serialized_cookie('BoardCookieV3');
-    if ($cookie && !empty($cookie['selector'])) {
-        corebb_auth_revoke_login_token((string)$cookie['selector']);
-    }
-
-    // Clear the signed login cookie across both configured and request hosts.
-    $domainsToClear = [''];
-    if (!empty($CookieDomain)) {
-        $domainsToClear[] = (string)$CookieDomain;
-    }
-    $host = strtolower((string)($_SERVER['HTTP_HOST'] ?? ''));
-    $host = preg_replace('/:\d+$/', '', $host) ?: '';
-    if ($host !== '') {
-        $domainsToClear[] = $host;
-        if ($host[0] !== '.') {
-            $domainsToClear[] = '.' . $host;
-        }
-    }
-    $domainsToClear = array_values(array_unique(array_filter($domainsToClear, static fn($d) => is_string($d))));
-
-    foreach ($domainsToClear as $domain) {
-        corebb_security_clear_cookie('BoardCookieV3', '/', $domain);
-    }
-
-    $_SESSION['userid'] = '';
-    $GLOBALS['MyData'] = [];
-    $GLOBALS['userlogindata_a'] = [];
-
+    require_once dirname(__DIR__) . '/helpers/auth_flow_helpers.php';
+    corebb_auth_end_session();
     return ['authenticated' => false];
 }

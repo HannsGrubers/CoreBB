@@ -18,6 +18,8 @@
  +-------------------------------------------------------+*/
 
 require_once __DIR__ . '/admin_user_tools_view_model.php';
+require_once __DIR__ . '/admin_moderation_view_model.php';
+require_once __DIR__ . '/../helpers/pagination_helpers.php';
 
 const COREBB_ADMIN_LATEST_USERS_PER_PAGE = 50;
 
@@ -31,11 +33,13 @@ const COREBB_ADMIN_LATEST_USERS_PER_PAGE = 50;
 function corebb_admin_latest_users_format_date(string $value): string
 {
     $value = trim($value);
-    if ($value === '' || $value === '0000-00-00 00:00:00' || $value === '1/1/0001 12:00:00 AM') {
+    if ($value === '' || $value === '0' || $value === '0000-00-00 00:00:00' || $value === '1/1/0001 12:00:00 AM') {
         return '';
     }
 
-    $timestamp = strtotime($value);
+    $month = corebb_account_month_label($value);
+    if ($month !== null) { return $month; }
+    $timestamp = ctype_digit($value) ? (int)$value : strtotime($value);
     if ($timestamp === false) {
         return $value;
     }
@@ -44,24 +48,17 @@ function corebb_admin_latest_users_format_date(string $value): string
 }
 
 /**
- * Usage: Convert stored user status fields into display text.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @param mixed $status Request/report status.
- * @param mixed $approved Approved state.
- * @return string Normalized or display-ready string.
+ * Classify accounts identically for filter counts, paginated selection and display.
+ * Older user tables may lack either status or approval.
  */
-function corebb_admin_latest_users_status_text($status, $approved = null): string
+function corebb_admin_latest_users_state_sql(): string
 {
-    if ((string)$status === '2') {
-        return 'Banned';
-    }
-
-    if ($approved !== null && (string)$approved !== '' && (string)$approved !== '1') {
-        return 'Pending';
-    }
-
-    return 'Active';
+    $columns = corebb_admin_table_columns('users');
+    $status = isset($columns['status']) ? 'u.`status`' : "''";
+    $approved = isset($columns['approved']) ? 'u.`approved`' : '1';
+    return "CASE WHEN CAST($status AS CHAR) = '2' THEN 'banned'
+                 WHEN COALESCE(CAST($approved AS CHAR), '') NOT IN ('', '1') THEN 'pending'
+                 ELSE 'active' END";
 }
 
 /**
@@ -83,14 +80,14 @@ function corebb_admin_latest_users_archive_where(): array
     }
 
     if (isset($columns['legacy_source'])) {
-        $where[] = "(u.`legacy_source` IS NULL OR u.`legacy_source` = '' OR u.`legacy_source` <> 'vn_archive')";
+        $where[] = "(u.`legacy_source` IS NULL OR u.`legacy_source` NOT IN ('vn_archive', 'vnboards'))";
         $hasArchiveMarker = true;
     }
 
     if (!$hasArchiveMarker) {
         // Older imports commonly appended _legacy to archive-only accounts.
-        $where[] = "u.`username` NOT LIKE ? ESCAPE '\\\\'";
-        $params[] = '%\\_legacy';
+        $where[] = "u.`username` NOT LIKE ? ESCAPE '!'";
+        $params[] = '%!_legacy';
     }
 
     return [$where, $params];
@@ -102,7 +99,7 @@ function corebb_admin_latest_users_archive_where(): array
  *
  * @return string Normalized or display-ready string.
  */
-function corebb_admin_latest_users_optional_select(): string
+function corebb_admin_latest_users_optional_select(bool $includeIp): string
 {
     $columns = corebb_admin_table_columns('users');
     $wanted = [
@@ -119,6 +116,7 @@ function corebb_admin_latest_users_optional_select(): string
     ];
 
     $parts = [];
+    if (!$includeIp) { unset($wanted['lastip']); }
     foreach ($wanted as $column => $alias) {
         if (isset($columns[$column])) {
             $parts[] = 'u.`' . str_replace('`', '``', $column) . '` AS `' . str_replace('`', '``', $alias) . '`';
@@ -149,7 +147,6 @@ function corebb_admin_latest_users_summary(array $row): array
         'user_pages_url' => '/admin/?act=user_pages&userid=' . $id,
         'admin_notes_url' => '/admin/?act=admin_notes&userid=' . $id,
         'ip_check_url' => '/admin/?act=user_ip_check&userid=' . $id,
-        'ban_url' => '/admin/?act=moderation&mode=ban&q=' . rawurlencode((string)($row['username'] ?? '')),
         'accesslevel' => $level,
         'level_name' => corebb_user_level_label($level),
         'posts' => (int)($row['posts'] ?? 0),
@@ -161,7 +158,7 @@ function corebb_admin_latest_users_summary(array $row): array
         'last_post_display' => corebb_admin_latest_users_format_date((string)($row['lastpstdate'] ?? '')),
         'last_ip' => (string)($row['lastip'] ?? ''),
         'status' => (string)($row['status'] ?? ''),
-        'status_text' => corebb_admin_latest_users_status_text($row['status'] ?? '', $row['approved'] ?? null),
+        'status_text' => ucfirst($row['account_state']),
     ];
 }
 
@@ -177,20 +174,34 @@ function corebb_admin_latest_users_model(array $viewer, array $request): array
 {
     $page = max(1, (int)($request['page'] ?? 1));
     $perPage = COREBB_ADMIN_LATEST_USERS_PER_PAGE;
-    $offset = ($page - 1) * $perPage;
 
     [$archiveWhere, $archiveParams] = corebb_admin_latest_users_archive_where();
     $whereSql = $archiveWhere ? (' WHERE ' . implode(' AND ', $archiveWhere)) : '';
 
-    $total = (int)db_value('SELECT COUNT(*) FROM users u' . $whereSql, $archiveParams, 0);
+    $stateSql = corebb_admin_latest_users_state_sql();
+    $counts = ['all'=>0, 'active'=>0, 'pending'=>0, 'banned'=>0];
+    foreach (db_all("SELECT $stateSql AS account_state, COUNT(*) AS quantity FROM users u" . $whereSql . ' GROUP BY account_state', $archiveParams) as $group) {
+        $counts[$group['account_state']] = (int)$group['quantity'];
+        $counts['all'] += (int)$group['quantity'];
+    }
+    $filter = $request['status'] ?? 'all';
+    if (!is_string($filter) || !isset($counts[$filter])) { $filter = 'all'; }
+    if ($filter !== 'all') {
+        $archiveWhere[] = "$stateSql = ?";
+        $archiveParams[] = $filter;
+        $whereSql = ' WHERE ' . implode(' AND ', $archiveWhere);
+    }
+    $total = $counts[$filter];
     $totalPages = max(1, (int)ceil($total / $perPage));
-    if ($page > $totalPages) {
-        $page = $totalPages;
-        $offset = ($page - 1) * $perPage;
+    $page = min($page, $totalPages);
+    $offset = ($page - 1) * $perPage;
+    $access = [];
+    foreach (['user_pages', 'admin_notes', 'user_ip_check', 'moderation_ban', 'moderation_unban'] as $tool) {
+        $access[$tool] = corebb_admin_can_access_tool($viewer, $tool);
     }
 
     $rows = db_all(
-        'SELECT ' . corebb_admin_latest_users_optional_select() .
+        'SELECT ' . corebb_admin_latest_users_optional_select($access['user_ip_check']) . ", $stateSql AS account_state" .
         ' FROM users u' . $whereSql .
         ' ORDER BY u.`id` DESC LIMIT ' . (int)$offset . ', ' . (int)$perPage,
         $archiveParams
@@ -198,18 +209,24 @@ function corebb_admin_latest_users_model(array $viewer, array $request): array
 
     $users = [];
     foreach ($rows as $row) {
-        $users[] = corebb_admin_latest_users_summary($row);
+        $user = corebb_admin_latest_users_summary($row);
+        $verb = $user['status_text'] === 'Banned' ? 'unban' : 'ban';
+        if ($access['moderation_' . $verb] && corebb_admin_mod_can_touch_user($viewer, $row, $verb)[0]) {
+            $param = $verb === 'unban' ? 'username' : 'q';
+            $user['moderation_url'] = '/admin/?act=moderation&mode=' . $verb . '&' . $param . '=' . rawurlencode($user['username']);
+        }
+        $users[] = $user;
     }
 
     return [
-        'viewer' => $viewer,
-        'viewer_accesslevel' => (int)($viewer['accesslevel'] ?? 0),
-        'title' => 'Latest Users',
+        'access' => $access,
+        'filter' => $filter,
+        'counts' => $counts,
         'users' => $users,
         'page' => $page,
         'per_page' => $perPage,
         'total' => $total,
         'total_pages' => $totalPages,
-        'message' => (string)($request['msg'] ?? ''),
+        'page_numbers' => corebb_compact_page_sequence($page, $totalPages),
     ];
 }

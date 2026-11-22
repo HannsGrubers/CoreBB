@@ -1,22 +1,22 @@
 {% include 'partials/admin_messages.twig' with {messages: model.messages|default([])} only %}
 {% set categories = model.categories|default([]) %}
 
-<div class="corebb-admin-modern-page">
-    <div class="corebb-admin-modern-header">
+<div class="admin-overview admin-settings board-dir-form">
+    <div class="admin-dash-heading">
         <div>
-            <div class="corebb-admin-modern-eyebrow">Manage Boards</div>
-            <h2>Add New Board</h2>
+            <div class="board-dir-parent"><a href="{{ url('/admin/?act=manageboards') }}">Manage Boards</a></div>
+            <h1>Add New Board</h1>
             <div class="corebb-admin-modern-meta">
                 <span>{{ categories|length|number_format }} categories available</span>
             </div>
         </div>
         <div class="corebb-admin-modern-actions">
-            <a class="corebb-board-action-link" href="/admin/?act=manageboards">Manage Boards</a>
+            <a href="{{ url('/admin/') }}?act=manageboards">Manage Boards</a>
         </div>
     </div>
 
     <div class="corebb-admin-modern-panel">
-        <form class="corebb-admin-modern-form" name="form1" method="post" action="/admin/?act=addboard">
+        <form class="admin-settings-form" name="form1" method="post" action="{{ url('/admin/') }}?act=addboard">
             {% include 'partials/csrf_field.twig' %}
             <div class="corebb-admin-modern-grid">
                 <label for="corebbBoardCategory">Category</label>
@@ -29,6 +29,11 @@
                 <label for="corebbBoardName">Full Board Name</label>
                 <input id="corebbBoardName" name="newboardname" type="text" value="{{ model.newboardname|default('') }}" size="50">
 
+                <label for="corebbBoardType">Board type</label>
+                <select id="corebbBoardType" name="board_type">
+                    <option value="discussion">Discussion</option>
+                    <option value="knowledge_base"{% if model.board_type|default('discussion') == 'knowledge_base' %} selected{% endif %}>Knowledge Base</option>
+                </select>
                 <label for="corebbBoardDescription">Full Board Description</label>
                 <textarea id="corebbBoardDescription" name="newboarddescription" cols="50" rows="6" wrap="soft">{{ model.newboarddescription|default('') }}</textarea>
 
@@ -48,8 +53,8 @@
                 </span>
 
                 <div class="corebb-admin-modern-submit corebb-admin-modern-full">
-                    <button class="corebb-board-action-link" type="submit" name="Submit" value="Add">Add Board</button>
-                    <a class="corebb-board-action-link" href="/admin/?act=manageboards">Return to Manage Boards</a>
+                    <button class="board-editor-button" type="submit" name="Submit" value="Add">Add Board</button>
+                    <a href="{{ url('/admin/') }}?act=manageboards">Return to Manage Boards</a>
                 </div>
             </div>
         </form>

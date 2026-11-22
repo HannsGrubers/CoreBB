@@ -1,0 +1,44 @@
+{% set base = '/admin/?act=user_appearance&section=presets' %}
+{% set item = model.item|default(null) %}
+{% include 'partials/admin_messages.twig' with {messages:model.messages,errors:model.errors} only %}
+<section class="appearance-library">
+    <header class="admin-member-head"><h2>Appearance presets</h2>{% if item %}<a href="{{ url(base) }}">New preset</a>{% endif %}</header>
+    {% for preset in model.presets %}
+    <a class="appearance-preset-row" href="{{ url(base ~ '&preset=' ~ preset.id) }}"{% if item.id|default(0) == preset.id %} aria-current="page"{% endif %}>
+        <strong>{{ preset.name }}</strong><span>{{ preset.members }} {{ preset.members == 1 ? 'member' : 'members' }}</span>
+    </a>
+    {% else %}<p>Create a named style to assign to members of this forum.</p>{% endfor %}
+</section>
+{% if model.token is defined %}
+<section class="admin-title-editor" aria-labelledby="preset-heading">
+    <header class="admin-member-head"><h2 id="preset-heading">{{ item ? 'Edit preset' : 'Create a preset' }}</h2></header>
+    <div class="appearance-workspace">
+        <section class="appearance-preview" aria-labelledby="appearance-preview-heading">
+            {% include 'partials/appearance_samples.twig' with {css:item.css|default(''),label:model.preset_name ?: 'Username'} only %}
+        </section>
+        <form method="post" id="appearance-editor" class="admin-settings-form" action="{{ url(base ~ '&preset=' ~ item.id|default(0)) }}">
+            {{ _self.fields(item, model.token, 'save_preset') }}
+            <div class="admin-auth-field"><label for="preset-name">Preset name</label>
+                <input id="preset-name" name="preset_name" value="{{ model.preset_name }}" required maxlength="80"></div>
+            {% include 'partials/appearance_style_fields.twig' with {values:model.preset_values} only %}
+            {% if item.members|default(0) %}<p>Saving updates the appearance of {{ item.members }} linked {{ item.members == 1 ? 'member' : 'members' }}.</p>{% endif %}
+            <div class="admin-settings-save"><button type="submit">{{ item ? 'Save preset' : 'Create preset' }}</button></div>
+        </form>
+    </div>
+    {% if item and item.members == 0 %}
+    <details class="admin-title-remove"><summary>Delete preset</summary><p>Delete “{{ item.name }}” from this forum?</p>
+        <form method="post" action="{{ url(base ~ '&preset=' ~ item.id) }}">
+            {{ _self.fields(item, model.token, 'delete_preset') }}
+            <button type="submit" class="admin-member-remove">Confirm deletion</button>
+        </form>
+    </details>{% endif %}
+</section>
+<script defer src="{{ asset('scripts/admin_user_appearance.js') }}"></script>
+{% endif %}
+{% macro fields(item, token, action) %}
+    {% include 'partials/csrf_field.twig' %}
+    <input type="hidden" name="action" value="{{ action }}">
+    <input type="hidden" name="preset_id" value="{{ item.id|default(0) }}">
+    <input type="hidden" name="preset_revision" value="{{ item.revision|default(0) }}">
+    <input type="hidden" name="user_appearance_token" value="{{ token }}">
+{% endmacro %}

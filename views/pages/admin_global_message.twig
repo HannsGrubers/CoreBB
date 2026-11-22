@@ -1,61 +1,66 @@
-{% set messages = model.messages|default([]) %}
-{% set current = model.message_value|default('') %}
-{% set globalMessages = model.global_messages|default([]) %}
-
-<div class="corebb-admin-modern-page">
-    <div class="corebb-admin-modern-header">
-        <div>
-            <div class="corebb-admin-modern-eyebrow">System</div>
-            <h2>Add Global Message</h2>
-            <div class="corebb-admin-modern-meta">
-                <span>{{ globalMessages|length|number_format }} current messages</span>
-            </div>
-        </div>
-        <div class="corebb-admin-modern-actions">
-            <a class="corebb-board-action-link" href="/admin/?act=edit_global_message">Edit Existing Messages</a>
-            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
-        </div>
-    </div>
-
-    {% include 'partials/admin_messages.twig' with {messages: messages} only %}
-
-    <div class="corebb-admin-modern-panel">
-        <form class="corebb-admin-modern-form" name="globalmessage" method="post" action="/admin/?act=global_message&amp;method=post">
-            {% include 'partials/csrf_field.twig' %}
-            <div class="corebb-admin-modern-grid">
-                <label for="message">Message Contents</label>
-                <span>
-                    <input name="message" type="text" id="message" size="75" maxlength="255" value="{{ current }}">
-                    <span class="corebb-admin-modern-help">Global messages appear in the board header for all users.</span>
-                </span>
-
-                <div class="corebb-admin-modern-submit corebb-admin-modern-full">
-                    <button class="corebb-board-action-link" type="submit" name="Submit" value="Add Message">Add Message</button>
-                    <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
-                    <a class="corebb-board-action-link" href="/admin/?act=edit_global_message">Edit Existing Messages</a>
+{% set page = '/admin/?act=global_messages' %}
+<div class="admin-overview admin-settings admin-announcements">
+    <header class="admin-dash-heading">
+        <div><h1>Global messages</h1><p class="admin-history-count">Announcements shown in the forum header.</p></div>
+        <a href="{{ url('/admin/') }}">Dashboard</a>
+    </header>
+    {% include 'partials/admin_messages.twig' with {messages: model.messages, errors: model.errors} only %}
+    {% if model.allowed.add %}
+        <details class="admin-announcement-compose"{% if model.adding or model.global_messages is empty %} open{% endif %}>
+            <summary>New message</summary>
+            <form class="admin-settings-form" action="{{ url(page) }}" method="post">
+                {% include 'partials/csrf_field.twig' %}
+                <input type="hidden" name="action" value="add">
+                <div class="admin-auth-field"><label for="global-new">Announcement text</label>
+                    <textarea id="global-new" name="message" rows="2" required aria-describedby="global-limit">{{ model.adding ? model.draft : '' }}</textarea>
+                    <small id="global-limit">Up to 255 characters. Publishing makes the message visible immediately.</small>
                 </div>
-            </div>
-        </form>
-    </div>
-
-    {% if globalMessages %}
-        <table class="corebb-admin-modern-table corebb-admin-global-message-table wb-table">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Message</th>
-                    <th>Poster</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for row in globalMessages %}
-                    <tr>
-                        <td>#{{ row.id|default(0) }}</td>
-                        <td>{{ row.message|default('') }}</td>
-                        <td><span class="corebb-admin-modern-help">{{ row.poster|default('') }}</span></td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+                <div class="admin-settings-save"><button type="submit">Publish message</button></div>
+            </form>
+        </details>
     {% endif %}
+    <section aria-labelledby="global-published">
+        <header class="admin-section-head"><h2 id="global-published">Published messages <span>({{ model.global_messages|length }})</span></h2></header>
+        {% if model.global_messages is empty %}
+            <p class="admin-history-count">No global messages are published.</p>
+        {% else %}
+        <ul class="admin-announcement-list">
+            {% for row in model.global_messages %}
+            <li id="message-{{ row.id }}">
+                <div class="admin-announcement-row">
+                    <div><p>{{ row.message }}</p><small>Posted by {{ row.poster|default('Unknown') }}</small></div>
+                    <div class="admin-announcement-actions">
+                        {% if model.allowed.edit and model.editing != row.id %}<a href="{{ url(page ~ '&edit=' ~ row.id ~ '#message-' ~ row.id) }}" aria-label="Edit message {{ row.id }}">Edit</a>{% endif %}
+                        {% if model.allowed.remove %}
+                        <details><summary aria-label="Remove message {{ row.id }}">Remove</summary>
+                            <form action="{{ url(page) }}" method="post">
+                                {% include 'partials/csrf_field.twig' %}
+                                <input type="hidden" name="action" value="remove">
+                                <input type="hidden" name="id" value="{{ row.id }}">
+                                <input type="hidden" name="revision" value="{{ row.revision }}">
+                                <p>Remove this message from the forum header?</p>
+                                <button type="submit">Confirm removal</button>
+                            </form>
+                        </details>
+                        {% endif %}
+                    </div>
+                </div>
+                {% if model.allowed.edit and model.editing == row.id %}
+                <form class="admin-settings-form" action="{{ url(page) }}" method="post">
+                    {% include 'partials/csrf_field.twig' %}
+                    <input type="hidden" name="action" value="edit">
+                    <input type="hidden" name="id" value="{{ row.id }}">
+                    <input type="hidden" name="revision" value="{{ row.revision }}">
+                    <div class="admin-auth-field"><label for="global-edit-{{ row.id }}">Edit message</label>
+                        <textarea id="global-edit-{{ row.id }}" rows="2" name="message" required aria-describedby="global-edit-limit">{{ model.draft ?? row.message }}</textarea>
+                        <small id="global-edit-limit">Up to 255 characters.</small>
+                    </div>
+                    <div class="admin-settings-save"><button type="submit">Save changes</button> <a href="{{ url(page ~ '#message-' ~ row.id) }}">Cancel</a></div>
+                </form>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </section>
 </div>

@@ -65,18 +65,14 @@ function corebb_admin_tool_url(string $toolKey): string
         'mail_services' => '/admin/?act=mail_services',
         'auth_settings' => '/admin/?act=auth_settings',
         'database_tools' => '/admin/?act=database_tools',
-        'db_schema_deploy' => '/admin/?act=db_schema_deploy',
         'updates' => '/admin/?act=updates',
         'api_explorer' => '/admin/?act=api_explorer',
         'forum_sim' => '/admin/?act=forum_sim',
-        'edit_tos' => '/admin/?act=edit_tos',
-        'edit_style' => '/admin/?act=edit_style',
+        'edit_tos' => '/admin/?act=edit_settings&section=terms',
         'edit_rights' => '/admin/?act=edit_rights',
         'change_user_password' => '/admin/?act=change_user_password',
         'add_user' => '/admin/?act=add_user',
-        'global_message' => '/admin/?act=global_message',
-        'edit_global_message' => '/admin/?act=edit_global_message',
-        'remove_global_message' => '/admin/?act=remove_global_message',
+        'global_messages' => '/admin/?act=global_messages',
         'pm_history' => '/admin/?act=pm_history',
         'manage_boards' => '/admin/?act=manageboards',
         'forum_statistics' => '/admin/?act=forum_statistics',
@@ -115,9 +111,9 @@ function corebb_admin_tool_url(string $toolKey): string
 function corebb_admin_nav_badges(array $viewer): array
 {
     return [
-        'mod_requests' => corebb_mod_requests_new_count($viewer),
-        'contact_mods' => corebb_contact_mods_new_count(false),
-        'pm_reports' => corebb_pm_reports_new_count(),
+        'mod_requests' => corebb_admin_can_access_tool($viewer, 'mod_requests') ? corebb_mod_requests_new_count($viewer) : 0,
+        'contact_mods' => corebb_admin_can_access_tool($viewer, 'contact_mods') ? corebb_contact_mods_new_count(false) : 0,
+        'pm_reports' => corebb_admin_can_access_tool($viewer, 'pm_reports') ? corebb_pm_reports_new_count() : 0,
     ];
 }
 
@@ -132,9 +128,8 @@ function corebb_admin_nav_group_definitions(): array
     return [
         'Overview' => ['admin_home', 'version_history'],
         'System' => [
-            'edit_settings', 'auth_settings', 'mail_services', 'edit_tos', 'edit_style', 'global_message',
-            'edit_global_message', 'remove_global_message', 'database_tools',
-            'db_schema_deploy', 'updates', 'api_explorer', 'forum_sim',
+            'edit_settings', 'auth_settings', 'mail_services', 'global_messages', 'database_tools',
+            'updates', 'api_explorer', 'forum_sim',
         ],
         'People' => [
             'user_pages', 'latest_users', 'edit_rights', 'add_user',
@@ -165,14 +160,20 @@ function corebb_admin_nav_groups(array $viewer, string $activeToolKey): array
 
     foreach (corebb_admin_nav_group_definitions() as $groupLabel => $toolKeys) {
         $items = [];
-        foreach ($toolKeys as $toolKey) {
-            if (!isset($toolMap[$toolKey]) || !corebb_admin_can_access_tool($viewer, $toolKey)) {
+        foreach ($toolKeys as $navKey) {
+            // The System Settings link opens Terms for a terms-only delegate.
+            $toolKey = match ($navKey) {
+                'global_messages' => corebb_admin_tool_key_for_request($navKey, [], $viewer),
+                'edit_settings' => corebb_admin_tool_key_for_request($navKey, ['section' => 'terms'], $viewer),
+                default => $navKey,
+            };
+            if (!corebb_admin_can_access_tool($viewer, $toolKey)) {
                 continue;
             }
             $items[] = [
-                'key' => $toolKey,
-                'label' => (string)$toolMap[$toolKey]['label'],
-                'url' => corebb_admin_tool_url($toolKey),
+                'key' => $navKey,
+                'label' => $navKey === 'global_messages' ? 'Global Messages' : (string)$toolMap[$navKey]['label'],
+                'url' => corebb_admin_tool_url($toolKey === 'edit_tos' ? 'edit_tos' : $navKey),
                 'active' => $toolKey === $activeToolKey,
                 'special' => corebb_admin_tool_is_special_access($viewer, $toolKey),
                 'badge' => max(0, (int)($badges[$toolKey] ?? 0)),
@@ -193,7 +194,7 @@ function corebb_admin_nav_groups(array $viewer, string $activeToolKey): array
  * @param array<string, mixed> $viewer Current admin user row.
  * @return array<int, array<string, string>> Alert rows.
  */
-function corebb_admin_layout_alerts(array $viewer): array
+function corebb_admin_layout_alerts(array $viewer, bool $includeGlobalMessages = true): array
 {
     $alerts = [];
     $msg = trim(str_replace('+', ' ', strip_tags((string)($_GET['msg'] ?? ''))));
@@ -209,6 +210,7 @@ function corebb_admin_layout_alerts(array $viewer): array
         $alerts[] = ['label' => 'Contact Mods Error', 'message' => (string)$message, 'type' => 'error'];
     }
 
+    if (!$includeGlobalMessages) { return $alerts; }
     foreach (db_all('SELECT id, message, poster FROM globalmessages ORDER BY id ASC') as $globalMessage) {
         $message = trim((string)($globalMessage['message'] ?? ''));
         if ($message !== '') {
@@ -272,7 +274,8 @@ function corebb_admin_layout_model(array $viewer, array $pageModel = [], array $
             'title' => 'CoreBB Admin - ' . $routeLabel,
             'body_class' => 'wb-admin-body',
             'staging' => defined('COREBB_ENV') && (string)COREBB_ENV === 'staging',
-            'stylesheets' => [corebb_theme_url('style_vn_eol.css'), corebb_theme_url('style_theme.css')],
+            'stylesheets' => [corebb_theme_url('style_vn_eol.css'), corebb_theme_url('style_theme.css'),
+                corebb_theme_url('style_admin.css?v=' . substr(hash_file('sha256', dirname(__DIR__, 2) . '/style_admin.css'), 0, 12))],
             'scripts' => [
                 corebb_theme_url('scripts/minmax.js'),
                 corebb_theme_url('scripts/repopulate2.js'),
@@ -299,11 +302,11 @@ function corebb_admin_layout_model(array $viewer, array $pageModel = [], array $
             'pm_unread' => $pmUnread,
             'notification_count' => $notificationCount,
         ],
-        'alerts' => corebb_admin_layout_alerts($viewer),
+        'alerts' => corebb_admin_layout_alerts($viewer, ($context['act'] ?? '') !== 'global_messages'),
         'special_access_notice' => (string)($pageModel['special_access_notice'] ?? ''),
         'footer' => [
             'stats' => corebb_admin_footer_stats(),
-            'version_label' => corebb_version_label(),
+            'version_label' => corebb_browser_version_label(),
             'copyright_start' => 2005,
             'copyright_year' => date('Y'),
             'copyright_name' => 'CoreBB',

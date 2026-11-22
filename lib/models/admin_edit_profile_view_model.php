@@ -64,35 +64,6 @@ function corebb_admin_edit_profile_limit_text(string $value, int $maxBytes): str
 }
 
 /**
- * Usage: Find the target user for the profile editor.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @param array $request Query/request values from admin.php.
- * @param array $post Posted form data from admin.php.
- * @return ?array Data row when found, otherwise null.
- */
-function corebb_admin_edit_profile_find_user(array $request, array $post): ?array
-{
-    $identifier = trim((string)(
-        $post['user']
-        ?? $post['username']
-        ?? $post['userid']
-        ?? $request['user']
-        ?? $request['username']
-        ?? $request['userid']
-        ?? $request['uid']
-        ?? ''
-    ));
-
-    if ($identifier === '') {
-        return null;
-    }
-
-    $identifier = corebb_admin_edit_profile_limit_text($identifier, 255);
-    return corebb_admin_find_user($identifier);
-}
-
-/**
  * Usage: Return the reason a profile target cannot be edited.
  * Referenced by: admin route handlers and helper chains in this file.
  *
@@ -121,107 +92,156 @@ function corebb_admin_edit_profile_target_error(array $viewer, ?array $target): 
     return '';
 }
 
-/**
- * Usage: Build a compact display summary for Twig.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @param array $user User row being displayed or edited.
- * @return array Data prepared for the admin template or caller.
- */
-function corebb_admin_edit_profile_user_summary(array $user): array
-{
-    $userId = (int)($user['id'] ?? 0);
-    $level = (int)($user['accesslevel'] ?? 0);
 
-    return [
-        'id' => $userId,
-        'username' => (string)($user['username'] ?? ''),
-        'profile_url' => '/profile/' . $userId . '/',
-        'accesslevel' => $level,
-        'level_name' => corebb_user_level_label($level),
-        'posts' => number_format((int)($user['posts'] ?? 0)),
-        'registered' => (string)($user['regdate'] ?? ''),
-    ];
+/** Group only editable public fields that exist on this installation. */
+function corebb_admin_edit_profile_sections(): array
+{
+    $definitions = array_column(corebb_profile_fields(true), null, 'key');
+    $definitions['gender']['maxlength'] = 64;
+    $definitions['birthday']['maxlength'] = 64;
+    $definitions['profpic'] = ['key'=>'profpic', 'label'=>'Picture URL', 'maxlength'=>255];
+    $definitions['bio'] = ['key'=>'bio', 'label'=>'Bio', 'maxlength'=>65535];
+    $columns = corebb_admin_table_columns('users');
+    $sections = [];
+    foreach ([
+        'personal' => ['Personal details', ['profiletitle', 'country', 'gender', 'birthday']],
+        'contact' => ['Work & contact', ['company', 'jobtitle', 'websiteurl', 'pubemail']],
+        'bio' => ['Picture & bio', ['profpic', 'bio']],
+    ] as $key => [$label, $names]) {
+        $fields = [];
+        foreach ($names as $name) {
+            if (isset($columns[$name], $definitions[$name])) {
+                $fields[$name] = $definitions[$name];
+            }
+        }
+        if ($fields) { $sections[$key] = ['label'=>$label, 'fields'=>$fields]; }
+    }
+    return $sections;
 }
 
-/**
- * Usage: Build and process the edit profile admin page model.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @param array $viewer Current admin user row.
- * @param array $request Query/request values from admin.php.
- * @param array $post Posted form data from admin.php.
- * @return array Data prepared for the admin template or caller.
- */
+function corebb_admin_edit_profile_revision(int $userId, array $values): string
+{
+    return hash('sha256', serialize([$userId, $values]));
+}
+
 function corebb_admin_edit_profile_model(array $viewer, array $request, array $post): array
 {
-    $model = corebb_admin_require_model_base($viewer, "Edit User's Profile", $request);
-    $model['mode'] = 'search';
-    $model['token'] = corebb_admin_edit_profile_token();
-    $model['search_value'] = trim((string)($post['user'] ?? $post['username'] ?? $post['userid'] ?? $request['user'] ?? $request['username'] ?? $request['userid'] ?? ''));
-    $model['fields'] = corebb_profile_fields();
-    $model['user'] = null;
-    $model['profile'] = [];
-
-    $isPost = ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST';
-    $method = (string)($request['method'] ?? ($post['method'] ?? ''));
-
-    if ($isPost && $method === 'save') {
-        if (!corebb_admin_edit_profile_token_ok($post)) {
-            $model['errors'][] = 'Security token expired. Please reload the page and try again.';
-            return $model;
-        }
-
-        $targetId = (int)($post['userid'] ?? 0);
-        $target = $targetId > 0 ? corebb_admin_find_user((string)$targetId) : null;
-        $targetError = corebb_admin_edit_profile_target_error($viewer, $target);
-
-        if ($targetError !== '') {
-            $model['errors'][] = $targetError;
-            return $model;
-        }
-
-        $ok = corebb_usercp_save_profile_from_array($targetId, $post);
-        if ($ok) {
-            {
-                corebb_adminlog_entry(
-                    (string)($viewer['username'] ?? 'Unknown'),
-                    (int)($viewer['accesslevel'] ?? 0),
-                    'Edited user profile: ' . $targetId,
-                    'edit_profile',
-                    'Edited user profile: ' . $targetId
-                );
-            }
-            $model['messages'][] = 'Profile updated for ' . (string)($target['username'] ?? ('User #' . $targetId)) . '.';
-        } else {
-            $model['errors'][] = 'Error updating profile: ' . db_error();
-        }
-
-        $target = corebb_admin_find_user((string)$targetId);
-        if ($target) {
-            $model['mode'] = 'edit';
-            $model['user'] = corebb_admin_edit_profile_user_summary($target);
-            $model['profile'] = corebb_usercp_load_profile($targetId);
-            $model['search_value'] = (string)($target['username'] ?? $targetId);
-        }
-
+    $model = ['user'=>null, 'errors'=>[], 'messages'=>[], 'saved'=>false, 'search_value'=>'',
+        'can_view_member'=>corebb_admin_can_access_tool($viewer, 'user_pages')];
+    if (!corebb_admin_can_access_tool($viewer, 'edit_profile')) {
+        $model['errors'][] = 'You do not have access to this tool.';
         return $model;
     }
+    $isPost = ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST';
+    $saving = $isPost && ($request['method'] ?? $post['method'] ?? '') === 'save';
+    if ($saving && (!corebb_security_csrf_valid($post) || !corebb_admin_edit_profile_token_ok($post))) {
+        $model['errors'][] = 'Your form expired. Find the member again.';
+        return $model;
+    }
+    $input = $saving ? ($post['userid'] ?? '') : ($post['user'] ?? $post['username'] ?? $post['userid'] ?? $request['user'] ?? $request['username'] ?? $request['userid'] ?? $request['uid'] ?? '');
+    $identifier = is_scalar($input) ? trim((string)$input) : '';
+    if ($saving && (!ctype_digit($identifier) || (isset($request['userid']) && (string)$request['userid'] !== $identifier))) {
+        $model['errors'][] = 'Find the member again before saving this profile.';
+        return $model;
+    }
+    if ($identifier === '') { return $model; }
+    $model['search_value'] = $identifier;
+    $target = corebb_admin_find_user(corebb_admin_edit_profile_limit_text($identifier, 255));
+    $error = corebb_admin_edit_profile_target_error($viewer, $target);
+    if ($error !== '') {
+        $model['errors'][] = $error;
+        return $model;
+    }
+    $id = (int)$target['id'];
+    $model['user'] = corebb_admin_user_summary($target);
+    $model['search_value'] = $target['username'];
+    $sections = corebb_admin_edit_profile_sections();
+    if (!$sections) {
+        $model['errors'][] = 'No editable profile fields are available on this installation.';
+        return $model;
+    }
+    $section = $request['section'] ?? array_key_first($sections);
+    if (!is_string($section) || !isset($sections[$section])) {
+        $model['errors'][] = 'Unknown profile section.';
+        return $model;
+    }
+    $model['sections'] = array_map(static fn($group) => $group['label'], $sections);
+    $model['section'] = $section;
+    $model['fields'] = $sections[$section]['fields'];
+    // A previously opened, single-page editor posts all fields without a section.
+    $allFields = array_merge(...array_values(array_column($sections, 'fields')));
+    $fields = $saving && !isset($request['section']) ? $allFields : $model['fields'];
+    $select = '`' . implode('`, `', array_keys($fields)) . '`';
+    $values = db_one('SELECT ' . $select . ' FROM users WHERE id = ?', [$id]);
+    if (!$values) {
+        $model['errors'][] = 'Could not load the profile fields.';
+        return $model;
+    }
+    $model['profile'] = array_intersect_key($values, $model['fields']);
+    $model['revision'] = corebb_admin_edit_profile_revision($id, $model['profile']);
+    $model['token'] = corebb_admin_edit_profile_token();
+    if (!$saving) { return $model; }
 
-    if (($isPost && $method === 'view') || (!$isPost && ($model['search_value'] !== ''))) {
-        $target = corebb_admin_edit_profile_find_user($request, $post);
-        $targetError = corebb_admin_edit_profile_target_error($viewer, $target);
-        if ($targetError !== '') {
-            $model['errors'][] = $targetError;
+    $input = array_intersect_key($post, $allFields);
+    if (!$input || array_diff_key($input, $fields) || array_filter($input, static fn($value) => !is_string($value))) {
+        $model['errors'][] = 'The submitted fields do not match this profile form.';
+        return $model;
+    }
+    if (isset($request['section']) && ($post['revision'] ?? null) !== $model['revision']) {
+        $model['errors'][] = 'This profile changed after you opened it. Review the current values before saving.';
+        return $model;
+    }
+    $changes = [];
+    foreach ($input as $key => $value) {
+        if (str_replace("\r\n", "\n", $value) !== str_replace("\r\n", "\n", (string)$values[$key])) {
+            $changes[$key] = $value;
+        }
+    }
+    if (!$changes) {
+        $model['messages'][] = 'No profile changes to save.';
+        return $model;
+    }
+    $model['profile'] = array_replace($model['profile'], array_intersect_key($input, $model['fields']));
+    foreach ($changes as $key => $value) {
+        $clean = trim(strip_tags($value));
+        $max = $fields[$key]['maxlength'];
+        if ($key === 'bio' ? strlen($clean) > $max : !preg_match('/\A.{0,' . $max . '}\z/us', $clean)) {
+            $label = rtrim($fields[$key]['label'], ':');
+            $model['errors'][] = $label . ' exceeds the field limit of ' . $max . ($key === 'bio' ? ' bytes.' : ' characters.');
+        }
+    }
+    if ($model['errors']) { return $model; }
+    corebb_admin_tool_permissions_ensure_schema();
+    if (!db_begin()) {
+        $model['errors'][] = 'Could not start the profile save.';
+        return $model;
+    }
+    try {
+        $actorId = corebb_admin_viewer_id($viewer);
+        $lock = corebb_db_connection()->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql' ? ' FOR UPDATE' : '';
+        $rows = db_all('SELECT id, username, accesslevel FROM users WHERE id IN (?, ?) ORDER BY id' . $lock, [$actorId,$id]);
+        $users = array_column($rows, null, 'id');
+        $actor = $users[$actorId] ?? [];
+        corebb_admin_user_granted_tool_keys($actorId, true);
+        if (!$actor || db_error() !== '' || !corebb_admin_can_access_tool($actor, 'edit_profile')
+            || corebb_admin_edit_profile_target_error($actor, $users[$id] ?? null) !== '') {
+            return ['user'=>null,'errors'=>['You can no longer edit this profile.'],'saved'=>false];
+        }
+        $current = db_one('SELECT ' . $select . ' FROM users WHERE id = ?', [$id]);
+        if ($current !== $values) {
+            // A new GET will pick up both a fresh snapshot and matching revision.
+            $model['errors'][] = 'The profile changed while saving. Reopen this section before trying again.';
             return $model;
         }
-
-        $targetId = (int)($target['id'] ?? 0);
-        $model['mode'] = 'edit';
-        $model['user'] = corebb_admin_edit_profile_user_summary($target);
-        $model['profile'] = corebb_usercp_load_profile($targetId);
-        $model['search_value'] = (string)($target['username'] ?? $targetId);
+        if (!corebb_usercp_save_profile_from_array($id, $changes, true) || !db_commit()) {
+            $model['errors'][] = 'Could not save the profile changes. Please try again.';
+            return $model;
+        }
+    } finally {
+        if (corebb_db_connection()->inTransaction()) { db_rollback(); }
     }
-
+    corebb_adminlog_viewer($actor, 'Edited profile for ' . $target['username'] . ' (#' . $id . ')', 'edit_profile', implode(', ', array_keys($changes)));
+    $model['saved'] = true;
+    $model['messages'][] = 'Profile updated for ' . $target['username'] . '.';
     return $model;
 }

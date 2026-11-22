@@ -22,6 +22,7 @@ if (!defined('COREBB_VIP_STYLE_HELPERS_LOADED')) {
 }
 
 const COREBB_VIP_APPEARANCE_SELF_TOOL = 'vip_appearance_self';
+require_once __DIR__ . '/appearance_preset_schema.php';
 
 /**
  * Escape a value for use inside a VIP style attribute.
@@ -204,6 +205,12 @@ function corebb_vip_style_values_from_post(array $post): array
     ];
 }
 
+function corebb_user_can_view_appearance(int $userId): bool
+{
+    return corebb_vip_style_user_can_self_manage($userId) || ($userId > 0 && corebb_vip_style_column_exists('appearance_preset_id')
+        && db_exists('SELECT 1 FROM users WHERE id=? AND appearance_preset_id IS NOT NULL', [$userId]));
+}
+
 /**
  * Build normalized VIP style values from a user row.
  *
@@ -344,35 +351,31 @@ function corebb_vip_style_save_user(int $userId, array $post, bool $requireSelfE
         ];
     }
 
-    $styleAttr = corebb_vip_style_attr_from_values($values);
-
-    $ok = db_run(
-        "UPDATE users
-            SET vip_bg_color = ?,
-                vip_text_color = ?,
-                vip_strike = ?,
-                vip_bold = ?,
-                vip_italic = ?,
-                vip_border = ?,
-                vip_border_color = ?,
-                style = ?
-          WHERE id = ?",
-        [
-            $values['vip_bg_color'],
-            $values['vip_text_color'],
-            $values['vip_strike'],
-            $values['vip_bold'],
-            $values['vip_italic'],
-            $values['vip_border'],
-            $values['vip_border_color'],
-            $styleAttr,
-            $userId,
-        ]
-    );
-
-    if (!$ok) {
-        return ['ok' => false, 'message' => 'Database error saving VIP style: ' . db_error()];
+    if (!corebb_appearance_presets_prepare_schema()
+        || !corebb_appearance_write_values($values, $userId, false)) {
+        return ['ok' => false, 'message' => 'Could not save the username appearance.'];
+    }
+    if (corebb_db_last_affected_rows() === 0 && db_value('SELECT appearance_preset_id FROM users WHERE id = ?', [$userId])) {
+        return ['ok' => false, 'message' => 'Staff manage this username with an appearance preset.'];
     }
 
     return ['ok' => true, 'message' => !empty($post['clear_vip_style']) ? 'Username appearance cleared.' : 'Username appearance saved.'];
+}
+
+/** Keep structured fields and the legacy style attribute in sync for both write paths. */
+function corebb_appearance_write_values(array $values, int $id, bool $linkedMembers, ?int $assignPreset = null): bool
+{
+    $where = $linkedMembers ? 'appearance_preset_id = ?' : 'id = ?';
+    $params = [$values['vip_bg_color'], $values['vip_text_color'], $values['vip_strike'], $values['vip_bold'],
+        $values['vip_italic'], $values['vip_border'], $values['vip_border_color'], corebb_vip_style_attr_from_values($values)];
+    $assignment = '';
+    if ($assignPreset !== null) {
+        $assignment = ', appearance_preset_id=?';
+        $params[] = $assignPreset;
+    } elseif (!$linkedMembers) {
+        $where .= ' AND appearance_preset_id IS NULL';
+    }
+    $params[] = $id;
+    return db_run("UPDATE users SET vip_bg_color=?, vip_text_color=?, vip_strike=?, vip_bold=?,
+        vip_italic=?, vip_border=?, vip_border_color=?, style=? $assignment WHERE $where", $params);
 }

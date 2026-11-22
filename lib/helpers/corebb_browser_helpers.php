@@ -26,3 +26,12 @@ require_once __DIR__ . '/pagination_helpers.php';
 require_once __DIR__ . '/admin_log_helpers.php';
 require_once __DIR__ . '/private_board_helpers.php';
 require_once __DIR__ . '/corebb_forum_helpers.php';
+
+function corebb_browser_version_label(): string
+{
+    if (defined('COREBB_ENV') && COREBB_ENV === 'staging' && COREBB_VERSION === '1.0.0') {
+        $installed = (string)db_value('SELECT setting FROM systemsettings WHERE name=? ORDER BY id LIMIT 1', ['installed_version'], '');
+        return $installed !== '' ? 'CoreBB v' . $installed . ' · Development preview' : 'CoreBB Development preview';
+    }
+    return corebb_version_label();
+}

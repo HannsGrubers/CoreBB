@@ -18,6 +18,7 @@
  +-------------------------------------------------------+*/
 
 require_once __DIR__ . '/admin_user_tools_view_model.php';
+require_once __DIR__ . '/../helpers/admin_board_filter_helpers.php';
 
 /**
  * Usage: Normalize input before it is displayed or saved.
@@ -36,22 +37,6 @@ function corebb_spam_ratings_limit_int($value, int $default, int $min, int $max)
         return $default;
     }
     return max($min, min($max, (int)$value));
-}
-
-/**
- * Usage: Fetch boards available to the spam-ratings report.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @return array Data prepared for the admin template or caller.
- */
-function corebb_spam_ratings_boards(): array
-{
-    return db_all(
-        'SELECT f.id, f.name, b.name AS category_name
-           FROM forums f
-           LEFT JOIN boards b ON b.id = f.categoryid
-          ORDER BY b.position ASC, f.position ASC, f.name ASC'
-    );
 }
 
 /**
@@ -301,7 +286,7 @@ function corebb_spam_ratings_user_style_select(string $alias = 'u'): string
 function corebb_spam_ratings_fetch_posts(int $boardId, int $startUnix, int $endUnix): array
 {
     $timeExpr = corebb_spam_ratings_post_time_expr();
-    $userCols = corebb_admin_user_select_list('u');
+    $userCols = corebb_admin_select_columns('users', ['username','posts','regdate'], 'u');
     $userStyleCols = corebb_spam_ratings_user_style_select('u');
     $postColumns = corebb_admin_table_columns('posts');
     $editSelect = [];
@@ -318,7 +303,7 @@ function corebb_spam_ratings_fetch_posts(int $boardId, int $startUnix, int $endU
                 {$userStyleCols},
                 {$userCols}
            FROM posts p
-           INNER JOIN topics t ON t.id = p.threadid
+           INNER JOIN topics t ON t.id = p.threadid AND t.boardid = p.boardid
            LEFT JOIN users u ON u.id = p.posterid
           WHERE p.boardid = ?
             AND " . corebb_spam_ratings_visible_clause('posts', 'p') . "
@@ -424,25 +409,24 @@ function corebb_spam_ratings_poll_lines(array $topicIds): array
  * Usage: Generate the spam-ratings report for a board and time period.
  * Referenced by: admin route handlers and helper chains in this file.
  *
- * @param int $boardId Board id.
+ * @param array $board Board selected from the viewer's visible board list.
  * @param int $periodDays Analysis period in days.
  * @return array Data prepared for the admin template or caller.
  */
-function corebb_spam_ratings_generate(int $boardId, int $periodDays): array
+function corebb_spam_ratings_generate(array $board, int $periodDays): array
 {
-    $board = db_one('SELECT f.id, f.name, b.name AS category_name FROM forums f LEFT JOIN boards b ON b.id = f.categoryid WHERE f.id = ? LIMIT 1', [$boardId]);
-    if (!$board) {
-        return ['ok' => false, 'bbcode' => '', 'message' => 'Unknown board selected.'];
-    }
-
+    $boardId = (int)$board['id'];
     $periodDays = max(1, min(365, $periodDays));
     $endUnix = time();
     $startUnix = $endUnix - ($periodDays * 86400);
     $posts = corebb_spam_ratings_fetch_posts($boardId, $startUnix, $endUnix);
+    if (db_error() !== '') { return ['errors'=>['Could not read posts for this report.']]; }
     $topics = corebb_spam_ratings_fetch_topics($boardId, $startUnix, $endUnix);
 
+    if (db_error() !== '') { return ['errors'=>['Could not read topics for this report.']]; }
+    $report = ['board_name'=>$board['name'], 'range'=>date('M j, Y',$startUnix) . ' – ' . date('M j, Y',$endUnix)];
     if (!$posts) {
-        return ['ok' => true, 'bbcode' => '', 'message' => 'No visible posts were found for this board and period.'];
+        return $report + ['empty'=>true];
     }
 
     $stats = [];
@@ -518,14 +502,14 @@ function corebb_spam_ratings_generate(int $boardId, int $periodDays): array
             if ($editTs > 0 && $editTs < $startUnix) {
                 continue;
             }
-            $editor = db_one('SELECT ' . corebb_admin_user_select_list('u') . ', ' . corebb_spam_ratings_user_style_select('u') . ' FROM users u WHERE u.id = ? LIMIT 1', [$editorId]);
+            $editor = db_one('SELECT ' . corebb_admin_select_columns('users', ['username','posts','regdate'], 'u') . ', ' . corebb_spam_ratings_user_style_select('u') . ' FROM users u WHERE u.id = ? LIMIT 1', [$editorId]);
             if ($editor) {
                 $stats[$editorId] ??= ['id' => $editorId, 'username' => (string)($editor['username'] ?? ('User ' . $editorId)), 'period_posts' => 0, 'topics_started' => 0, 'first_replies' => 0, 'thread_killers' => 0, 'lonely_threads' => 0, 'short_posts' => 0, 'mod_edits' => 0, 'keeper_replies' => 0, 'popular_thread_replies' => 0, 'total_posts' => (int)($editor['posts'] ?? 0), 'age_days' => corebb_spam_ratings_parse_user_age_days($editor)];
                 foreach (['vip_bg_color', 'vip_text_color', 'vip_bold', 'vip_italic'] as $styleKey) {
                     $stats[$editorId][$styleKey] = $editor[$styleKey] ?? '';
                 }
+                $stats[$editorId]['mod_edits']++;
             }
-            $stats[$editorId]['mod_edits']++;
         }
     }
 
@@ -634,7 +618,17 @@ function corebb_spam_ratings_generate(int $boardId, int $periodDays): array
         $lines[] = 'Threads as first replier: ' . number_format((int)$row['first_replies']) . '; Mod edits: ' . number_format((int)$row['mod_edits']) . '. (Rank: ' . number_format((int)($rank[(int)$row['id']] ?? 0)) . ')';
     }
 
-    return ['ok' => true, 'bbcode' => implode("\n", $lines), 'message' => 'Spam Ratings BBCode generated.'];
+    $leaders = [];
+    foreach ($topPeriod as $row) {
+        if ($row['period_posts'] > 0) {
+            $leaders[] = ['name'=>$row['username'] ?: 'User ' . $row['id'], 'posts'=>$row['period_posts'],
+                'per_day'=>$row['period_posts'] / $periodDays];
+        }
+    }
+    return $report + [
+        'bbcode'=>implode("\n", $lines), 'leaders'=>$leaders, 'posts'=>$totalPosts,
+        'posters'=>$uniqueUsers, 'topics'=>$topicCount, 'per_day'=>$boardAvg,
+    ];
 }
 
 /**
@@ -648,7 +642,10 @@ function corebb_spam_ratings_generate(int $boardId, int $periodDays): array
  */
 function corebb_admin_spam_ratings_model(array $viewer, array $request, array $post): array
 {
-    $unit = (string)($request['unit'] ?? $post['unit'] ?? 'days');
+    if (corebb_admin_viewer_id($viewer) <= 0 || !corebb_admin_can_access_tool($viewer,'spam_ratings')) {
+        return ['errors'=>['You do not have access to Spam Ratings.']];
+    }
+    $unit = $request['unit'] ?? $post['unit'] ?? 'days';
     if (!in_array($unit, ['days', 'weeks'], true)) {
         $unit = 'days';
     }
@@ -657,9 +654,7 @@ function corebb_admin_spam_ratings_model(array $viewer, array $request, array $p
     $periodDays = $unit === 'weeks' ? ($period * 7) : $period;
     $boardId = corebb_spam_ratings_limit_int($request['board'] ?? $post['board'] ?? 0, 0, 0, 2147483647);
     $model = [
-        'viewer' => $viewer,
-        'viewer_accesslevel' => (int)($viewer['accesslevel'] ?? 0),
-        'boards' => corebb_spam_ratings_boards(),
+        'boards' => corebb_admin_board_filter_options($viewer),
         'selected_board' => $boardId,
         'period' => $period,
         'unit' => $unit,
@@ -670,16 +665,11 @@ function corebb_admin_spam_ratings_model(array $viewer, array $request, array $p
     ];
 
     if ($boardId > 0) {
-        $result = corebb_spam_ratings_generate($boardId, $periodDays);
-        if (!empty($result['ok'])) {
-            $model['bbcode'] = (string)($result['bbcode'] ?? '');
-            if (($result['message'] ?? '') !== '') {
-                $model['messages'][] = (string)$result['message'];
-            }
-        } else {
-            $model['errors'][] = (string)($result['message'] ?? 'Unable to generate Spam Ratings.');
+        if (!isset($model['boards'][$boardId])) {
+            $model['errors'][] = 'Choose a board you can view.';
+            return $model;
         }
+        $model = array_replace($model, corebb_spam_ratings_generate($model['boards'][$boardId], $periodDays));
     }
-
     return $model;
 }

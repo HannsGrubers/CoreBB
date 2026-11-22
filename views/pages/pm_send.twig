@@ -1,5 +1,5 @@
 <script src="{{ asset('scripts/posttoolbar.js') }}" id="posttoolbar_main"></script>
-<script type="text/javascript">
+<script nonce="{{ csp_nonce() }}" type="text/javascript">
 var wbPmSubmitted = false;
 function wbPmSubmitGuard(form){
     if (wbPmSubmitted) {
@@ -60,7 +60,7 @@ function brn_fnUnselectable(oElement){ }
 <div class="wb-pm-page">
 {% include 'partials/pm_folder_counts.twig' with {counts: model.counts|default({}), active: 'send'} only %}
 
-<form class="wb-pm-form" name="frmMain" id="frmMain" method="post" action="/private-messages/send/" onsubmit="return wbPmSubmitGuard(this);" style="margin:0; padding:0;">
+<form class="wb-pm-form" name="frmMain" id="frmMain" method="post" action="/private-messages/send/" data-forum-submit="pm" style="margin:0; padding:0;">
 {% include 'partials/csrf_field.twig' %}
 <table class="wb-pm-form-table wb-cellpad-0 wb-cellspace-1 wb-table" style="width: 100%;">
     <tr class="BoardRowB">
@@ -99,7 +99,7 @@ function brn_fnUnselectable(oElement){ }
         <td class="BoardRowA wb-text-right wb-valign-top"><span class="InputSection">Message Body:&nbsp;</span></td>
         <td class="BoardRowB">
             <span class="InputNotes">Required Input.</span><br>
-            <textarea name="message_body" id="message_body" wrap="soft" cols="60" rows="17" style="width: 100%;" onselect="pst_fnSaveCaret(this);" onkeyup="pst_fnSaveCaret(this);" onclick="pst_fnSaveCaret(this);"></textarea>
+            <textarea name="message_body" id="message_body" wrap="soft" cols="60" rows="17" style="width: 100%;" data-forum-caret data-forum-action="caret"></textarea>
             <input type="hidden" name="from_send" value="1">
         </td>
     </tr>

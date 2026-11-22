@@ -108,6 +108,7 @@ CREATE TABLE `favoriteboards` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `forums` (
+  `board_type` varchar(20) NOT NULL DEFAULT 'discussion',
   `categoryid` int(11) NOT NULL DEFAULT '0',
   `description` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `edittimer` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
@@ -292,6 +293,10 @@ CREATE TABLE `systemstyles` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `topics` (
+  `kb_summary` varchar(255) NOT NULL DEFAULT '',
+  `kb_category` varchar(80) NOT NULL DEFAULT '',
+  `kb_versions` varchar(100) NOT NULL DEFAULT '',
+  `kb_verified` date DEFAULT NULL,
   `boardid` int(11) NOT NULL DEFAULT '0',
   `body` text COLLATE utf8mb4_unicode_ci,
   `id` int(11) NOT NULL,
@@ -330,7 +335,18 @@ CREATE TABLE `unban_requests` (
   `resolved_at` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT ''
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE `appearance_presets` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(80) NOT NULL,
+  `settings` text NOT NULL,
+  `revision` int NOT NULL DEFAULT 1,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `name` (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE `users` (
+  `appearance_preset_id` int DEFAULT NULL,
+  KEY `idx_appearance_preset` (`appearance_preset_id`),
   `BoardPages` int(11) NOT NULL DEFAULT '0',
   `LockedBlog` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `ThreadPages` int(11) NOT NULL DEFAULT '0',

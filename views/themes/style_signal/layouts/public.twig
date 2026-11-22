@@ -1,0 +1,53 @@
+{% extends '@shared/layouts/public.twig' %}
+{% block forum_shell %}
+<div id="Container" class="signal-shell">
+    <header class="signal-toolbar">
+        <a class="signal-wordmark" href="{{ layout.chrome.site_url }}" aria-label="CoreBB · {{ layout.chrome.site_name }}">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 4H3v17l5-5h13z M7 8h10 M7 12h6"/></svg>Core<span>BB</span>
+        </a>
+        <nav aria-label="Forum navigation">
+            <a href="{{ layout.chrome.board_url }}">Boards</a>
+            <a href="{{ layout.menu.blogs_url }}">Blogs</a>
+        </nav>
+        <div class="signal-account">
+            {% if layout.viewer.logged_in %}
+                {% if layout.menu.notification_count %}<a href="{{ url('/notifications/') }}">{{ layout.menu.notification_count }} new notification{{ layout.menu.notification_count == 1 ? '' : 's' }}</a>{% endif %}
+                <a href="{{ layout.menu.pm_url }}">Messages{% if layout.menu.pm_unread %} ({{ layout.menu.pm_unread }}){% endif %}</a>
+                <details class="signal-account-menu"><summary>{{ layout.viewer.username }}</summary>
+                    <div>
+                        <a href="{{ layout.viewer.profile_url }}">Profile</a>
+                        <a href="{{ layout.menu.usercp_url }}">User CP</a>
+                        {% if layout.menu.admin_visible %}<a href="{{ layout.menu.admin_url }}">Admin</a>{% endif %}
+                        <form method="post" action="{{ layout.menu.logout_url }}">{% include 'partials/csrf_field.twig' %}<button type="submit" class="wb-link-submit">Log off</button></form>
+                    </div>
+                </details>
+            {% else %}
+                <a href="{{ layout.menu.login_url }}">Log in</a><a class="signal-register" href="{{ layout.menu.register_url }}">Register</a>
+            {% endif %}
+        </div>
+    </header>
+    {% include 'partials/signal_header.twig' with {layout: layout} only %}
+    <div class="signal-content">
+        {% if layout.breadcrumbs|length > 1 %}
+            <nav class="signal-crumbs" aria-label="Breadcrumb"><a href="{{ layout.chrome.board_url }}">Boards</a>
+                {% include 'partials/public_breadcrumbs.twig' with {breadcrumbs: layout.breadcrumbs} only %}
+            </nav>
+        {% endif %}
+        {% for alert in layout.alerts %}
+            <p class="signal-notice"><strong>{{ alert.label }}</strong> {{ alert.message }}{% if alert.poster %} · {{ alert.poster }}{% endif %}</p>
+        {% endfor %}
+        {{ content|raw }}
+    </div>
+    <footer class="signal-footer">
+        <nav aria-label="Forum resources">
+            <a href="{{ layout.chrome.site_url }}">{{ layout.chrome.site_name }}</a>
+            <a href="{{ layout.menu.rules_url }}">Board rules / FAQ</a>
+            <a href="{{ layout.menu.contact_mods_url }}">{{ layout.menu.contact_mods_label }}</a>
+            <a href="{{ layout.footer.security_url }}">Security</a>
+        </nav>
+        <small>{{ layout.footer.version_label }} · © {{ layout.footer.copyright_start }}–{{ layout.footer.copyright_year }} {{ layout.footer.copyright_name }}</small>
+    </footer>
+    {% include 'partials/public_theme_script.twig' %}
+    {% if layout.footer.debug_allowed %}{% include 'partials/public_debug.twig' with {rows: layout.footer.debug_rows} only %}{% endif %}
+</div>
+{% endblock %}

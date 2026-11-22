@@ -1,0 +1,27 @@
+{% extends '@shared/pages/board.twig' %}
+{% block board_header %}
+    <header class="signal-board-heading"><h1>{{ model.boardName }}</h1>{% if model.boardDescription %}<p>{{ model.boardDescription }}</p>{% endif %}</header>
+{% endblock %}
+{% block board_topics %}
+    {% if not model.topicCount %}{{ parent() }}{% else %}
+        <ul class="signal-topic-feed" aria-label="Topics">
+        {% for topic in model.topics %}
+            <li>
+                <div>
+                    <h2><a href="{{ topic.thread_url }}">{{ topic.subject|default(topic.title|default('Untitled topic')) }}</a></h2>
+                    <div class="signal-topic-meta">
+                        {% if topic.is_sticky %}<strong>Pinned</strong>{% endif %}{% if topic.has_poll %}<strong>Poll</strong>{% endif %}{% if topic.is_locked %}<strong>Locked</strong>{% endif %}
+                        <span>Started by {% include 'partials/user_name.twig' with {user: user_name_model(topic.poster_id|default(0), topic.poster_name|default(''))} only %}</span>
+                        {% if topic.topic_pages.visible %}<span>Pages {% for item in topic.topic_pages.items %}{% if item.type == 'ellipsis' %} … {% else %} <a href="{{ item.url }}">{{ item.page }}</a> {% endif %}{% endfor %}</span>{% endif %}
+                    </div>
+                </div>
+                <span>{{ topic.reply_count|default(0) }} {{ topic.reply_count == 1 ? 'reply' : 'replies' }}</span>
+                <div class="signal-topic-latest">
+                    <a href="{{ topic.last_post_url }}">{{ topic.last_post_display|default('—') }}</a>
+                    {% if topic.last_poster_id or topic.last_poster_name %}<span>by {% include 'partials/user_name.twig' with {user: user_name_model(topic.last_poster_id|default(0), topic.last_poster_name|default(''))} only %}</span>{% endif %}
+                </div>
+            </li>
+        {% endfor %}
+        </ul>
+    {% endif %}
+{% endblock %}

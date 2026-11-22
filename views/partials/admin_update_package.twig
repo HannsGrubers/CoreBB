@@ -1,0 +1,68 @@
+{% set package = model.package %}
+{% set preview = model.preview %}
+{% set action_url = url(page ~ '&section=package') %}
+{% if package %}
+<section aria-labelledby="package-title">
+    <header class="admin-section-head">
+        <div><h2 id="package-title">Validated package · {{ package.version }}</h2>
+            <p class="admin-history-count">{{ package.release_type }} · {% if package.zip_source %}{{ package.zip_source == 'official' ? 'Official sideload' : 'Uploaded ZIP' }} · {% endif %}{{ package.file_count }} files checked</p>
+        </div>
+        {% if model.can_manage and not preview %}
+            <form class="admin-settings-save" method="post" action="{{ action_url }}">
+                {% include 'partials/csrf_field.twig' %}<input type="hidden" name="action" value="preview_package">
+                <button type="submit">Generate preview</button>
+            </form>
+        {% endif %}
+    </header>
+    <details class="admin-update-disclosure"><summary>Package details</summary>
+        <dl class="admin-mail-envelope">
+            <dt>Installed version at validation</dt><dd>{{ package.installed_version }}</dd>
+            <dt>Target schema</dt><dd>{{ package.schema_version }}</dd>
+            <dt>Copy root</dt><dd>{{ package.copy_root }}</dd>
+            <dt>Files hashed</dt><dd>{{ package.hash_count }}</dd>
+            {% if package.zip_sha256 %}<dt>ZIP SHA-256</dt><dd><code>{{ package.zip_sha256 }}</code></dd>{% endif %}
+            <dt>Replace paths</dt><dd>{{ package.replace|join(', ') }}</dd>
+            <dt>Obsolete files</dt><dd>{{ package.delete_files is empty ? 'None' : package.delete_files|join(', ') }}</dd>
+        </dl>
+    </details>
+</section>
+{% endif %}
+{% if preview %}
+<section class="admin-upgrade-preview" aria-labelledby="preview-title">
+    <header><h2 id="preview-title">Upgrade preview</h2><p class="admin-history-count">{{ preview.installed_version }} → <strong>{{ preview.package_version }}</strong> · {{ preview.release_type }} · Target schema {{ preview.schema_version }}</p></header>
+    {% for label, paths in {'Paths to replace': preview.replace_paths, 'Paths to preserve': preview.preserve_paths, 'Obsolete files to delete': preview.delete_files, 'Migrations': preview.migrations} %}
+        {% if paths %}<details class="admin-update-paths"><summary>{{ label }} ({{ paths|length }})</summary><ul>{% for path in paths %}<li><code>{{ path }}</code></li>{% endfor %}</ul></details>
+        {% else %}<p class="admin-history-count">{{ label }} · None</p>{% endif %}
+    {% endfor %}
+    <h3>Preflight checks</h3>
+    <ul class="admin-preflight">
+        {% for check in preview.preflight %}
+            <li><strong class="{{ check.ok ? 'is-ok' : 'is-blocked' }}">{{ check.ok ? 'Passed' : 'Needs attention' }}</strong>
+                <span>{{ check.label }}{% if check.detail %}<small>{{ check.detail }}</small>{% endif %}</span>
+            </li>
+        {% endfor %}
+    </ul>
+    {% if model.can_manage %}
+    <form class="admin-settings-form" method="post" action="{{ action_url }}">
+        {% include 'partials/csrf_field.twig' %}<input type="hidden" name="action" value="apply_package">
+        {% if package.zip_sha256 %}<input type="hidden" name="package_sha256" value="{{ package.zip_sha256 }}">{% endif %}
+        <label class="admin-auth-option"><input type="checkbox" name="backup_confirmed" value="1" required> I have backed up the CoreBB files and database.</label>
+        <div class="admin-settings-save"><button type="submit"{% if not preview.ok or model.lock.exists %} disabled{% endif %}>Apply upgrade to {{ preview.package_version }}</button></div>
+        <p class="admin-history-count">The forum enters maintenance while the updater applies files and migrations and clears the cache.</p>
+    </form>
+    {% endif %}
+</section>
+{% endif %}
+{% if model.can_manage %}
+<details class="admin-update-disclosure admin-upload"{% if not package or model.errors %} open{% endif %}>
+    <summary>{{ package ? 'Upload another package' : 'Upload a package' }}</summary>
+    <form class="admin-settings-form" enctype="multipart/form-data" method="post" action="{{ action_url }}">
+        {% include 'partials/csrf_field.twig' %}<input type="hidden" name="action" value="upload_package">
+        <div class="admin-auth-field"><label for="update-zip">Package ZIP</label>
+            <input id="update-zip" type="file" name="update_package" accept=".zip,application/zip,application/x-zip-compressed" required aria-describedby="update-upload-help"{% if not model.zip_available %} disabled{% endif %}>
+            <small id="update-upload-help">{% if model.zip_available %}Up to {{ model.package_max_mb }} MB. CoreBB checks the ZIP against the signed catalog before staging it privately.{% else %}Enable the PHP ZIP extension to use update packages.{% endif %}</small>
+        </div>
+        <div class="admin-settings-save"><button type="submit"{% if not model.zip_available %} disabled{% endif %}>Upload and validate</button></div>
+    </form>
+</details>
+{% elseif not package %}<p>No validated package is available for review.</p>{% endif %}

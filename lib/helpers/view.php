@@ -54,12 +54,25 @@ function corebb_twig_view_path(string $view): string
  * Usage: Create and cache the Twig environment plus CoreBB template functions.
  * Referenced by: corebb_render() and corebb_render_public().
  */
-function corebb_twig(): \Twig\Environment
+function corebb_twig(bool $cacheTemplates = true, string $publicStyle = ''): \Twig\Environment
 {
-    static $twig = null;
-
-    if ($twig instanceof \Twig\Environment) {
-        return $twig;
+    static $environments = [];
+    $views = __DIR__ . '/../../views';
+    $themeRoot = null;
+    if ($publicStyle !== '') {
+        require_once __DIR__ . '/public_style_helpers.php';
+        $style = corebb_public_style_normalize_file($publicStyle);
+        $themes = realpath($views . '/themes');
+        if ($themes !== false) {
+            $candidate = realpath($themes . '/' . substr($style, 0, -4));
+            if ($candidate !== false && str_starts_with($candidate, $themes . DIRECTORY_SEPARATOR) && is_dir($candidate)) {
+                $themeRoot = $candidate;
+            }
+        }
+    }
+    $key = (int)$cacheTemplates . ':' . ($themeRoot ?? '');
+    if (isset($environments[$key])) {
+        return $environments[$key];
     }
 
     $autoload = __DIR__ . '/../../vendor/autoload.php';
@@ -69,18 +82,21 @@ function corebb_twig(): \Twig\Environment
     require_once $autoload;
 
     $cacheDir = __DIR__ . '/../../cache/twig';
-    if (!is_dir($cacheDir)) {
+    if ($cacheTemplates && !is_dir($cacheDir)) {
         mkdir($cacheDir, 0775, true);
     }
 
-    $loader = new \Twig\Loader\FilesystemLoader(__DIR__ . '/../../views');
+    $loader = new \Twig\Loader\FilesystemLoader($themeRoot === null ? [$views] : [$themeRoot, $views]);
+    $loader->addPath($views, 'shared');
     $twig = new \Twig\Environment($loader, [
         'autoescape' => 'html',
-        'cache' => is_dir($cacheDir) && is_writable($cacheDir) ? $cacheDir : false,
+        'cache' => $cacheTemplates && is_dir($cacheDir) && is_writable($cacheDir) ? $cacheDir : false,
         'strict_variables' => false,
         'auto_reload' => true,
     ]);
 
+    require_once __DIR__ . '/security.php';
+    $twig->addFunction(new \Twig\TwigFunction('csp_nonce', 'corebb_security_script_nonce'));
     $twig->addFunction(new \Twig\TwigFunction('asset', static function (string $path): string {
         return corebb_public_join_base_path($path);
     }));
@@ -101,7 +117,7 @@ function corebb_twig(): \Twig\Environment
     $twig->addFunction(new \Twig\TwigFunction('user_icon_model', 'corebb_user_icon_model'));
     $twig->addFunction(new \Twig\TwigFunction('user_title_model', 'corebb_user_title_model'));
     $twig->addFunction(new \Twig\TwigFunction('csrf_token', 'corebb_security_csrf_token'));
-    return $twig;
+    return $environments[$key] = $twig;
 }
 
 /**
@@ -138,10 +154,10 @@ function corebb_render_public(string $view, array $vars = [], array $layoutConte
 
     corebb_security_set_explicit_csrf_fields();
 
-    $content = corebb_capture($view, $vars);
     $layout = corebb_public_layout_model($vars, $layoutContext);
-    echo corebb_twig()->render('layouts/public.twig', [
+    $twig = corebb_twig(true, $layout['head']['style_file']);
+    echo $twig->render('layouts/public.twig', [
         'layout' => $layout,
-        'content' => $content,
+        'content' => $twig->render(corebb_twig_view_name($view), $vars),
     ]);
 }

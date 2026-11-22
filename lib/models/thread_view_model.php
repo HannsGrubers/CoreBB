@@ -17,12 +17,14 @@
  |  template.                                            |
  +-------------------------------------------------------+*/
 
+require_once __DIR__ . '/../helpers/knowledge_base_helpers.php';
 require_once __DIR__ . '/../helpers/performance_helpers.php';
 require_once __DIR__ . '/../helpers/moderation_helpers.php';
 require_once __DIR__ . '/../helpers/pagination_helpers.php';
 require_once __DIR__ . '/../helpers/poll_helpers.php';
 require_once __DIR__ . '/../helpers/private_board_helpers.php';
 require_once __DIR__ . '/../helpers/forum_statistics_helpers.php';
+require_once __DIR__ . '/../helpers/forum_access.php';
 
 /**
  * Usage: Build the thread page model, including posts, poll state, and pagination.
@@ -32,7 +34,7 @@ require_once __DIR__ . '/../helpers/forum_statistics_helpers.php';
  * @param int $page Requested page number.
  * @return array<string, mixed> Thread display state for Twig/API consumers.
  */
-function corebb_thread_fetch_model(int $topicId, int $page): array
+function corebb_thread_fetch_model(int $topicId, int $page, string $kbTab = '', int $focusPost = 0): array
 {
     global $userlogindata_a, $QueryCount;
 
@@ -65,10 +67,26 @@ function corebb_thread_fetch_model(int $topicId, int $page): array
     corebb_forum_stats_record_event($boardId, 'topic_view', ['topicid' => $topicId]);
     $locked = (int)($topic['locked'] ?? 0) === 1;
 
+    $boardRow = corebb_private_board_row($boardId) ?: [];
+    $kb = corebb_kb_board($boardRow);
+    $reading = $kb && $kbTab !== '';
+    $discussion = $reading && $kbTab === 'discussion';
+    $opener = $reading ? corebb_kb_opener($topicId) : 0;
+    if ($reading && !db_exists('SELECT id FROM posts WHERE id = ? AND boardid = ? AND is_deleted = 0', [$opener, $boardId])) {
+        return ['missing' => true, 'message' => 'Article not found.'];
+    }
     $perPage = corebb_current_thread_posts_per_page();
 
     // Use the live post count here so stale cached topic counters cannot create phantom pages.
     $postCount = max(0, (int)db_value('SELECT COUNT(*) FROM posts WHERE threadid = ? AND is_deleted = 0', [$topicId], 0));
+    $replyCount = max(0, $postCount - 1);
+    if ($reading) {
+        $postCount = $discussion ? $replyCount : 1;
+        if ($discussion && $focusPost > $opener) {
+            $before = db_value('SELECT COUNT(*) FROM posts WHERE threadid = ? AND is_deleted = 0 AND id > ? AND id < ?', [$topicId, $opener, $focusPost], 0);
+            $page = 1 + intdiv((int)$before, $perPage);
+        }
+    }
     $totalPages = max(1, (int)ceil(max(1, $postCount) / $perPage));
     $currentPage = min(max(1, $page), $totalPages);
     $offset = ($currentPage - 1) * $perPage;
@@ -78,9 +96,7 @@ function corebb_thread_fetch_model(int $topicId, int $page): array
     $firstPost = is_array($firstPost) ? $firstPost : [];
     $topicTitle = $firstPost['title'] ?? ($topic['title'] ?? 'Untitled Topic');
 
-    $boardRow = corebb_private_board_row($boardId);
     $QueryCount++;
-    $boardRow = is_array($boardRow) ? $boardRow : [];
     $editTimer = (int)($boardRow['edittimer'] ?? 0);
     $archiveReadOnly = !corebb_secure_archive_user_can_write_board_row($boardRow, (int)($userlogindata_a['accesslevel'] ?? 0));
     $isLoggedIn = corebb_load_logged_in_user();
@@ -88,11 +104,13 @@ function corebb_thread_fetch_model(int $topicId, int $page): array
     $posts = [];
     // LIMIT/OFFSET are sanitized integers here. Keeping them literal avoids PDO
     // driver trouble with bound LIMIT values on older MySQL/shared-host setups.
-    $postSql = "SELECT p.*, u.username AS author_username, u.regdate AS author_regdate, "
+    $window = $discussion ? ' AND p.id > ?' : ($reading ? ' AND p.id = ?' : '');
+    $memberTitle = corebb_forum_access_settings()['member_titles'] && corebb_perf_column_exists('users', 'profiletitle') ? 'u.profiletitle' : "''";
+    $postSql = "SELECT p.*, u.username AS author_username, u.regdate AS author_regdate, $memberTitle AS member_title, "
         . "u.posts AS author_posts, u.title AS author_title, u.accesslevel AS author_accesslevel, u.id AS author_id "
         . "FROM posts p LEFT JOIN users u ON u.id = p.posterid "
-        . "WHERE p.threadid = ? AND p.is_deleted = 0 ORDER BY p.id ASC LIMIT " . (int)$offset . ', ' . (int)$perPage;
-    $postRows = db_all($postSql, [$topicId]);
+        . "WHERE p.threadid = ? AND p.is_deleted = 0" . $window . " ORDER BY p.id ASC LIMIT " . (int)$offset . ', ' . (int)$perPage;
+    $postRows = db_all($postSql, $reading ? [$topicId, $opener] : [$topicId]);
     $QueryCount++;
     foreach ($postRows as $row) {
         $posterId = (int)($row['posterid'] ?? 0);
@@ -135,6 +153,9 @@ function corebb_thread_fetch_model(int $topicId, int $page): array
     $pollUserId = $isLoggedIn ? (int)($userlogindata_a['id'] ?? 0) : 0;
     $pollMessage = corebb_poll_message_from_code((string)($_GET['pollmsg'] ?? ''));
     $threadUrlPattern = str_replace('/p999999/', '/p{page}/', corebb_thread_url($topicId, $boardId, 999999, (string)($boardRow['name'] ?? 'Board')));
+    if ($discussion) {
+        $threadUrlPattern .= '?tab=discussion';
+    }
     $pagination = $postCount > $perPage ? corebb_pagination_model($threadUrlPattern, $currentPage, $totalPages, 'MainMenuFont') : corebb_pagination_model('', $currentPage, $totalPages, 'MainMenuFont');
     $poll = corebb_thread_prepare_poll_model(
         array_merge(corebb_poll_thread_model($topicId, $pollUserId), ['archiveReadOnly' => $archiveReadOnly]),
@@ -148,6 +169,11 @@ function corebb_thread_fetch_model(int $topicId, int $page): array
         'boardId' => $boardId,
         'boardName' => (string)($boardRow['name'] ?? 'Board'),
         'topicTitle' => $topicTitle,
+        'kb' => $kb,
+        'discussion' => $discussion,
+        'replyCount' => $replyCount,
+        'boardUrl' => corebb_board_url($boardId, 1, (string)($boardRow['name'] ?? 'Board')),
+        'articleUrl' => corebb_thread_url($topicId, $boardId, 1, (string)($boardRow['name'] ?? 'Board')),
         'locked' => $locked,
         'canModerate' => $canModerate,
         'canReply' => $canReply,
@@ -206,6 +232,7 @@ function corebb_thread_prepare_post_row(
     $row['post_time_display'] = $postTime === '' ? '-' : convert_to_vndate($postTime);
     $row['author_regdate'] = (string)($row['author_regdate'] ?? '');
     $row['author_title'] = (string)($row['author_title'] ?? '');
+    $row['member_title'] = trim($row['author_title']) === '' ? trim((string)($row['member_title'] ?? '')) : '';
     $row['author_access_level'] = (int)($row['author_accesslevel'] ?? 0);
     $row['author_posts_count'] = $authorPostCount;
     $row['author_posts_display'] = number_format($authorPostCount);

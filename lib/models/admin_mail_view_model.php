@@ -61,54 +61,6 @@ function corebb_admin_mail_config_path(): string
 }
 
 /**
- * Usage: Decode simple scalar literals from private config define() calls.
- * Referenced by: corebb_admin_mail_file_defines().
- *
- * @param string $literal PHP literal from a one-line define() call.
- * @return mixed Decoded scalar value.
- */
-function corebb_admin_mail_parse_literal(string $literal)
-{
-    $literal = trim($literal);
-    $lower = strtolower($literal);
-    if ($lower === 'true') { return true; }
-    if ($lower === 'false') { return false; }
-    if ($lower === 'null') { return null; }
-    if (preg_match('/^-?\d+$/', $literal)) { return (int)$literal; }
-    if (strlen($literal) >= 2 && (($literal[0] === "'" && substr($literal, -1) === "'") || ($literal[0] === '"' && substr($literal, -1) === '"'))) {
-        return stripcslashes(substr($literal, 1, -1));
-    }
-    return $literal;
-}
-
-/**
- * Usage: Read current managed mail constants directly from the private config.
- * Referenced by: password preservation and page status helpers.
- *
- * @param string $path Private config file path.
- * @return array<string, mixed> Constants found in the config file.
- */
-function corebb_admin_mail_file_defines(string $path): array
-{
-    if ($path === '' || !is_file($path)) {
-        return [];
-    }
-
-    $content = (string)file_get_contents($path);
-    $keys = array_fill_keys(corebb_admin_mail_managed_keys(), true);
-    $values = [];
-    if (preg_match_all('/define\s*\(\s*([\'"])([A-Z0-9_]+)\1\s*,\s*(.*?)\s*\)\s*;/s', $content, $matches, PREG_SET_ORDER)) {
-        foreach ($matches as $match) {
-            $key = (string)$match[2];
-            if (isset($keys[$key])) {
-                $values[$key] = corebb_admin_mail_parse_literal((string)$match[3]);
-            }
-        }
-    }
-    return $values;
-}
-
-/**
  * Usage: Convert mixed checkbox/string input into a real boolean.
  * Referenced by: POST normalization and current setting reads.
  *
@@ -131,12 +83,10 @@ function corebb_admin_mail_bool($value): bool
  */
 function corebb_admin_mail_current_values(): array
 {
-    global $BoardName;
-
     return [
         'transport' => corebb_mail_transport(),
-        'from_address' => (string)corebb_mail_config('COREBB_MAIL_FROM_ADDRESS', corebb_mail_from_address()),
-        'from_name' => (string)corebb_mail_config('COREBB_MAIL_FROM_NAME', (string)($BoardName ?? 'CoreBB')),
+        'from_address' => corebb_mail_from_address(),
+        'from_name' => corebb_mail_from_name(),
         'smtp_host' => (string)corebb_mail_config('COREBB_SMTP_HOST', ''),
         'smtp_port' => (int)corebb_mail_config('COREBB_SMTP_PORT', 587),
         'smtp_secure' => (string)corebb_mail_config('COREBB_SMTP_SECURE', 'tls'),
@@ -158,10 +108,9 @@ function corebb_admin_mail_current_values(): array
  * Referenced by: save handling in corebb_admin_mail_model().
  *
  * @param array<string, mixed> $post Raw POST data.
- * @param array<string, mixed> $fileDefines Managed constants currently in the config file.
  * @return array<string, mixed> Normalized settings plus smtp_password.
  */
-function corebb_admin_mail_normalize_post(array $post, array $fileDefines): array
+function corebb_admin_mail_normalize_post(array $post): array
 {
     $transport = strtolower(trim((string)($post['transport'] ?? 'mail')));
     if (!in_array($transport, ['mail', 'smtp', 'disabled'], true)) {
@@ -179,8 +128,6 @@ function corebb_admin_mail_normalize_post(array $post, array $fileDefines): arra
         $password = '';
     } elseif ($passwordInput !== '') {
         $password = $passwordInput;
-    } elseif (array_key_exists('COREBB_SMTP_PASSWORD', $fileDefines)) {
-        $password = (string)$fileDefines['COREBB_SMTP_PASSWORD'];
     }
 
     return [
@@ -289,14 +236,55 @@ function corebb_admin_mail_constants(array $values): array
  * @param string $content Current private config file contents.
  * @return string Config contents without the managed mail block or old one-line mail defines.
  */
-function corebb_admin_mail_strip_managed_config(string $content): string
+function corebb_admin_mail_strip_managed_config(string $content, bool $keepPassword): string
 {
-    $content = preg_replace('~/\* COREBB MAIL CONFIG START \*/.*?/\* COREBB MAIL CONFIG END \*/\s*~s', '', $content) ?? $content;
-    foreach (corebb_admin_mail_managed_keys() as $key) {
-        $quoted = preg_quote($key, '/');
-        $content = preg_replace('/^\s*define\s*\(\s*([\'"])' . $quoted . '\1\s*,\s*.*?\)\s*;\s*$/mi', '', $content) ?? $content;
+    // Token boundaries keep quoted passwords, comments and unrelated settings intact.
+    $managed = array_fill_keys(corebb_admin_mail_managed_keys(), true);
+    $tokens = PhpToken::tokenize($content);
+    $output = '';
+    $inBlock = false;
+    $skipThrough = -1;
+    foreach ($tokens as $index => $token) {
+        if ($index <= $skipThrough) {
+            continue;
+        }
+        if ($token->is(T_COMMENT) && $token->text === '/* COREBB MAIL CONFIG START */') {
+            $inBlock = true;
+            continue;
+        }
+        if ($token->is(T_COMMENT) && $token->text === '/* COREBB MAIL CONFIG END */') {
+            $inBlock = false;
+            continue;
+        }
+        if ($token->is(T_STRING) && strtolower($token->text) === 'define'
+            && preg_match('/(?:^|\n)\h*$/D', substr($content, 0, $token->pos))
+            && preg_match('/\Gdefine\s*\(\s*([\'"])([A-Z0-9_]+)\1\s*,/i', $content, $match, 0, $token->pos)
+            && isset($managed[$match[2]])) {
+            // Find the end of the call without interpreting its value.
+            $depth = 0;
+            for ($end = $index + 1; isset($tokens[$end]); ++$end) {
+                $part = $tokens[$end];
+                if ($part->is('(')) { ++$depth; }
+                if ($part->is(')') && --$depth === 0) {
+                    do { ++$end; } while (isset($tokens[$end]) && $tokens[$end]->is(T_WHITESPACE));
+                    if (!isset($tokens[$end]) || !$tokens[$end]->is(';')) {
+                        break;
+                    }
+                    $skipThrough = $end;
+                    if ($keepPassword && $match[2] === 'COREBB_SMTP_PASSWORD') {
+                        $output .= substr($content, $token->pos, $tokens[$end]->pos + 1 - $token->pos) . "\n";
+                    } elseif (!$inBlock) {
+                        $output .= ';';
+                    }
+                    continue 2;
+                }
+            }
+        }
+        if (!$inBlock) {
+            $output .= $token->text;
+        }
     }
-    return (string)preg_replace('/\?>\s*$/', '', $content);
+    return (string)preg_replace('/\?>\s*$/', '', $output);
 }
 
 /**
@@ -333,21 +321,34 @@ function corebb_admin_mail_write_config(string $path, array $values): array
         return ['ok' => false, 'message' => 'Private config file could not be located.'];
     }
     if (!is_writable($path)) {
-        return ['ok' => false, 'message' => 'Private config file is not writable: ' . $path];
+        return ['ok' => false, 'message' => 'The private configuration file is read-only.'];
     }
 
-    $content = (string)file_get_contents($path);
-    $backupPath = $path . '.bak-' . date('YmdHis');
-    @copy($path, $backupPath);
-
-    $content = rtrim(corebb_admin_mail_strip_managed_config($content));
+    $content = @file_get_contents($path);
+    if ($content === false || trim($content) === '') {
+        return ['ok' => false, 'message' => 'Unable to read the private configuration file.'];
+    }
+    if (!class_exists(PhpToken::class)) {
+        return ['ok' => false, 'message' => 'Saving mail settings requires the PHP tokenizer extension.'];
+    }
+    $content = rtrim(corebb_admin_mail_strip_managed_config($content, $values['smtp_password'] === null));
     $block = corebb_admin_mail_config_block(corebb_admin_mail_constants($values));
     $newContent = $content . "\n\n" . $block . "\n";
+    try {
+        PhpToken::tokenize($newContent, TOKEN_PARSE);
+    } catch (ParseError $error) {
+        return ['ok' => false, 'message' => 'The private configuration could not be updated safely. Check its PHP syntax.'];
+    }
+    $backupPath = $path . '.bak-' . date('YmdHis') . '-' . bin2hex(random_bytes(4));
+    if (!@copy($path, $backupPath)) {
+        return ['ok' => false, 'message' => 'Unable to back up the private configuration file.'];
+    }
+
     if (@file_put_contents($path, $newContent, LOCK_EX) === false) {
         return ['ok' => false, 'message' => 'Unable to write private config file.'];
     }
 
-    return ['ok' => true, 'message' => 'Mail services configuration saved. Use Send Test after this page reloads to test the saved constants.'];
+    return ['ok' => true, 'message' => 'Mail settings saved. Open Test delivery to try the saved settings.'];
 }
 
 /**
@@ -356,13 +357,12 @@ function corebb_admin_mail_write_config(string $path, array $values): array
  *
  * @param array<string, mixed> $viewer Current admin user row.
  * @param array<string, mixed> $post Raw POST data.
- * @return array{values: array<string, mixed>, messages: array<int, string>, errors: array<int, string>}
+ * @return array{values: array<string, mixed>, password_configured: bool, messages: array<int, string>, errors: array<int, string>}
  */
 function corebb_admin_mail_save(array $viewer, array $post): array
 {
     $path = corebb_admin_mail_config_path();
-    $fileDefines = corebb_admin_mail_file_defines($path);
-    $values = corebb_admin_mail_normalize_post($post, $fileDefines);
+    $values = corebb_admin_mail_normalize_post($post);
     $errors = corebb_admin_mail_validate($values);
     $messages = [];
 
@@ -384,7 +384,12 @@ function corebb_admin_mail_save(array $viewer, array $post): array
         }
     }
 
-    return ['values' => $values, 'messages' => $messages, 'errors' => $errors];
+    $passwordConfigured = (string)corebb_mail_config('COREBB_SMTP_PASSWORD', '') !== '';
+    if (!$errors && $values['smtp_password'] !== null) {
+        $passwordConfigured = $values['smtp_password'] !== '';
+    }
+    unset($values['smtp_password']);
+    return ['values' => $values, 'password_configured' => $passwordConfigured, 'messages' => $messages, 'errors' => $errors];
 }
 
 /**
@@ -402,6 +407,10 @@ function corebb_admin_mail_send_test(array $viewer, array $post): array
         return ['messages' => [], 'errors' => ['Enter a valid test recipient email address.']];
     }
 
+    if (corebb_mail_disabled()) {
+        return ['messages' => [], 'errors' => ['Outgoing mail is disabled. No test message was sent.']];
+    }
+
     $subject = 'CoreBB mail services test';
     $body = "CoreBB test email\n\n"
         . "This message confirms that the currently loaded CoreBB mail configuration can send mail.\n"
@@ -410,16 +419,15 @@ function corebb_admin_mail_send_test(array $viewer, array $post): array
         . "Sent: " . date('Y-m-d H:i:s') . "\n";
     $result = corebb_mail_send($to, $subject, $body);
     if (!empty($result['sent'])) {
-        {
-            corebb_adminlog_entry(
-                (string)($viewer['username'] ?? 'Unknown'),
-                (int)($viewer['accesslevel'] ?? 0),
-                'Sent mail services test email',
-                'mail_services',
-                'Sent a mail configuration test message to ' . $to . '.'
-            );
-        }
-        return ['messages' => ['Test email accepted for delivery to ' . $to . '.'], 'errors' => []];
+        $destination = corebb_mail_redirect_to() ?: $to;
+        corebb_adminlog_entry(
+            (string)($viewer['username'] ?? 'Unknown'),
+            (int)($viewer['accesslevel'] ?? 0),
+            'Sent mail services test email',
+            'mail_services',
+            'Sent a mail configuration test message to ' . $destination . '.'
+        );
+        return ['messages' => ['Test email accepted for delivery to ' . $destination . '.'], 'errors' => []];
     }
 
     return ['messages' => [], 'errors' => ['Test email failed: ' . (string)($result['error'] ?? 'Unknown mail error.')]];
@@ -440,34 +448,37 @@ function corebb_admin_mail_model(array $viewer, array $request, array $post): ar
     $errors = [];
     $values = corebb_admin_mail_current_values();
     $path = corebb_admin_mail_config_path();
-    $fileDefines = corebb_admin_mail_file_defines($path);
 
+    $section = ($request['section'] ?? '') === 'test' ? 'test' : 'settings';
+    $passwordConfigured = (string)corebb_mail_config('COREBB_SMTP_PASSWORD', '') !== '';
     $isPost = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET')) === 'POST';
     $action = (string)($post['action'] ?? '');
     if ($isPost && $action === 'save_mail') {
         $result = corebb_admin_mail_save($viewer, $post);
+        $section = 'settings';
+        $passwordConfigured = $result['password_configured'];
         $values = $result['values'];
         $messages = array_merge($messages, $result['messages']);
         $errors = array_merge($errors, $result['errors']);
     } elseif ($isPost && $action === 'send_test') {
+        $section = 'test';
         $result = corebb_admin_mail_send_test($viewer, $post);
         $messages = array_merge($messages, $result['messages']);
         $errors = array_merge($errors, $result['errors']);
     }
 
-    $passwordConfigured = trim((string)corebb_mail_config('COREBB_SMTP_PASSWORD', '')) !== ''
-        || trim((string)($fileDefines['COREBB_SMTP_PASSWORD'] ?? '')) !== '';
-
     return [
-        'viewer' => $viewer,
-        'viewer_accesslevel' => (int)($viewer['accesslevel'] ?? 0),
-        'config_path' => $path,
+        'section' => $section,
         'config_writable' => $path !== '' && is_file($path) && is_writable($path),
         'values' => $values,
         'messages' => $messages,
         'errors' => $errors,
         'password_configured' => $passwordConfigured,
-        'loaded_transport' => corebb_mail_transport(),
-        'test_email' => (string)($viewer['privemail'] ?? ''),
+        'delivery_disabled' => corebb_mail_disabled(),
+        'delivery_suppressed' => (bool)corebb_mail_config('COREBB_DISABLE_MAIL', false)
+            || (bool)corebb_mail_config('COREBB_MAIL_DISABLED', false),
+        'redirect_to' => corebb_mail_redirect_to(),
+        'debug_bcc' => corebb_mail_debug_bcc_address(),
+        'test_email' => (string)($post['test_email'] ?? $viewer['privemail'] ?? ''),
     ];
 }

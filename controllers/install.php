@@ -9,8 +9,10 @@
 
 $root = dirname(__DIR__);
 
+require_once $root . '/lib/helpers/security.php';
 require_once $root . '/lib/helpers/install_helpers.php';
 require_once $root . '/lib/helpers/view.php';
+corebb_security_bootstrap();
 
 $model = corebb_install_model($_POST, $_SERVER);
 

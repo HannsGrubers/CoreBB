@@ -1,141 +1,106 @@
-{% set values = model.values|default({}) %}
-{% set messages = model.messages|default([]) %}
-{% set errors = model.errors|default([]) %}
+{% set v = model.values %}
+{% set page = '/admin/?act=mail_services' %}
+{% set transports = {mail: 'PHP mail', smtp: 'SMTP', disabled: 'Disabled'} %}
+<div class="admin-overview admin-settings admin-mail">
+    <header class="admin-dash-heading">
+        <div><h1>Mail services</h1></div>
+        <a href="{{ url('/admin/') }}">Dashboard</a>
+    </header>
+    <nav class="admin-settings-nav" aria-label="Mail services">
+        <a href="{{ url(page) }}"{% if model.section == 'settings' %} aria-current="page"{% endif %}>Delivery settings</a>
+        <a href="{{ url(page ~ '&section=test') }}"{% if model.section == 'test' %} aria-current="page"{% endif %}>Test delivery</a>
+    </nav>
+    {% include 'partials/admin_messages.twig' with {messages: model.messages, errors: model.errors} only %}
 
-<div class="corebb-admin-modern-page">
-    {% include 'partials/admin_messages.twig' with {messages: messages, errors: errors} only %}
-
-    <div class="corebb-admin-modern-header">
-        <div>
-            <div class="corebb-admin-modern-eyebrow">System</div>
-            <h2>Mail Services</h2>
-            <div class="corebb-admin-modern-meta">
-                <span>Transport: {{ model.loaded_transport|default('mail') }}</span>
-                <span>SMTP password: {{ model.password_configured|default(false) ? 'configured' : 'missing' }}</span>
-                <span>{{ model.config_writable|default(false) ? 'config writable' : 'config read-only' }}</span>
-            </div>
+    {% if model.section == 'test' %}
+    <form class="admin-settings-form" method="post" action="{{ url(page ~ '&section=test') }}">
+        {% include 'partials/csrf_field.twig' %}
+        <input type="hidden" name="action" value="send_test">
+        <header class="admin-settings-heading"><h2>Test delivery</h2>
+            <p>{% if model.delivery_disabled %}Outgoing mail is disabled. Enable delivery before sending a test.{% else %}Send one message using the saved {{ transports[v.transport] ?? v.transport }} settings.{% endif %}</p>
+        </header>
+        <dl class="admin-mail-envelope">
+            <dt>Sender</dt><dd>{{ v.from_name }} &lt;{{ v.from_address }}&gt;</dd>
+            {% if model.redirect_to %}<dt>Redirect all mail to</dt><dd>{{ model.redirect_to }}</dd>{% endif %}
+            {% if model.debug_bcc %}<dt>Blind copy</dt><dd>{{ model.debug_bcc }}</dd>{% endif %}
+        </dl>
+        <div class="admin-auth-field"><label for="mail-test-recipient">Test recipient</label>
+            <input id="mail-test-recipient" name="test_email" type="email" value="{{ model.test_email }}" required{% if model.redirect_to %} aria-describedby="mail-test-route"{% endif %}>
+            {% if model.redirect_to %}<small id="mail-test-route">The redirect address above will receive this message.</small>{% endif %}
         </div>
-        <div class="corebb-admin-modern-actions">
-            <a class="corebb-board-action-link" href="{{ url('admin.php') }}">Admin Home</a>
-        </div>
-    </div>
-
-    <div class="corebb-admin-modern-note">
-        Mail transport settings are written to the loaded private config file. SMTP passwords are never shown after saving; leave the password field blank to keep the existing file value.
-    </div>
-
-    <form class="corebb-admin-modern-form" method="post" action="{{ url('admin.php?act=mail_services') }}">
+        <div class="admin-settings-save"><button type="submit"{% if model.delivery_disabled %} disabled{% endif %}>Send test email</button></div>
+    </form>
+    {% else %}
+    <form class="admin-settings-form" method="post" action="{{ url(page) }}">
         {% include 'partials/csrf_field.twig' %}
         <input type="hidden" name="action" value="save_mail">
-
-        <div class="corebb-admin-modern-panel">
-            <div class="corebb-admin-section-title">Delivery</div>
-            <div class="corebb-admin-modern-grid">
-                <label for="mailTransport">Transport</label>
-                <select id="mailTransport" name="transport">
-                    <option value="mail"{% if values.transport|default('mail') == 'mail' %} selected{% endif %}>PHP mail()</option>
-                    <option value="smtp"{% if values.transport|default('mail') == 'smtp' %} selected{% endif %}>SMTP</option>
-                    <option value="disabled"{% if values.transport|default('mail') == 'disabled' %} selected{% endif %}>Disabled</option>
-                </select>
-
-                <label for="mailFromAddress">From Address</label>
-                <input id="mailFromAddress" type="email" name="from_address" value="{{ values.from_address|default('') }}" size="45">
-
-                <label for="mailFromName">From Name</label>
-                <input id="mailFromName" type="text" name="from_name" value="{{ values.from_name|default('') }}" size="45">
-
-                <label for="mailRedirectTo">Redirect All Mail</label>
-                <span>
-                    <input id="mailRedirectTo" type="email" name="redirect_to" value="{{ values.redirect_to|default('') }}" size="45">
-                    <span class="corebb-admin-modern-help">Optional staging/test address. Blank sends to real recipients.</span>
-                </span>
-            </div>
+        <header class="admin-settings-heading"><h2>Outgoing mail</h2>
+            {% if model.delivery_suppressed %}<p>The host configuration disables outgoing mail for all delivery methods.</p>{% endif %}
+            {% if not model.config_writable %}<p>The private configuration is read-only. Saving is unavailable.</p>{% endif %}
+        </header>
+        <div class="admin-auth-field"><label for="mail-transport">Delivery method</label>
+            <select id="mail-transport" name="transport">
+                {% for id, label in transports %}<option value="{{ id }}"{% if v.transport == id or (id == 'disabled' and v.transport in ['none','null','off']) %} selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+        </div>
+        <div class="admin-mail-pair">
+            <div class="admin-auth-field"><label for="mail-name">Sender name</label><input id="mail-name" name="from_name" value="{{ v.from_name }}" required></div>
+            <div class="admin-auth-field"><label for="mail-address">Sender email</label><input id="mail-address" name="from_address" type="email" value="{{ v.from_address }}" required></div>
+        </div>
+        <div class="admin-auth-field"><label for="mail-redirect">Redirect all mail to</label>
+            <input id="mail-redirect" name="redirect_to" type="email" value="{{ v.redirect_to }}" aria-describedby="mail-redirect-help">
+            <small id="mail-redirect-help">For staging or testing. Leave blank to deliver to each intended recipient.</small>
         </div>
 
-        <div class="corebb-admin-modern-panel">
-            <div class="corebb-admin-section-title">SMTP</div>
-            <div class="corebb-admin-modern-grid">
-                <label for="smtpHost">Host</label>
-                <input id="smtpHost" type="text" name="smtp_host" value="{{ values.smtp_host|default('') }}" size="45" autocomplete="off">
-
-                <label for="smtpPort">Port</label>
-                <input id="smtpPort" type="number" min="1" max="65535" name="smtp_port" value="{{ values.smtp_port|default(587) }}" size="8">
-
-                <label for="smtpSecure">Security</label>
-                <select id="smtpSecure" name="smtp_secure">
-                    <option value="tls"{% if values.smtp_secure|default('tls') == 'tls' %} selected{% endif %}>STARTTLS</option>
-                    <option value="ssl"{% if values.smtp_secure|default('tls') == 'ssl' %} selected{% endif %}>SSL / implicit TLS</option>
-                    <option value="plain"{% if values.smtp_secure|default('tls') == 'plain' %} selected{% endif %}>Plain</option>
-                </select>
-
-                <label for="smtpUsername">Username</label>
-                <input id="smtpUsername" type="text" name="smtp_username" value="{{ values.smtp_username|default('') }}" size="45" autocomplete="off">
-
-                <label for="smtpPassword">Password</label>
-                <span>
-                    <input id="smtpPassword" type="password" name="smtp_password" value="" size="45" autocomplete="new-password">
-                    <span class="corebb-admin-modern-help">{{ model.password_configured|default(false) ? 'Leave blank to keep the saved password.' : 'Required for SMTP unless supplied by environment.' }}</span>
-                </span>
-
-                <label for="clearSmtpPassword">Clear Password</label>
-                <label><input id="clearSmtpPassword" type="checkbox" name="clear_smtp_password" value="1"> Remove the saved SMTP password</label>
-
-                <label for="smtpHelo">HELO Name</label>
-                <input id="smtpHelo" type="text" name="smtp_helo" value="{{ values.smtp_helo|default('') }}" size="45">
-
-                <label for="smtpTimeout">Timeout</label>
-                <input id="smtpTimeout" type="number" min="1" max="120" name="smtp_timeout" value="{{ values.smtp_timeout|default(15) }}" size="8">
-
-                <label>Certificate Checks</label>
-                <span>
-                    <label><input type="checkbox" name="smtp_verify_peer" value="1"{% if values.smtp_verify_peer|default(true) %} checked{% endif %}> Verify peer</label>
-                    &nbsp;
-                    <label><input type="checkbox" name="smtp_verify_peer_name" value="1"{% if values.smtp_verify_peer_name|default(true) %} checked{% endif %}> Verify peer name</label>
-                    &nbsp;
-                    <label><input type="checkbox" name="smtp_allow_self_signed" value="1"{% if values.smtp_allow_self_signed|default(false) %} checked{% endif %}> Allow self-signed</label>
-                </span>
+        <details id="mail-smtp" class="admin-mail-disclosure"{% if v.transport == 'smtp' or model.errors %} open{% endif %}>
+            <summary>SMTP connection</summary>
+            <div class="admin-mail-pair">
+                <div class="admin-auth-field"><label for="smtp-host">Host</label><input id="smtp-host" name="smtp_host" value="{{ v.smtp_host }}" spellcheck="false"></div>
+                <div class="admin-auth-field"><label for="smtp-port">Port</label><input id="smtp-port" name="smtp_port" type="number" min="1" max="65535" value="{{ v.smtp_port }}"></div>
             </div>
-        </div>
-
-        <div class="corebb-admin-modern-panel">
-            <div class="corebb-admin-section-title">Diagnostics</div>
-            <div class="corebb-admin-modern-grid">
-                <label for="mailDebug">Debug Log</label>
-                <label><input id="mailDebug" type="checkbox" name="debug" value="1"{% if values.debug|default(false) %} checked{% endif %}> Write sanitized mail diagnostics</label>
-
-                <label for="mailDebugLog">Debug Log Path</label>
-                <input id="mailDebugLog" type="text" name="debug_log" value="{{ values.debug_log|default('') }}" size="70">
-
-                <label for="mailDebugBcc">Debug BCC</label>
-                <input id="mailDebugBcc" type="email" name="debug_bcc" value="{{ values.debug_bcc|default('') }}" size="45">
-
-                <div class="corebb-admin-modern-submit corebb-admin-modern-full">
-                    <button class="corebb-board-action-link" type="submit">Save Mail Services</button>
-                    <a class="corebb-board-action-link" href="{{ url('admin.php') }}">Admin Home</a>
+            <div class="admin-auth-field"><label for="smtp-secure">Connection security</label>
+                <select id="smtp-secure" name="smtp_secure">
+                    {% for id, label in {tls:'STARTTLS', ssl:'Implicit TLS', plain:'Plain (unencrypted)'} %}<option value="{{ id }}"{% if v.smtp_secure == id %} selected{% endif %}>{{ label }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="admin-mail-pair">
+                <div class="admin-auth-field"><label for="smtp-user">Username</label><input id="smtp-user" name="smtp_username" value="{{ v.smtp_username }}" autocomplete="off" spellcheck="false"></div>
+                <div class="admin-auth-field"><label for="smtp-password">Password</label>
+                    <input id="smtp-password" name="smtp_password" type="password" autocomplete="new-password" aria-describedby="smtp-password-help">
+                    <small id="smtp-password-help">{{ model.password_configured ? 'Leave blank to keep the current password.' : 'Required to send using SMTP.' }}</small>
                 </div>
             </div>
-        </div>
+            <label class="admin-auth-option"><input type="checkbox" name="clear_smtp_password" value="1"> Clear the saved SMTP password</label>
+            <div class="admin-mail-pair">
+                <div class="admin-auth-field"><label for="smtp-helo">HELO hostname</label><input id="smtp-helo" name="smtp_helo" value="{{ v.smtp_helo }}" spellcheck="false"></div>
+                <div class="admin-auth-field"><label for="smtp-timeout">Timeout (seconds)</label><input id="smtp-timeout" name="smtp_timeout" type="number" min="1" max="120" value="{{ v.smtp_timeout }}"></div>
+            </div>
+            <fieldset class="admin-mail-checks"><legend>Certificate checks</legend>
+                {% for key, label in {smtp_verify_peer:'Verify server certificate', smtp_verify_peer_name:'Verify server hostname', smtp_allow_self_signed:'Allow self-signed certificates'} %}
+                <label class="admin-auth-option"><input type="checkbox" name="{{ key }}" value="1"{% if v[key] %} checked{% endif %}> {{ label }}</label>
+                {% endfor %}
+            </fieldset>
+        </details>
+        <details class="admin-mail-disclosure"{% if model.errors %} open{% endif %}>
+            <summary>Diagnostics</summary>
+            <label class="admin-auth-option"><input type="checkbox" name="debug" value="1"{% if v.debug %} checked{% endif %}> Write sanitized mail diagnostics</label>
+            <div class="admin-auth-field"><label for="mail-log">Log file path</label><input id="mail-log" name="debug_log" value="{{ v.debug_log }}" spellcheck="false"></div>
+            <div class="admin-auth-field"><label for="mail-bcc">Blind copy address</label>
+                <input id="mail-bcc" name="debug_bcc" type="email" value="{{ v.debug_bcc }}" aria-describedby="mail-bcc-help">
+                <small id="mail-bcc-help">Receives a copy of outgoing mail even when diagnostic logging is off.</small>
+            </div>
+        </details>
+        <div class="admin-settings-save"><button type="submit"{% if not model.config_writable %} disabled{% endif %}>Save mail settings</button></div>
     </form>
-
-    <div class="corebb-admin-modern-panel">
-        <div class="corebb-admin-section-title">Send Test</div>
-        <form class="corebb-admin-modern-form" method="post" action="{{ url('admin.php?act=mail_services') }}">
-            {% include 'partials/csrf_field.twig' %}
-            <input type="hidden" name="action" value="send_test">
-            <div class="corebb-admin-modern-grid">
-                <label for="testEmail">Recipient</label>
-                <input id="testEmail" type="email" name="test_email" value="{{ model.test_email|default('') }}" size="45">
-
-                <div class="corebb-admin-modern-submit corebb-admin-modern-full">
-                    <button class="corebb-board-action-link" type="submit">Send Test Email</button>
-                    <span class="corebb-admin-modern-help">Uses the mail constants already loaded for this request. After saving changes, reload this page before testing.</span>
-                </div>
-            </div>
-        </form>
-    </div>
-
-    <div class="corebb-admin-modern-note is-muted">
-        <strong>Private config</strong>
-        <span>{{ model.config_path|default('Unavailable') }}</span>
-    </div>
+    <script nonce="{{ csp_nonce() }}">
+        const mailTransport = document.getElementById('mail-transport');
+        mailTransport.addEventListener('change', () => {
+            if (mailTransport.value === 'smtp') document.getElementById('mail-smtp').open = true;
+        });
+        mailTransport.form.addEventListener('invalid', event => {
+            const section = event.target.closest('details');
+            if (section) section.open = true;
+        }, true);
+    </script>
+    {% endif %}
 </div>

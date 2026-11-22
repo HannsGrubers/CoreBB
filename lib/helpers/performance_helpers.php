@@ -348,7 +348,7 @@ function corebb_perf_search_fulltext_ready(): bool
  *
  * @return array<int, string> Human-readable operation messages.
  */
-function corebb_perf_prepare_search_indexes(): array
+function corebb_perf_prepare_search_indexes(?bool &$completed = null): array
 {
     $out = [];
     foreach (corebb_perf_search_index_specs() as [$table, $index, $columns]) {
@@ -363,10 +363,12 @@ function corebb_perf_prepare_search_indexes(): array
         }
     }
 
-    corebb_perf_set_setting('search_fulltext_ready', $ready ? '1' : '0');
-    if ($ready) {
-        corebb_perf_set_setting('search_fulltext_prepared_at', date('Y-m-d H:i:s'));
+    $saved = corebb_perf_set_setting('search_fulltext_ready', $ready ? '1' : '0');
+    $completed = $ready && $saved && corebb_perf_set_setting('search_fulltext_prepared_at', date('Y-m-d H:i:s'));
+    if ($completed) {
         $out[] = 'Search fulltext indexes are ready.';
+    } elseif (!$saved || $ready) {
+        $out[] = 'Could not record the search index status.';
     } else {
         $out[] = 'Search fulltext indexes are not fully ready. Review any index errors above.';
     }
@@ -397,16 +399,15 @@ function corebb_perf_get_setting(string $name, string $default = ''): string
  *
  * @param string $name Setting name.
  * @param string $value Setting value.
- * @return void
+ * @return bool Whether the setting was written.
  */
-function corebb_perf_set_setting(string $name, string $value): void
+function corebb_perf_set_setting(string $name, string $value): bool
 {
     $row = db_one('SELECT id FROM systemsettings WHERE name = ? ORDER BY id ASC LIMIT 1', [$name]);
     if ($row) {
-        db_run('UPDATE systemsettings SET setting = ? WHERE id = ?', [$value, (int)$row['id']]);
-    } else {
-        db_run('INSERT INTO systemsettings (name, setting) VALUES (?, ?)', [$name, $value]);
+        return db_run('UPDATE systemsettings SET setting = ? WHERE id = ?', [$value, (int)$row['id']]);
     }
+    return db_run('INSERT INTO systemsettings (name, setting) VALUES (?, ?)', [$name, $value]);
 }
 
 /**
@@ -492,24 +493,39 @@ function corebb_perf_install_schema(): array
  *
  * @return array<int, string> Human-readable operation messages.
  */
-function corebb_perf_rebuild_cached_counts(): array
+function corebb_perf_rebuild_cached_counts(?bool &$completed = null): array
 {
+    $completed = false;
     $out = corebb_perf_install_schema();
-    db_run('UPDATE `topics` t LEFT JOIN (SELECT `threadid`, COUNT(*) AS c FROM `posts` WHERE `is_deleted` = 0 GROUP BY `threadid`) p ON p.`threadid` = t.`id` SET t.`postcount` = COALESCE(p.c, 0), t.`replycount` = GREATEST(COALESCE(p.c, 0) - 1, 0)');
-    $out[] = db_error() ? 'Topic count rebuild error: ' . db_error() : 'Rebuilt topic post/reply counts.';
+    // Schema changes can commit implicitly. Group the count writes only after schema preparation.
+    if (!db_begin()) {
+        $out[] = 'Could not start the count rebuild.';
+        return $out;
+    }
+    $updates = [
+        'Topic reply and post counts' => 'UPDATE `topics` t LEFT JOIN (SELECT `threadid`, COUNT(*) AS c FROM `posts` WHERE `is_deleted` = 0 GROUP BY `threadid`) p ON p.`threadid` = t.`id` SET t.`postcount` = COALESCE(p.c, 0), t.`replycount` = GREATEST(COALESCE(p.c, 0) - 1, 0)',
+        'Board topic counts' => 'UPDATE `forums` f LEFT JOIN (SELECT t.`boardid`, COUNT(DISTINCT t.`id`) AS c FROM `topics` t INNER JOIN `posts` p ON p.`threadid` = t.`id` AND p.`is_deleted` = 0 WHERE t.`is_deleted` = 0 GROUP BY t.`boardid`) tc ON tc.`boardid` = f.`id` SET f.`topiccount` = COALESCE(tc.c, 0)',
+        'Board post counts' => 'UPDATE `forums` f LEFT JOIN (SELECT t.`boardid`, COUNT(*) AS c FROM `posts` p INNER JOIN `topics` t ON t.`id` = p.`threadid` AND t.`is_deleted` = 0 WHERE p.`is_deleted` = 0 GROUP BY t.`boardid`) pc ON pc.`boardid` = f.`id` SET f.`postcount` = COALESCE(pc.c, 0)',
+        'User post counts' => 'UPDATE `users` u LEFT JOIN (SELECT `posterid`, COUNT(*) AS c FROM `posts` WHERE `is_deleted` = 0 GROUP BY `posterid`) p ON p.`posterid` = u.`id` SET u.`posts` = COALESCE(p.c, 0)',
+    ];
+    foreach ($updates as $label => $query) {
+        if (!db_run($query)) {
+            $out[] = $label . ' could not be updated: ' . db_error();
+            db_rollback();
+            return $out;
+        }
+    }
 
-    db_run('UPDATE `forums` f LEFT JOIN (SELECT t.`boardid`, COUNT(DISTINCT t.`id`) AS c FROM `topics` t INNER JOIN `posts` p ON p.`threadid` = t.`id` AND p.`is_deleted` = 0 WHERE t.`is_deleted` = 0 GROUP BY t.`boardid`) tc ON tc.`boardid` = f.`id` SET f.`topiccount` = COALESCE(tc.c, 0)');
-    $out[] = db_error() ? 'Forum topic-count rebuild error: ' . db_error() : 'Rebuilt forum topic counts.';
+    if (!corebb_perf_set_setting('perf_cache_ready', '1')
+        || !corebb_perf_set_setting('perf_cache_rebuilt_at', date('Y-m-d H:i:s'))
+        || !db_commit()) {
+        db_rollback();
+        $out[] = 'Could not commit the rebuilt counts and cache settings.';
+        return $out;
+    }
 
-    db_run('UPDATE `forums` f LEFT JOIN (SELECT t.`boardid`, COUNT(*) AS c FROM `posts` p INNER JOIN `topics` t ON t.`id` = p.`threadid` AND t.`is_deleted` = 0 WHERE p.`is_deleted` = 0 GROUP BY t.`boardid`) pc ON pc.`boardid` = f.`id` SET f.`postcount` = COALESCE(pc.c, 0)');
-    $out[] = db_error() ? 'Forum post-count rebuild error: ' . db_error() : 'Rebuilt forum post counts.';
-
-    db_run('UPDATE `users` u LEFT JOIN (SELECT `posterid`, COUNT(*) AS c FROM `posts` WHERE `is_deleted` = 0 GROUP BY `posterid`) p ON p.`posterid` = u.`id` SET u.`posts` = COALESCE(p.c, 0)');
-    $out[] = db_error() ? 'User post-count rebuild error: ' . db_error() : 'Rebuilt user post counts.';
-
-    corebb_perf_set_setting('perf_cache_ready', '1');
-    corebb_perf_set_setting('perf_cache_rebuilt_at', date('Y-m-d H:i:s'));
-    $out[] = 'Performance count cache enabled.';
+    $completed = true;
+    $out[] = 'Rebuilt topic, board and user counts and enabled the count cache.';
     return $out;
 }
 

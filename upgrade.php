@@ -150,7 +150,7 @@ if ($packageSummary) {
 $errors = array_merge($initialErrors, $errors);
 $status = corebb_update_status();
 $lock = corebb_update_lock_status();
-$maintenanceOn = corebb_update_setting('maintenancemode', '0') === '1';
+$maintenanceOn = corebb_update_setting('maintenancemode', '0') === '1' || corebb_update_setting('upgrade_maintenance_active', '0') === '1';
 $csrfField = corebb_security_csrf_field();
 
 if (!headers_sent()) {

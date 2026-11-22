@@ -26,6 +26,7 @@ require_once __DIR__ . '/../helpers/pagination_helpers.php';
 require_once __DIR__ . '/../helpers/corebb_url_helpers.php';
 require_once __DIR__ . '/../helpers/corebb_route_helpers.php';
 require_once __DIR__ . '/../helpers/admin_board_filter_helpers.php';
+require_once __DIR__ . '/admin_user_tools_view_model.php';
 
 /**
  * Usage: Quote and validate an identifier for mod-request SQL.
@@ -237,7 +238,7 @@ function corebb_mod_request_fetch_post(int $postId, bool $includeDeleted = false
          FROM posts p
          LEFT JOIN users u ON u.id = p.posterid
          LEFT JOIN forums f ON f.id = p.boardid
-         LEFT JOIN topics t ON t.id = p.threadid
+         LEFT JOIN topics t ON t.id = p.threadid AND t.boardid=p.boardid
          WHERE ' . $where . ' LIMIT 1',
         [$postId]
     );
@@ -250,23 +251,20 @@ function corebb_mod_request_fetch_post(int $postId, bool $includeDeleted = false
  * @param int $requestId Moderation request id.
  * @return array|false Data row when found, otherwise false.
  */
-function corebb_mod_request_fetch_request(int $requestId): array|false
+function corebb_mod_request_fetch_request(int $requestId,array $viewer): array|false
 {
     corebb_mod_requests_ensure_schema();
+    [$visible,$params]=corebb_private_sql_visible_board_clause('f','b',(int)$viewer['id'],(int)$viewer['accesslevel']);
     return db_one(
-        'SELECT mr.id, mr.postid, mr.topicid, mr.boardid, mr.reporterid, mr.reported_userid, mr.reason_type, mr.comments, mr.severity, mr.url, mr.status, mr.created_at, mr.created_ip, mr.handled_by, mr.handled_at, mr.handler_note,
-                reporter.username AS reporter_username, author.username AS author_username, author.lastip AS author_lastip, author.accesslevel AS author_accesslevel,
-                p.title AS post_title, p.body AS post_body, p.posttime AS post_time, p.posttimeraw AS post_time_raw,
-                p.postip AS post_ip, p.posterid AS post_author_id, p.threadid AS post_topic_id, p.boardid AS post_board_id,
-                f.name AS board_name, t.title AS topic_title
+        'SELECT mr.id, mr.postid, mr.topicid, mr.boardid, mr.reporterid, mr.reported_userid, mr.reason_type, mr.comments, mr.severity, mr.status, mr.created_at, mr.handled_by, mr.handled_at, mr.handler_note,
+                reporter.username AS reporter_username, f.name AS board_name, handler.username AS handler_username
          FROM mod_requests mr
+         LEFT JOIN users handler ON handler.id=mr.handled_by
          LEFT JOIN users reporter ON reporter.id = mr.reporterid
-         LEFT JOIN users author ON author.id = mr.reported_userid
-         LEFT JOIN posts p ON p.id = mr.postid
-         LEFT JOIN forums f ON f.id = mr.boardid
-         LEFT JOIN topics t ON t.id = mr.topicid
-         WHERE mr.id = ? LIMIT 1',
-        [$requestId]
+         JOIN forums f ON f.id = mr.boardid
+         LEFT JOIN boards b ON b.id=f.categoryid
+         WHERE mr.id = ? AND (' . $visible . ') LIMIT 1',
+        [$requestId,...$params]
     );
 }
 
@@ -281,7 +279,7 @@ function corebb_mod_requests_status_label(string $status): string
 {
     return match ($status) {
         'resolved' => 'Resolved',
-        'ignored' => 'Ignored',
+        'ignored' => 'Closed without removal',
         'removed' => 'Removed',
         'banned' => 'Banned',
         default => 'New',
@@ -299,7 +297,7 @@ function corebb_mod_requests_new_count(array $viewer): int
 {
     corebb_mod_requests_ensure_schema();
     [$visibleSql, $visibleParams] = corebb_private_sql_visible_board_clause('f', 'b', (int)($viewer['id'] ?? 0), (int)($viewer['accesslevel'] ?? 0));
-    return (int)db_value("SELECT COUNT(*) FROM mod_requests mr LEFT JOIN forums f ON f.id = mr.boardid LEFT JOIN boards b ON b.id = f.categoryid WHERE mr.status = 'new' AND " . $visibleSql, $visibleParams, 0);
+    return (int)db_value("SELECT COUNT(*) FROM mod_requests mr JOIN forums f ON f.id = mr.boardid LEFT JOIN boards b ON b.id = f.categoryid WHERE mr.status = 'new' AND " . $visibleSql, $visibleParams, 0);
 }
 
 /**
@@ -319,67 +317,28 @@ function corebb_mod_requests_log(array $viewer, string $action, string $type = '
     }
 }
 
-/**
- * Usage: Close a moderation request with reviewer metadata.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @param int $requestId Moderation request id.
- * @param int $viewerId Viewer user id.
- * @param string $status Request/report status.
- * @param string $note Admin note or resolution text.
- * @return void No return value.
- */
-function corebb_mod_requests_close(int $requestId, int $viewerId, string $status, string $note = ''): void
+/** Bind queue transitions to the reviewed board, post and current state. */
+function corebb_mod_report_change(array $viewer,array $report,string $status,string $note): bool
 {
-    corebb_mod_requests_ensure_schema();
-    if ($requestId <= 0 || $viewerId <= 0) {
-        return;
-    }
-    $allowed = ['new', 'resolved', 'ignored', 'removed', 'banned'];
-    if (!in_array($status, $allowed, true)) {
-        $status = 'ignored';
-    }
-    $note = corebb_mod_request_limit_text(trim($note), 65535);
-    db_run(
-        'UPDATE mod_requests SET status = ?, handled_by = ?, handled_at = ?, handler_note = ? WHERE id = ?',
-        [$status, $viewerId, date('Y-m-d H:i:s'), $note, $requestId]
-    );
+    [$visible,$params]=corebb_private_sql_visible_board_clause('f','b',(int)$viewer['id'],(int)$viewer['accesslevel']);
+    $reopen=$status==='new';
+    $samePost=$status==='removed' ? ' AND EXISTS (SELECT 1 FROM posts p WHERE p.id=mod_requests.postid AND p.threadid=mod_requests.topicid AND p.boardid=mod_requests.boardid)' : '';
+    return db_run("UPDATE mod_requests SET status=?,handled_by=?,handled_at=?,handler_note=? WHERE id=? AND postid=? AND topicid=? AND boardid=?
+        AND status=? AND EXISTS (SELECT 1 FROM forums f LEFT JOIN boards b ON b.id=f.categoryid WHERE f.id=mod_requests.boardid AND ($visible))$samePost",
+        [$status,$reopen?0:$viewer['id'],$reopen?'':date('Y-m-d H:i:s'),$note,$report['id'],$report['postid'],$report['topicid'],$report['boardid'],$report['status'],...$params])
+        && corebb_db_last_affected_rows()===1;
 }
 
-/**
- * Usage: Move a moderation request back to pending.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @param int $requestId Moderation request id.
- * @return void No return value.
- */
-function corebb_mod_requests_reopen(int $requestId): void
+function corebb_mod_report_decision(array $viewer,array $report,string $action,string $note): array
 {
-    corebb_mod_requests_ensure_schema();
-    if ($requestId <= 0) {
-        return;
+    $reopen=$action==='reopen_request';
+    if ($reopen===($report['status']==='new')) { return [false,'The report has already changed. Refresh the queue.']; }
+    if (strlen($note)>65535) { return [false,'Shorten the handling note before saving.']; }
+    if (!corebb_mod_report_change($viewer,$report,$reopen?'new':'ignored',$reopen?'':trim($note))) {
+        return [false,'Could not update the report. Refresh the queue.'];
     }
-    db_run(
-        "UPDATE mod_requests SET status = 'new', handled_by = 0, handled_at = '', handler_note = '' WHERE id = ?",
-        [$requestId]
-    );
-}
-
-/**
- * Usage: Apply the requested admin change and return its result state.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @param int $topicId Topic id.
- * @param array $viewer Current admin user row.
- * @return array Data prepared for the admin template or caller.
- */
-function corebb_mod_requests_remove_topic(int $topicId, array $viewer): array
-{
-    $result = corebb_mod_remove_topic($topicId, 'Removed from Mod Requests');
-    if (!empty($result['ok'])) {
-        corebb_mod_requests_log($viewer, "Moved topic {$topicId} to deleted-posts bin", 'remove_topic', "Topic {$topicId} moved to deleted-posts bin from Mod Requests");
-    }
-    return $result;
+    corebb_mod_requests_log($viewer,($reopen?'Reopened':'Closed').' mod request '.$report['id'],$reopen?'mod_request_reopened':'mod_request_closed');
+    return [true,$reopen?'Report reopened.':'Report closed without removing content.'];
 }
 
 /**
@@ -499,38 +458,35 @@ function corebb_report_post_model(array $viewer, array $get, array $post): array
  */
 function corebb_admin_mod_requests_model(array $viewer, array $get, array $post): array
 {
+    if (!corebb_admin_viewer_id($viewer) || !corebb_admin_can_access_tool($viewer,'mod_requests')) { return ['errors'=>['You do not have access to Mod Post Requests.']]; }
     corebb_mod_requests_ensure_schema();
     $messages = [];
     $errors = [];
-    $viewerId = (int)($viewer['id'] ?? 0);
     $filterContext = corebb_admin_board_filter_context($viewer, array_merge($post, $get));
     $selectedBoardId = (int)$filterContext['selected_board_id'];
-
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $action = (string)($post['action'] ?? '');
-        $requestId = (int)($post['request_id'] ?? 0);
-        if (!corebb_mod_request_check_token($post)) {
-            $errors[] = 'Invalid request token. Please try again.';
-        } elseif ($viewerId <= 0) {
-            $errors[] = 'Unknown admin user.';
-        } elseif ($requestId <= 0) {
-            $errors[] = 'Unknown request ID.';
-        } elseif ($action === 'close_request') {
-            corebb_mod_requests_close($requestId, $viewerId, 'ignored', corebb_mod_request_limit_text((string)($post['handler_note'] ?? ''), 65535));
-            corebb_mod_requests_log($viewer, "Closed mod request {$requestId}", 'mod_request_closed');
-            $messages[] = 'Mod request closed.';
-        } elseif ($action === 'reopen_request') {
-            corebb_mod_requests_reopen($requestId);
-            corebb_mod_requests_log($viewer, "Reopened mod request {$requestId}", 'mod_request_reopened');
-            $messages[] = 'Mod request reopened.';
-        }
-    }
 
     $old = (string)($get['old'] ?? $get['view'] ?? '') === 'yes' || (string)($get['view'] ?? '') === 'old';
     $severity = corebb_mod_request_limit_text(trim((string)($get['severity'] ?? $get['txtSeverityFilter'] ?? $post['txtSeverityFilter'] ?? '')), 8);
     $urlFilter = corebb_mod_request_limit_text(trim((string)($get['url'] ?? $get['txtUrlFilter'] ?? $post['txtUrlFilter'] ?? '')), 255);
     $page = max(1, (int)($get['page'] ?? 1));
     $perPage = 25;
+    if (corebb_admin_board_filter_id($get+$post)!==$selectedBoardId || ($severity!=='' && !ctype_digit($severity))) {
+        return ['errors'=>['Choose a visible board and numeric severity.'],'board_options'=>$filterContext['board_options'],'old'=>$old];
+    }
+    if (($_SERVER['REQUEST_METHOD'] ?? '')==='POST') {
+        $action=$post['action'] ?? '';
+        if (!corebb_security_csrf_valid($post) || !corebb_mod_request_check_token($post) || !in_array($action,['close_request','reopen_request'],true)) {
+            $errors[]='Reopen the report before making changes.';
+        } else {
+            $report=corebb_mod_request_fetch_request((int)($post['request_id'] ?? 0),$viewer);
+            if (!$report || ($selectedBoardId && (int)$report['boardid']!==$selectedBoardId)) {
+                $errors[]='That report is unavailable.';
+            } else {
+                [$ok,$notice]=corebb_mod_report_decision($viewer,$report,$action,(string)($post['handler_note'] ?? ''));
+                if ($ok) { $messages[]=$notice; } else { $errors[]=$notice; }
+            }
+        }
+    }
 
     $where = [];
     $params = [];
@@ -556,39 +512,32 @@ function corebb_admin_mod_requests_model(array $viewer, array $get, array $post)
     $params = array_merge($params, $visibleParams);
     $whereSql = 'WHERE ' . implode(' AND ', $where);
 
-    $total = (int)db_value("SELECT COUNT(*) FROM mod_requests mr LEFT JOIN forums f ON f.id = mr.boardid LEFT JOIN boards b ON b.id = f.categoryid {$whereSql}", $params, 0);
+    $total = db_value("SELECT COUNT(*) FROM mod_requests mr JOIN forums f ON f.id = mr.boardid LEFT JOIN boards b ON b.id = f.categoryid {$whereSql}", $params);
+    if ($total === null) { return ['errors'=>['Could not load the report queue.']]; }
+    $total = (int)$total;
     $totalPages = max(1, (int)ceil(max(1, $total) / $perPage));
     $page = min($page, $totalPages);
     $offset = ($page - 1) * $perPage;
 
     $rows = [];
-    $sql = "SELECT mr.id, mr.postid, mr.topicid, mr.boardid, mr.reporterid, mr.reported_userid, mr.reason_type, mr.comments, mr.severity, mr.url, mr.status, mr.created_at, mr.created_ip, mr.handled_by, mr.handled_at, mr.handler_note,
-                   reporter.username AS reporter_username, author.username AS author_username,
-                   p.title AS post_title, p.body AS post_body, p.posttime AS post_time,
+    $sql = "SELECT mr.id, mr.postid, mr.reporterid, mr.reason_type, mr.severity, mr.status, mr.created_at,
+                   reporter.username AS reporter_username, p.title AS post_title,
                    f.name AS board_name
             FROM mod_requests mr
             LEFT JOIN users reporter ON reporter.id = mr.reporterid
-            LEFT JOIN users author ON author.id = mr.reported_userid
-            LEFT JOIN posts p ON p.id = mr.postid
-            LEFT JOIN forums f ON f.id = mr.boardid
+            LEFT JOIN posts p ON p.id = mr.postid AND p.boardid=mr.boardid AND p.threadid=mr.topicid
+            JOIN forums f ON f.id = mr.boardid
             LEFT JOIN boards b ON b.id = f.categoryid
             {$whereSql}
             ORDER BY CAST(mr.severity AS UNSIGNED) DESC, mr.id DESC
             LIMIT {$offset}, {$perPage}";
-    foreach (db_all($sql, $params) as $row) {
+    $records = db_all($sql,$params);
+    if (db_error() !== '') { return ['errors'=>['Could not load the report queue.']]; }
+    foreach ($records as $row) {
         $row['_status_label'] = corebb_mod_requests_status_label((string)($row['status'] ?? 'new'));
         $row['_moderate_url'] = '/admin/?act=moderate_message&mes=' . (int)($row['postid'] ?? 0) . '&req=' . (int)($row['id'] ?? 0);
-        $row['_thread_url'] = corebb_mod_request_display_url(
-            (string)($row['url'] ?? ''),
-            (int)($row['topicid'] ?? 0),
-            (int)($row['boardid'] ?? 0),
-            (int)($row['postid'] ?? 0)
-        );
-        $row['_user_url'] = '/admin/?act=user_pages&usr=' . rawurlencode((string)($row['author_username'] ?? $row['reported_userid'] ?? ''));
-        $row['_reporter_url'] = '/admin/?act=user_pages&usr=' . rawurlencode((string)($row['reporter_username'] ?? $row['reporterid'] ?? ''));
-        $row['_post_title_label'] = (string)($row['post_title'] ?? '') !== '' ? (string)$row['post_title'] : 'View Message';
+        $row['_post_title_label'] = (string)($row['post_title'] ?? '') !== '' ? (string)$row['post_title'] : 'Report on post #' . (int)$row['postid'];
         $row['_reporter_label'] = (string)($row['reporter_username'] ?? '') !== '' ? (string)$row['reporter_username'] : '#' . (int)($row['reporterid'] ?? 0);
-        $row['_author_label'] = (string)($row['author_username'] ?? '') !== '' ? (string)$row['author_username'] : '#' . (int)($row['reported_userid'] ?? 0);
         $row['_reason_label'] = str_replace('_', ' ', (string)($row['reason_type'] ?? ''));
         $rows[] = $row;
     }
@@ -606,12 +555,14 @@ function corebb_admin_mod_requests_model(array $viewer, array $get, array $post)
     if ($selectedBoardId > 0) {
         $baseParams['boardid'] = $selectedBoardId;
     }
-    $pageParams = $baseParams;
-    $pageParams['page'] = '{page}';
-    $base = '/admin/?' . http_build_query($pageParams, '', '&', PHP_QUERY_RFC3986);
+    $base = '/admin/?' . http_build_query($baseParams, '', '&', PHP_QUERY_RFC3986) . '&page={page}';
     $actionParams = $baseParams;
     $actionParams['page'] = $page;
     $actionUrl = '/admin/?' . http_build_query($actionParams, '', '&', PHP_QUERY_RFC3986);
+    $context=$actionParams;
+    unset($context['act']);
+    foreach ($rows as &$item) { $item['_moderate_url'].='&'.http_build_query($context); }
+    unset($item);
     $newLinkParams = $baseParams;
     unset($newLinkParams['old']);
     $newRequestsUrl = '/admin/?' . http_build_query($newLinkParams, '', '&', PHP_QUERY_RFC3986);
@@ -620,8 +571,7 @@ function corebb_admin_mod_requests_model(array $viewer, array $get, array $post)
     $oldRequestsUrl = '/admin/?' . http_build_query($oldLinkParams, '', '&', PHP_QUERY_RFC3986);
 
     return [
-        'viewer' => $viewer,
-        'viewer_accesslevel' => (int)($viewer['accesslevel'] ?? 0),
+        'saved' => (bool)$messages && !$errors,
         'messages' => $messages,
         'errors' => $errors,
         'token' => corebb_mod_request_token(),
@@ -651,142 +601,93 @@ function corebb_admin_mod_requests_model(array $viewer, array $get, array $post)
  * @param array $post Posted form data from admin.php.
  * @return array Data prepared for the admin template or caller.
  */
-function corebb_admin_moderate_message_model(array $viewer, array $get, array $post): array
+function corebb_admin_moderate_message_model(array $viewer,array $get,array $post): array
 {
+    if (!corebb_admin_viewer_id($viewer) || !corebb_admin_can_access_tool($viewer,'mod_requests')) {
+        return ['missing'=>true,'errors'=>['You do not have access to Mod Post Requests.']];
+    }
     corebb_mod_requests_ensure_schema();
-    $messages = [];
-    $errors = [];
-    $viewerId = (int)($viewer['id'] ?? 0);
-    $requestId = (int)($get['req'] ?? $post['request_id'] ?? 0);
-    $postId = (int)($get['mes'] ?? $get['post'] ?? $post['postid'] ?? 0);
-
-    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $action = (string)($post['action'] ?? '');
-        if (!corebb_mod_request_check_token($post)) {
-            $errors[] = 'Invalid request token. Please try again.';
-        } elseif ($viewerId <= 0) {
-            $errors[] = 'Unknown admin user.';
-        } elseif ($action === 'close_request' && $requestId > 0) {
-            corebb_mod_requests_close($requestId, $viewerId, 'ignored', corebb_mod_request_limit_text((string)($post['handler_note'] ?? ''), 65535));
-            corebb_mod_requests_log($viewer, "Closed mod request {$requestId}", 'mod_request_closed');
-            $messages[] = 'Mod request closed.';
-        } elseif ($action === 'remove_message' && $postId > 0) {
-            $postRow = corebb_mod_request_fetch_post($postId);
-            if (!$postRow || !corebb_private_user_can_view_board_id((int)($postRow['boardid'] ?? 0), (int)($viewer['id'] ?? 0), (int)($viewer['accesslevel'] ?? 0))) {
-                $errors[] = 'Unknown message ID.';
-                $result = ['message' => 'Unknown message ID.'];
-            } else {
-                $result = corebb_mod_remove_post($postId);
+    $id=(int)($get['req'] ?? $post['request_id'] ?? 0);
+    $postId=(int)($get['mes'] ?? $get['post'] ?? $post['postid'] ?? 0);
+    $params=array_intersect_key($get,array_flip(['boardid','severity','url','old','page']));
+    $params=array_filter($params,'is_scalar');
+    $suffix=$params?'&'.http_build_query($params):'';
+    $m=['queue_url'=>'/admin/?act=mod_requests'.$suffix,'token'=>corebb_mod_request_token(),'errors'=>[]];
+    $report=$id>0 ? corebb_mod_request_fetch_request($id,$viewer) : null;
+    if ($id && (!$report || ($postId && $postId!==(int)$report['postid']))) {
+        return $m+['missing'=>true,'message'=>'This report is unavailable.'];
+    }
+    if ($report) { $postId=(int)$report['postid']; }
+    $row=$postId>0 ? corebb_mod_request_fetch_post($postId,true) : null;
+    if ($row && (!corebb_private_user_can_view_board_id((int)$row['boardid'],(int)$viewer['id'],(int)$viewer['accesslevel'])
+        || ($report && ((int)$report['boardid']!==(int)$row['boardid'] || (int)$report['topicid']!==(int)$row['threadid'])))) { $row=null; }
+    if (!$row && !$report) { return $m+['missing'=>true,'message'=>'This message is unavailable.']; }
+    $active=$row && !$row['is_deleted'] && (!$report || $report['status']==='new');
+    $topicId=(int)($row['threadid'] ?? 0);
+    $boardId=(int)($row['boardid'] ?? 0);
+    $author=(int)($row['posterid'] ?? 0);
+    $topic=$active ? corebb_mod_get_topic($topicId,true) : null;
+    $write=$active && $topic && !$topic['is_deleted'] && (int)$topic['boardid']===$boardId
+        && corebb_secure_archive_user_can_write_board_id($boardId,(int)$viewer['accesslevel']);
+    $first=$write ? (int)db_value('SELECT MIN(id) FROM posts WHERE threadid=? AND is_deleted=0',[$topicId]) : 0;
+    $canPost=$write && $first>0 && $first!==$postId && corebb_mod_author_rank_error($author)==='';
+    $canTopic=$write && corebb_mod_topic_rank_error($topicId)==='' && ($first!==$postId || corebb_mod_author_rank_error($author)==='');
+    $m['action_url']='/admin/?act=moderate_message&mes='.$postId.($id?'&req='.$id:'').$suffix;
+    if (($_SERVER['REQUEST_METHOD'] ?? '')==='POST') {
+        $action=$post['action'] ?? '';
+        $m['draft_note']=is_string($post['handler_note'] ?? '') ? trim($post['handler_note'] ?? '') : '';
+        if (!is_string($post['handler_note'] ?? '') || strlen($m['draft_note'])>65535) {
+            $m['errors'][]='Enter a shorter handling note.';
+        } elseif (!corebb_security_csrf_valid($post) || !corebb_mod_request_check_token($post)
+            || (isset($post['postid']) && (int)$post['postid']!==$postId)
+            || (isset($post['request_id']) && (int)$post['request_id']!==$id)) {
+            $m['errors'][]='Reopen the review before making changes.';
+        } elseif ($report && in_array($action,['close_request','reopen_request'],true)) {
+            [$ok,$message]=corebb_mod_report_decision($viewer,$report,$action,$m['draft_note']);
+            if ($ok) { return $m+['saved'=>true,'messages'=>[$message],'return_url'=>$m['queue_url']]; }
+            $m['errors'][]=$message;
+        } elseif (($canPost && $action==='remove_message') || ($canTopic && $action==='remove_topic')) {
+            $note=$m['draft_note']!=='' ? $m['draft_note'] : ($action==='remove_topic'?'Topic removed.':'Message removed.');
+            $transition=$report ? static fn():bool => corebb_mod_report_change($viewer,$report,'removed',$note) : null;
+            $result=$action==='remove_topic' ? corebb_mod_remove_topic($topicId,'Removed from Mod Requests',$transition)
+                : corebb_mod_remove_post($postId,'',$transition,false);
+            if ($result['ok']) {
+                if ($action==='remove_topic') { corebb_mod_requests_log($viewer,"Moved topic {$topicId} to deleted-posts bin",'remove_topic'); }
+                return $m+['saved'=>true,'messages'=>[$result['message']],'return_url'=>$m['queue_url']];
             }
-            if ($requestId > 0 && empty($errors)) {
-                corebb_mod_requests_close($requestId, $viewerId, 'removed', 'Message removed.');
-            }
-            $messages[] = (string)($result['message'] ?? 'Message removed.');
-        } elseif ($action === 'remove_topic' && $postId > 0) {
-            $postRow = corebb_mod_request_fetch_post($postId);
-            if (!$postRow || !corebb_private_user_can_view_board_id((int)($postRow['boardid'] ?? 0), (int)($viewer['id'] ?? 0), (int)($viewer['accesslevel'] ?? 0))) {
-                $errors[] = 'Unknown message ID.';
-            } else {
-                $topicId = (int)($postRow['threadid'] ?? 0);
-                $result = corebb_mod_requests_remove_topic($topicId, $viewer);
-                if ($requestId > 0 && !empty($result['ok'])) {
-                    corebb_mod_requests_close($requestId, $viewerId, 'removed', 'Topic removed.');
-                }
-                $messages[] = (string)($result['message'] ?? 'Topic removed.');
-            }
+            $m['errors'][]='Could not complete the removal. Refresh the report and check its status.';
+        } else {
+            $m['errors'][]='That action is unavailable for this message or report.';
         }
     }
-
-    $requestRow = $requestId > 0 ? corebb_mod_request_fetch_request($requestId) : false;
-    if ($requestRow && $postId <= 0) {
-        $postId = (int)($requestRow['postid'] ?? 0);
+    $access=[];
+    foreach (['user_pages','admin_notes','user_ip_check','host_lookup','moderation_ban'] as $tool) {
+        $access[$tool]=corebb_admin_can_access_tool($viewer,$tool);
     }
-    $postRow = corebb_mod_request_fetch_post($postId);
-
-    if (!$postRow && $requestRow) {
-        $postRow = [
-            'id' => (int)($requestRow['postid'] ?? 0),
-            'threadid' => (int)($requestRow['topicid'] ?? 0),
-            'boardid' => (int)($requestRow['boardid'] ?? 0),
-            'posterid' => (int)($requestRow['reported_userid'] ?? 0),
-            'author_username' => (string)($requestRow['author_username'] ?? 'Unknown'),
-            'author_accesslevel' => (int)($requestRow['author_accesslevel'] ?? 0),
-            'user_ip' => (string)($requestRow['author_lastip'] ?? ''),
-            'postip' => '',
-            'title' => (string)($requestRow['post_title'] ?? '[Message removed]'),
-            'body' => (string)($requestRow['post_body'] ?? ''),
-            'posttime' => (string)($requestRow['post_time'] ?? ''),
+    if ($report) {
+        $m['report']=[
+            'id'=>$id,'status'=>$report['status'],'label'=>corebb_mod_requests_status_label($report['status']),
+            'reporter'=>$report['reporter_username'] ?: 'User #'.$report['reporterid'],'reporterid'=>(int)$report['reporterid'],
+            'reason'=>str_replace('_',' ',$report['reason_type']),'comments'=>$report['comments'],'severity'=>$report['severity'],
+            'created'=>$report['created_at'],'handled'=>$report['handled_at'],'note'=>$report['handler_note'],
+            'handler'=>$report['handler_username'] ?: ($report['handled_by']?'User #'.$report['handled_by']:''),
+            'board'=>$report['board_name'],'postid'=>$postId,'reported_userid'=>(int)$report['reported_userid'],
         ];
     }
-
-    if ($postRow && !corebb_private_user_can_view_board_id((int)($postRow['boardid'] ?? 0), (int)($viewer['id'] ?? 0), (int)($viewer['accesslevel'] ?? 0))) {
-        $postRow = false;
-    }
-
-    if (!$postRow) {
-        return [
-            'viewer' => $viewer,
-            'viewer_accesslevel' => (int)($viewer['accesslevel'] ?? 0),
-            'missing' => true,
-            'messages' => $messages,
-            'errors' => $errors,
-            'message' => 'Unknown message ID.',
-            'token' => corebb_mod_request_token(),
+    if ($row) {
+        $network=$access['user_ip_check'] || $access['host_lookup'];
+        $access['moderation_ban'] = $access['moderation_ban'] && $row['author_userid']
+            && $author !== (int)$viewer['id'] && (int)$row['author_accesslevel'] < (int)$viewer['accesslevel'];
+        $m['post']=[
+            'id'=>$postId,'author_id'=>$author,'author'=>$row['author_username'] ?: ($row['author'] ?: 'Unknown author'),
+            'title'=>$row['title'] ?: 'Untitled message','body'=>$row['body'],'level'=>(int)$row['author_accesslevel'],
+            'date'=>convert_to_vndate((string)$row['posttime']),'deleted'=>(bool)$row['is_deleted'],
+            'board'=>$row['board_name'],'topic'=>$row['topic_title'],
+            'thread_url'=>corebb_notifications_reply_target_url($topicId,$boardId,$postId,(string)$row['board_name']),
+            'user_ip'=>$network?corebb_admin_display_ip((string)$row['user_ip']):'',
+            'post_ip'=>$network?corebb_admin_display_ip((string)$row['postip']):'',
         ];
     }
-
-    $authorId = (int)($postRow['posterid'] ?? $postRow['author_userid'] ?? 0);
-    $authorName = trim((string)($postRow['author_username'] ?? $postRow['author'] ?? ''));
-    $userIp = (string)($postRow['user_ip'] ?? '');
-    $messageIp = (string)($postRow['postip'] ?? '');
-    $topicId = (int)($postRow['threadid'] ?? 0);
-    $threadUrl = corebb_mod_request_thread_url($topicId, (int)($postRow['boardid'] ?? 0), $postId);
-    $actionUrl = '/admin/?act=moderate_message&mes=' . $postId . ($requestId > 0 ? '&req=' . $requestId : '');
-    $preparedRequest = null;
-    if (is_array($requestRow)) {
-        $reporterId = (int)($requestRow['reporterid'] ?? 0);
-        $reporterName = trim((string)($requestRow['reporter_username'] ?? ''));
-        $preparedRequest = $requestRow;
-        $preparedRequest['_reporter_label'] = $reporterName !== '' ? $reporterName : '#' . $reporterId;
-        $preparedRequest['_reporter_url'] = '/admin/?act=user_pages&usr=' . rawurlencode($reporterName !== '' ? $reporterName : (string)$reporterId);
-        $preparedRequest['_reason_label'] = str_replace('_', ' ', (string)($requestRow['reason_type'] ?? ''));
-    }
-
-    return [
-        'viewer' => $viewer,
-        'viewer_accesslevel' => (int)($viewer['accesslevel'] ?? 0),
-        'missing' => false,
-        'messages' => $messages,
-        'errors' => $errors,
-        'token' => corebb_mod_request_token(),
-        'request_id' => $requestId,
-        'request' => $preparedRequest,
-        'action_url' => $actionUrl,
-        'can_close_request' => $requestId > 0 && is_array($requestRow) && (string)($requestRow['status'] ?? 'new') === 'new',
-        'post' => [
-            'id' => $postId,
-            'topicid' => $topicId,
-            'boardid' => (int)($postRow['boardid'] ?? 0),
-            'author_id' => $authorId,
-            'author_username' => $authorName !== '' ? $authorName : 'Unknown',
-            'author_accesslevel' => (int)($postRow['author_accesslevel'] ?? 0),
-            'author_url' => '/admin/?act=user_pages&usr=' . rawurlencode($authorName !== '' ? $authorName : (string)$authorId),
-            'title' => (string)($postRow['title'] ?? ''),
-            'body' => (string)($postRow['body'] ?? ''),
-            'posttime' => (string)($postRow['posttime'] ?? ''),
-            'posttime_label' => ($postRow['posttime'] ?? '') !== '' ? convert_to_vndate((string)$postRow['posttime']) : (string)($postRow['posttime'] ?? ''),
-            'user_ip' => $userIp,
-            'post_ip' => $messageIp,
-            'thread_url' => $threadUrl,
-            'admin_notes_url' => '/admin/?act=admin_notes&uid=' . $authorId,
-            'user_page_url' => '/admin/?act=user_pages&usr=' . rawurlencode((string)($postRow['author_username'] ?? $authorId)),
-            'user_ip_check_url' => '/admin/?act=user_ip_check&ip=' . rawurlencode($userIp),
-            'user_host_lookup_url' => '/admin/?act=host_lookup&ip_address=' . rawurlencode($userIp),
-            'post_ip_check_url' => '/admin/?act=user_ip_check&ip=' . rawurlencode($messageIp),
-            'post_host_lookup_url' => '/admin/?act=host_lookup&ip_address=' . rawurlencode($messageIp),
-            'ban_url' => '/admin/?act=moderation&mode=ban&q=' . rawurlencode((string)($postRow['author_username'] ?? $authorId)),
-            'edit_url' => '/post/edit/' . $postId . '/?mod=1',
-        ],
-    ];
+    return $m+['access'=>$access,'can_edit'=>$write && (int)$viewer['accesslevel']>=3 && corebb_mod_author_rank_error($author)==='',
+        'can_remove_post'=>$canPost,'can_remove_topic'=>$canTopic,'opening_post'=>$first>0 && $first===$postId];
 }
-?>

@@ -62,7 +62,14 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
         'reply' => 'post-reply',
         default => isset($_GET['edit']) ? 'post-edit' : 'post',
     };
-    if ($screen !== 'post') {
+    $boardId = (int)($_GET['boardid'] ?? $_GET['brd'] ?? 0);
+    if ($screen === 'post-edit') {
+        $editing = corebb_mod_get_post((int)$_GET['edit']);
+        $boardId = (int)($editing['boardid'] ?? 0);
+    }
+    $kb = $boardId > 0 && corebb_kb_board(corebb_private_board_row($boardId) ?: []);
+    $GLOBALS['corebb_kb_page'] = $kb;
+    if ($screen !== 'post' && !$kb) {
         corebb_mobile_redirect($screen, [
             'id' => (int)($_GET['id'] ?? $_GET['edit'] ?? $_GET['boardid'] ?? 0),
             'boardId' => (int)($_GET['boardid'] ?? $_GET['brd'] ?? 0),

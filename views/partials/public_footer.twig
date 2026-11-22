@@ -14,7 +14,12 @@
     </tr>
 </table>
 {% include 'partials/public_theme_script.twig' %}
+{% if signal|default(false) %}
+    </div>
+</div>
+{% else %}
 </td></tr></table></td></tr></table>
+{% endif %}
 {% if layout.footer.debug_allowed|default(false) %}
     {% include 'partials/public_debug.twig' with {rows: layout.footer.debug_rows|default([])} only %}
 {% endif %}

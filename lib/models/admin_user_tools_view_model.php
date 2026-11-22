@@ -80,7 +80,7 @@ function corebb_admin_user_select_list(string $alias = ''): string
         'regdate', 'lastip', 'lastlogindate', 'lastpstdate', 'lastpost',
         'status', 'approved', 'iconid', 'profpic', 'title', 'profiletitle',
         'signature', 'sig1', 'sig2', 'sig3', 'sig4', 'sig5',
-        'style', 'vip_bg_color', 'vip_text_color', 'vip_strike', 'vip_bold',
+        'style', 'appearance_preset_id', 'vip_bg_color', 'vip_text_color', 'vip_strike', 'vip_bold',
         'vip_italic', 'vip_border', 'vip_border_color',
         'legacy_remote_user_id', 'legacy_user_id', 'email', 'publicemail',
         'privateemail', 'useragent', 'ban_reason', 'banned_at', 'banned_by',
@@ -179,12 +179,10 @@ function corebb_admin_tool_catalog(): array
             'auth_settings' => ['label' => 'Authentication Settings', 'min_level' => 5],
             'mail_services' => ['label' => 'Mail Services', 'min_level' => 5],
             'database_tools' => ['label' => 'Database Tools', 'min_level' => 5],
-            'db_schema_deploy' => ['label' => 'DB Schema Deploy', 'min_level' => 5],
             'updates' => ['label' => 'Updates', 'min_level' => 5],
             'api_explorer' => ['label' => 'API Explorer', 'min_level' => 5],
             'forum_sim' => ['label' => 'Forum Sim-Test', 'min_level' => 5],
-            'edit_tos' => ['label' => 'Edit System TOS', 'min_level' => 5],
-            'edit_style' => ['label' => 'Edit System Style', 'min_level' => 5],
+            'edit_tos' => ['label' => 'System Settings · Terms of Service only', 'min_level' => 5],
             'edit_rights' => ['label' => 'Edit User Rights', 'min_level' => 5],
             'change_user_password' => ['label' => "Change User's Password", 'min_level' => 5],
             'add_user' => ['label' => 'Add User', 'min_level' => 5],
@@ -243,6 +241,12 @@ function corebb_admin_tool_map(): array
     return $map;
 }
 
+/** The unified page still uses the three existing, independently assignable grants. */
+function corebb_admin_global_message_tools(): array
+{
+    return ['add' => 'global_message', 'edit' => 'edit_global_message', 'remove' => 'remove_global_message'];
+}
+
 /**
  * Usage: Convert an admin act/mode pair into its permission-tool key.
  * Referenced by: admin.php before dispatching a route model.
@@ -251,13 +255,23 @@ function corebb_admin_tool_map(): array
  * @param array<string, mixed> $request Query parameters for actions with modes.
  * @return string Permission-tool key.
  */
-function corebb_admin_tool_key_for_request(string $act, array $request = []): string
+function corebb_admin_tool_key_for_request(string $act, array $request = [], array $viewer = []): string
 {
+    if ($act === 'global_messages') {
+        foreach (corebb_admin_global_message_tools() as $tool) {
+            if (corebb_admin_can_access_tool($viewer, $tool)) { return $tool; }
+        }
+        return 'global_message';
+    }
+    if ($act === 'edit_settings' && ($request['section'] ?? '') === 'terms'
+        && !corebb_admin_can_access_tool($viewer, 'edit_settings')) {
+        return 'edit_tos';
+    }
     if ($act === '') {
         return 'admin_home';
     }
     if ($act === 'administrator_tools' || $act === 'database_tools') {
-        return 'database_tools';
+        return ($request['section'] ?? '') === 'schema' ? 'db_schema_deploy' : 'database_tools';
     }
     if ($act === 'moderate_message') {
         return 'mod_requests';
@@ -335,13 +349,13 @@ function corebb_admin_normalize_tool_keys($keys): array
  * @param int $userId User id.
  * @return array<int, string> Explicitly granted tool keys.
  */
-function corebb_admin_user_granted_tool_keys(int $userId): array
+function corebb_admin_user_granted_tool_keys(int $userId, bool $refresh = false): array
 {
     static $cache = [];
     if ($userId <= 0) {
         return [];
     }
-    if (isset($cache[$userId])) {
+    if (!$refresh && isset($cache[$userId])) {
         return $cache[$userId];
     }
 
@@ -368,6 +382,9 @@ function corebb_admin_user_granted_tool_keys(int $userId): array
  */
 function corebb_admin_can_access_tool(array $viewer, string $toolKey): bool
 {
+    if ($toolKey === 'db_schema_deploy') {
+        return corebb_admin_viewer_level($viewer) >= 5;
+    }
     $toolMap = corebb_admin_tool_map();
     if (!isset($toolMap[$toolKey])) {
         return false;
@@ -724,140 +741,148 @@ function corebb_admin_require_model_base(array $viewer, string $title, array $re
  */
 function corebb_admin_edit_rights_model(array $viewer, array $request, array $post): array
 {
-    $model = corebb_admin_require_model_base($viewer, 'Edit User Rights', $request);
-    $model['levels'] = corebb_admin_assignable_level_options($viewer);
-    $model['role_details'] = corebb_admin_level_details($model['levels']);
-    $model['can_manage_tool_grants'] = corebb_admin_can_manage_tool_grants($viewer);
-    $model['tool_groups'] = corebb_admin_tool_catalog();
-    $model['tool_summary'] = corebb_admin_tool_group_summary([]);
-    $model['search_value'] = trim((string)($request['user'] ?? ''));
-    $model['current_level'] = null;
-    $model['target_level'] = null;
-    $model['mode'] = 'search';
-
-    $method = (string)($request['method'] ?? '');
+    $levels = corebb_admin_assignable_level_options($viewer);
+    $canGrant = corebb_admin_can_manage_tool_grants($viewer);
+    $model = [
+        'mode'=>'search', 'messages'=>[], 'errors'=>[], 'user'=>null, 'levels'=>$levels,
+        'role_details'=>corebb_admin_level_details($levels), 'can_manage_tool_grants'=>$canGrant,
+        'can_view_user_pages'=>corebb_admin_can_access_tool($viewer,'user_pages'), 'search_value'=>'',
+    ];
     $isPost = ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST';
-
-    if ($isPost && $method === 'save') {
-        $userId = (int)($post['userid'] ?? 0);
-        $newLevel = (int)($post['userslevel'] ?? 0);
-        $target = $userId > 0 ? corebb_admin_find_user((string)$userId) : null;
-        $targetError = corebb_admin_target_rights_error($viewer, $target);
-        $levelError = corebb_admin_new_level_error($viewer, $newLevel);
-        $selectedTools = corebb_admin_normalize_tool_keys($post['admin_tools'] ?? []);
-
-        if ($targetError !== '') {
-            $model['errors'][] = $targetError;
-        } elseif ($levelError !== '') {
-            $model['errors'][] = $levelError;
-        } elseif (!isset($model['levels'][$newLevel])) {
-            $model['errors'][] = 'Invalid user level.';
+    $method = $isPost ? ($request['method'] ?? 'view') : 'view';
+    $identifier = $isPost ? ($post['userid'] ?? $post['username'] ?? '') : ($request['user'] ?? '');
+    $identifier = is_scalar($identifier) ? trim((string)$identifier) : '';
+    $model['search_value'] = $identifier;
+    if (!$levels || !corebb_admin_can_access_tool($viewer, 'edit_rights')) {
+        $model['errors'][] = 'You cannot assign user rights.';
+        return $model;
+    }
+    if ($identifier === '' && !$isPost) { return $model; }
+    $target = corebb_admin_find_user($identifier);
+    $error = corebb_admin_target_rights_error($viewer, $target);
+    if ($error !== '') {
+        $model['errors'][] = $error;
+        return $model;
+    }
+    $id = (int)$target['id'];
+    $key = 'corebb_rights_review:' . corebb_admin_viewer_id($viewer) . ':' . $id;
+    $stored = corebb_admin_user_granted_tool_keys($id, true);
+    if (db_error() !== '') {
+        $model['errors'][] = 'Could not load the current tool grants.';
+        return $model;
+    }
+    $level = (int)$target['accesslevel'];
+    $tools = $stored;
+    $model['revision'] = corebb_admin_rights_revision($target, $stored);
+    if ($isPost && !corebb_security_csrf_valid($post)) {
+        $model['errors'][] = 'Your form expired. Review the account again.';
+    } elseif ($method === 'confirm') {
+        $proposed = filter_var($post['userlevel'] ?? null, FILTER_VALIDATE_INT);
+        $submitted = $post['admin_tools'] ?? [];
+        $known = corebb_admin_tool_map();
+        if (isset($post['revision']) && $post['revision'] !== $model['revision']) {
+            $model['errors'][] = 'The rights on this account changed. Review the current settings again.';
+        } elseif (!isset($levels[$proposed])) {
+            $model['errors'][] = 'Choose a role below your own.';
+        } elseif (!is_array($submitted) || array_filter($submitted, static fn($tool) => !is_string($tool) || !isset($known[$tool]))) {
+            $model['errors'][] = 'The form contains an unknown tool. Review the grants again.';
+        } elseif (!$canGrant && $submitted) {
+            $model['errors'][] = 'Only full administrators can change direct tool grants.';
         } else {
-            $ok = db_run('UPDATE users SET accesslevel = ? WHERE id = ?', [$newLevel, $userId]);
-            if ($ok) {
-                $newLevelText = $model['levels'][$newLevel] ?? (string)$newLevel;
-                {
-                    corebb_adminlog_entry((string)($viewer['username'] ?? 'Unknown'), (int)($viewer['accesslevel'] ?? 0), 'Changed user: ' . $userId . ' to level: ' . $newLevel . ' (' . $newLevelText . ')');
-                }
-                $model['messages'][] = 'User ' . ($target['username'] ?? $userId) . ' was updated to level ' . $newLevel . ' (' . $newLevelText . ').';
-                if ($model['can_manage_tool_grants']) {
-                    if (corebb_admin_replace_tool_grants($userId, $selectedTools, $viewer)) {
-                        $model['messages'][] = 'Additional admin tool access updated.';
-                        {
-                            corebb_adminlog_entry((string)($viewer['username'] ?? 'Unknown'), (int)($viewer['accesslevel'] ?? 0), 'Updated admin tool access for user: ' . $userId);
-                        }
-                    } else {
-                        $model['errors'][] = 'Error updating admin tool access: ' . db_error();
-                    }
-                }
-                $updatedTarget = corebb_admin_find_user((string)$userId);
-                if ($updatedTarget) {
-                    $model['mode'] = 'view';
-                    $model['user'] = corebb_admin_user_summary($updatedTarget);
-                    $model['tool_groups'] = corebb_admin_tool_groups_for_user($updatedTarget);
-                    $model['tool_summary'] = corebb_admin_tool_group_summary($model['tool_groups']);
-                    $model['current_level'] = [
-                        'value' => (int)($updatedTarget['accesslevel'] ?? 0),
-                        'label' => corebb_user_level_label((int)($updatedTarget['accesslevel'] ?? 0)),
-                    ];
-                }
+            $level = $proposed;
+            if ($canGrant) {
+                $tools = array_values(array_filter(array_unique($submitted), static fn($tool) => $known[$tool]['min_level'] > $level));
+            }
+            $model['added'] = array_values(array_map(static fn($k) => $known[$k]['label'], array_diff($tools, $stored)));
+            $model['removed'] = array_values(array_map(static fn($k) => $known[$k]['label'], array_diff($stored, $tools)));
+            if ($level === (int)$target['accesslevel'] && !$model['added'] && !$model['removed']) {
+                $model['messages'][] = 'No changes to save.';
             } else {
-                $model['errors'][] = 'Error updating user level: ' . db_error();
+                $model['mode'] = 'confirm';
+                $model['review_token'] = bin2hex(random_bytes(24));
+                $_SESSION[$key] = ['token'=>$model['review_token'], 'revision'=>$model['revision'],
+                    'level'=>$level, 'tools'=>$tools, 'change_grants'=>(bool)($model['added'] || $model['removed'])];
             }
         }
-    } elseif ($isPost && $method === 'confirm') {
-        $userId = (int)($post['userid'] ?? 0);
-        $newLevel = (int)($post['userlevel'] ?? 0);
-        $target = $userId > 0 ? corebb_admin_find_user((string)$userId) : null;
-        $targetError = corebb_admin_target_rights_error($viewer, $target);
-        $levelError = corebb_admin_new_level_error($viewer, $newLevel);
-
-        if ($targetError !== '') {
-            $model['errors'][] = $targetError;
-        } elseif ($levelError !== '') {
-            $model['errors'][] = $levelError;
-        } elseif (!isset($model['levels'][$newLevel])) {
-            $model['errors'][] = 'Invalid user level.';
+    } elseif ($method === 'save' || $method === 'revise') {
+        $review = $_SESSION[$key] ?? null;
+        if (!$review || !is_string($post['review_token'] ?? null) || !hash_equals($review['token'], $post['review_token'])) {
+            $model['errors'][] = 'Review the changes again before saving.';
         } else {
-            $model['mode'] = 'confirm';
-            $model['user'] = corebb_admin_user_summary($target);
-            $model['new_level'] = $newLevel;
-            $model['new_level_name'] = $model['levels'][$newLevel];
-            $model['current_level'] = [
-                'value' => (int)($target['accesslevel'] ?? 0),
-                'label' => corebb_user_level_label((int)($target['accesslevel'] ?? 0)),
-            ];
-            $model['target_level'] = [
-                'value' => $newLevel,
-                'label' => $model['levels'][$newLevel],
-            ];
-            $selectedTools = $model['can_manage_tool_grants'] ? corebb_admin_normalize_tool_keys($post['admin_tools'] ?? []) : corebb_admin_user_granted_tool_keys($userId);
-            $confirmTarget = $target;
-            $confirmTarget['accesslevel'] = $newLevel;
-            $model['tool_groups'] = corebb_admin_tool_groups_for_user($confirmTarget, $selectedTools);
-            $model['tool_summary'] = corebb_admin_tool_group_summary($model['tool_groups']);
-        }
-    } elseif ($isPost && $method === 'view') {
-        $identifier = (string)($post['username'] ?? '');
-        $model['search_value'] = trim($identifier);
-        $target = corebb_admin_find_user($identifier);
-        $targetError = corebb_admin_target_rights_error($viewer, $target);
-        if ($targetError !== '') {
-            $model['errors'][] = $targetError;
-        } else {
-            $model['mode'] = 'view';
-            $model['user'] = corebb_admin_user_summary($target);
-            $model['tool_groups'] = corebb_admin_tool_groups_for_user($target);
-            $model['tool_summary'] = corebb_admin_tool_group_summary($model['tool_groups']);
-            $model['current_level'] = [
-                'value' => (int)($target['accesslevel'] ?? 0),
-                'label' => corebb_user_level_label((int)($target['accesslevel'] ?? 0)),
-            ];
-        }
-    } elseif (!$isPost && isset($request['user'])) {
-        $identifier = (string)($request['user'] ?? '');
-        $model['search_value'] = trim($identifier);
-        $target = corebb_admin_find_user($identifier);
-        $targetError = corebb_admin_target_rights_error($viewer, $target);
-        if ($targetError !== '') {
-            $model['errors'][] = $targetError;
-        } else {
-            $model['mode'] = 'view';
-            $model['user'] = corebb_admin_user_summary($target);
-            $model['tool_groups'] = corebb_admin_tool_groups_for_user($target);
-            $model['tool_summary'] = corebb_admin_tool_group_summary($model['tool_groups']);
-            $model['current_level'] = [
-                'value' => (int)($target['accesslevel'] ?? 0),
-                'label' => corebb_user_level_label((int)($target['accesslevel'] ?? 0)),
-            ];
+            unset($_SESSION[$key]);
+            if ($review['revision'] !== $model['revision'] || !isset($levels[$review['level']]) || ($review['change_grants'] && !$canGrant)) {
+                $model['errors'][] = 'The rights on this account or your permissions changed. Review the current settings again.';
+            } elseif ($method === 'revise') {
+                $level = $review['level'];
+                $tools = $review['tools'];
+            } else {
+                $error = corebb_admin_save_reviewed_rights($viewer, $id, $review);
+                if ($error === '') {
+                    $model['saved'] = true;
+                    $model['user'] = corebb_admin_user_summary($target);
+                    $model['messages'][] = 'Rights saved for ' . $target['username'] . '.';
+                    return $model;
+                }
+                $model['errors'][] = $error;
+            }
         }
     }
-
-    if (empty($model['levels'])) {
-        $model['errors'][] = 'No assignable user levels are available for your account.';
-    }
-
+    if ($model['mode'] !== 'confirm') { $model['mode'] = 'view'; }
+    $model['user'] = corebb_admin_user_summary($target);
+    $model['search_value'] = $model['user']['username'];
+    $model['selected_level'] = $level;
+    $target['accesslevel'] = $level;
+    $model['tool_groups'] = corebb_admin_tool_groups_for_user($target, $tools);
+    $model['tool_summary'] = corebb_admin_tool_group_summary($model['tool_groups']);
     return $model;
+}
+
+function corebb_admin_rights_revision(array $target, array $tools): string
+{
+    sort($tools, SORT_STRING);
+    return hash('sha256', json_encode([(int)$target['id'], (int)$target['accesslevel'], $tools], JSON_THROW_ON_ERROR));
+}
+
+function corebb_admin_save_reviewed_rights(array $viewer, int $userId, array $review): string
+{
+    $failure = 'Could not save the rights change. No changes were committed.';
+    // The grants table is provisioned outside the transaction (DDL may commit implicitly).
+    corebb_admin_tool_permissions_ensure_schema();
+    if (!db_begin()) { return $failure; }
+    try {
+        $viewerId = corebb_admin_viewer_id($viewer);
+        $lock = corebb_db_connection()->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql' ? ' FOR UPDATE' : '';
+        $rows = db_all('SELECT id, username, accesslevel FROM users WHERE id IN (?, ?) ORDER BY id' . $lock, [$viewerId,$userId]);
+        $users = array_column($rows, null, 'id');
+        $actor = $users[$viewerId] ?? [];
+        $target = $users[$userId] ?? null;
+        corebb_admin_user_granted_tool_keys($viewerId, true);
+        if (!$actor || db_error() !== '' || !corebb_admin_can_access_tool($actor, 'edit_rights')
+            || corebb_admin_target_rights_error($actor,$target) !== '' || corebb_admin_new_level_error($actor,$review['level']) !== ''
+            || ($review['change_grants'] && !corebb_admin_can_manage_tool_grants($actor))) {
+            return 'You can no longer apply this rights change.';
+        }
+        $current = corebb_admin_user_granted_tool_keys($userId, true);
+        if (db_error() !== '') { return $failure; }
+        if (corebb_admin_rights_revision($target,$current) !== $review['revision']) {
+            return 'This account changed after review. Reopen it before saving.';
+        }
+        if (!db_run('UPDATE users SET accesslevel = ? WHERE id = ?', [$review['level'],$userId])
+            || ($review['change_grants'] && !corebb_admin_replace_tool_grants($userId,$review['tools'],$actor))
+            || !db_commit()) {
+            return $failure;
+        }
+    } finally {
+        if (corebb_db_connection()->inTransaction()) { db_rollback(); }
+    }
+    corebb_admin_user_granted_tool_keys($userId, true);
+    $detail = 'Role ' . $target['accesslevel'] . ' → ' . $review['level'];
+    if ($review['change_grants']) {
+        $detail .= '. Added: ' . (implode(', ', array_diff($review['tools'],$current)) ?: 'none')
+            . '. Removed: ' . (implode(', ', array_diff($current,$review['tools'])) ?: 'none');
+    }
+    corebb_adminlog_viewer($actor, 'Updated rights for ' . $target['username'] . ' (#' . $userId . ')', 'edit_rights', $detail);
+    return '';
 }
 
 /**
@@ -871,53 +896,92 @@ function corebb_admin_edit_rights_model(array $viewer, array $request, array $po
  */
 function corebb_admin_change_password_model(array $viewer, array $request, array $post): array
 {
-    $model = corebb_admin_require_model_base($viewer, "Change User's Password", $request);
-    $model['mode'] = 'search';
-
-    $method = (string)($request['method'] ?? '');
-    $isPost = ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST';
-
-    if ($isPost && $method === 'save') {
-        $userId = (int)($post['userid'] ?? 0);
-        $password1 = (string)($post['password1'] ?? '');
-        $password2 = (string)($post['password2'] ?? '');
-        $target = $userId > 0 ? corebb_admin_find_user((string)$userId) : null;
-        $targetError = corebb_admin_target_rights_error($viewer, $target);
-        if ($targetError !== '') {
-            $model['errors'][] = $targetError;
-        } elseif ($password1 === '' || $password2 === '' || $password1 !== $password2) {
-            $model['mode'] = 'edit';
-            $model['user'] = $target ? corebb_admin_user_summary($target) : null;
-            $model['errors'][] = 'Password mismatch or no password entered.';
-        } else {
-            corebb_auth_ensure_schema();
-            $hash = corebb_auth_password_hash($password1);
-            $ok = db_run('UPDATE users SET password = ? WHERE id = ?', [$hash, $userId]);
-            if ($ok) {
-                corebb_auth_revoke_user_login_tokens($userId);
-            }
-            if ($ok) {
-                {
-                    corebb_adminlog_entry((string)($viewer['username'] ?? 'Unknown'), (int)($viewer['accesslevel'] ?? 0), "Changed user: {$userId}'s password");
-                }
-                $model['messages'][] = 'Password updated for ' . ($target['username'] ?? $userId) . '.';
-            } else {
-                $model['errors'][] = 'Error updating password: ' . db_error();
-            }
-        }
-    } elseif ($isPost && $method === 'view') {
-        $identifier = (string)($post['user'] ?? '');
-        $target = corebb_admin_find_user($identifier);
-        $targetError = corebb_admin_target_rights_error($viewer, $target);
-        if ($targetError !== '') {
-            $model['errors'][] = $targetError;
-        } else {
-            $model['mode'] = 'edit';
-            $model['user'] = corebb_admin_user_summary($target);
-        }
+    $model = ['errors' => [], 'user' => null, 'search_value' => '', 'saved' => false,
+        'can_view_member' => corebb_admin_can_access_tool($viewer, 'user_pages')];
+    if (!corebb_admin_can_access_tool($viewer, 'change_user_password')) {
+        $model['errors'][] = 'You do not have access to this tool.';
+        return $model;
     }
 
+    $isPost = ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST';
+    $method = $request['method'] ?? 'view';
+    $saving = $isPost && $method === 'save';
+    if ($isPost && !corebb_security_csrf_valid($post)) {
+        $model['errors'][] = 'Your form expired. Find the member again.';
+        return $model;
+    }
+    if ($saving) {
+        $id = filter_var($post['userid'] ?? null, FILTER_VALIDATE_INT, ['options'=>['min_range'=>1]]);
+        if (!$id || (isset($request['user']) && $request['user'] !== (string)$id)) {
+            $model['errors'][] = 'Find the member again before changing their password.';
+            return $model;
+        }
+        $identifier = (string)$id;
+    } else {
+        $input = $isPost ? ($post['user'] ?? '') : ($request['user'] ?? '');
+        $identifier = is_string($input) ? trim($input) : '';
+        if ($identifier === '') { return $model; }
+    }
+
+    $model['search_value'] = $identifier;
+    $target = corebb_admin_find_user($identifier);
+    $error = corebb_admin_target_rights_error($viewer, $target);
+    if ($error !== '') {
+        $model['errors'][] = !$target ? 'No member found for that username or ID.'
+            : 'Choose another member with a lower role to change their password.';
+        return $model;
+    }
+    $model['user'] = corebb_admin_user_summary($target);
+    $model['search_value'] = $target['username'];
+    if (!$saving) { return $model; }
+
+    $password = $post['password1'] ?? '';
+    if (!is_string($password) || $password === '' || $password !== ($post['password2'] ?? null)) {
+        $model['errors'][] = 'Enter the same new password in both fields.';
+        return $model;
+    }
+    $error = corebb_admin_save_member_password($viewer, (int)$target['id'], $password);
+    if ($error !== '') {
+        $model['errors'][] = $error;
+    } else {
+        $model['saved'] = true;
+    }
     return $model;
+}
+
+function corebb_admin_save_member_password(array $viewer, int $userId, string $password): string
+{
+    try {
+        $hash = corebb_auth_password_hash($password);
+    } catch (ValueError | RuntimeException $error) {
+        return 'Could not set this password. Enter a different password.';
+    }
+    // Both schema helpers can issue DDL. Finish setup before opening the transaction.
+    corebb_auth_ensure_schema();
+    corebb_admin_tool_permissions_ensure_schema();
+    $failure = 'Could not save the password change. Please try again.';
+    if (!db_begin()) { return $failure; }
+    try {
+        $actorId = corebb_admin_viewer_id($viewer);
+        $lock = corebb_db_connection()->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql' ? ' FOR UPDATE' : '';
+        $rows = db_all('SELECT id, username, accesslevel FROM users WHERE id IN (?, ?) ORDER BY id' . $lock, [$actorId, $userId]);
+        $users = array_column($rows, null, 'id');
+        $actor = $users[$actorId] ?? [];
+        $target = $users[$userId] ?? null;
+        corebb_admin_user_granted_tool_keys($actorId, true);
+        if (!$actor || db_error() !== '' || !corebb_admin_can_access_tool($actor, 'change_user_password')
+            || corebb_admin_target_rights_error($actor, $target) !== '') {
+            return 'You can no longer change the password for this member.';
+        }
+        if (!db_run('UPDATE users SET password = ? WHERE id = ?', [$hash, $userId])
+            || !corebb_auth_revoke_user_login_tokens($userId) || !db_commit()) {
+            return $failure;
+        }
+    } finally {
+        if (corebb_db_connection()->inTransaction()) { db_rollback(); }
+    }
+    corebb_adminlog_viewer($actor, 'Changed password for ' . $target['username'] . ' (#' . $userId . ')', 'change_user_password');
+    return '';
 }
 
 /**
@@ -931,70 +995,83 @@ function corebb_admin_change_password_model(array $viewer, array $request, array
  */
 function corebb_admin_add_user_model(array $viewer, array $request, array $post): array
 {
-    $model = corebb_admin_require_model_base($viewer, 'Add User', $request);
-    $model['levels'] = corebb_admin_assignable_level_options($viewer);
-    $model['mode'] = 'form';
-    $model['form'] = [
-        'username' => '',
-        'userlevel' => 1,
+    $levels = corebb_admin_assignable_level_options($viewer);
+    $model = [
+        'levels' => $levels,
+        'role_details' => corebb_admin_level_details($levels),
+        'form' => ['username' => '', 'userlevel' => 1],
+        'errors' => [],
+        'created_user' => null,
+        'can_view_member' => corebb_admin_can_access_tool($viewer, 'user_pages'),
+        'can_edit_rights' => corebb_admin_can_access_tool($viewer, 'edit_rights'),
     ];
-
-    $isPost = ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST';
-    if ($isPost) {
-        $username = trim((string)($post['username'] ?? ''));
-        $password1 = (string)($post['password1'] ?? '');
-        $password2 = (string)($post['password2'] ?? '');
-        $level = (int)($post['userlevel'] ?? 1);
-        $model['form'] = ['username' => $username, 'userlevel' => $level];
-
-        if ($username === '') {
-            $model['errors'][] = 'Username is required.';
-        }
-        if ($password1 === '' || $password2 === '' || $password1 !== $password2) {
-            $model['errors'][] = 'Password mismatch or no password entered.';
-        }
-        if (!isset($model['levels'][$level])) {
-            $levelError = corebb_admin_new_level_error($viewer, $level);
-            $model['errors'][] = $levelError !== '' ? $levelError : 'Invalid user level.';
-        }
-        if ($username !== '' && corebb_admin_find_user($username)) {
-            $model['errors'][] = 'That username already exists.';
-        }
-
-        if (!$model['errors']) {
-            corebb_auth_ensure_schema();
-            $hash = corebb_auth_password_hash($password1);
-            $userColumns = corebb_admin_table_columns('users');
-            $newUser = [
-                'username' => $username,
-                'password' => $hash,
-                'accesslevel' => $level,
-            ];
-            $profileDate = date('M y');
-            if (isset($userColumns['regdate'])) {
-                $newUser['regdate'] = $profileDate;
-            }
-            if (isset($userColumns['profadded'])) {
-                $newUser['profadded'] = $profileDate;
-            }
-            $insertColumns = array_keys($newUser);
-            $insertSql = implode(', ', array_map(static function (string $column): string {
-                return '`' . str_replace('`', '``', $column) . '`';
-            }, $insertColumns));
-            $placeholders = implode(', ', array_fill(0, count($insertColumns), '?'));
-            $ok = db_run('INSERT INTO users (' . $insertSql . ') VALUES (' . $placeholders . ')', array_values($newUser));
-            if ($ok) {
-                {
-                    corebb_adminlog_entry((string)($viewer['username'] ?? 'Unknown'), (int)($viewer['accesslevel'] ?? 0), 'Added new user: ' . $username . ' - Userlevel: ' . $level);
-                }
-                $model['messages'][] = 'User successfully added.';
-                $model['form'] = ['username' => '', 'userlevel' => 1];
-            } else {
-                $model['errors'][] = 'Error adding user: ' . db_error();
-            }
-        }
+    if (!corebb_admin_can_access_tool($viewer, 'add_user') || !$levels) {
+        $model['levels'] = [];
+        $model['errors'][] = 'You do not have an assignable role for a new account.';
+        return $model;
+    }
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') { return $model; }
+    if (!corebb_security_csrf_valid($post)) {
+        $model['errors'][] = 'Your form expired. Enter the account details again.';
+        return $model;
     }
 
+    $username = is_string($post['username'] ?? null) ? trim($post['username']) : '';
+    $password = $post['password1'] ?? '';
+    $confirmation = $post['password2'] ?? '';
+    $level = filter_var($post['userlevel'] ?? 1, FILTER_VALIDATE_INT);
+    $model['form'] = ['username' => $username, 'userlevel' => $level];
+    if ($username === '' || !preg_match('/\A.{1,255}\z/us', $username)) {
+        $model['errors'][] = 'Enter a username of up to 255 characters.';
+    }
+    if (!is_string($password) || $password === '' || $password !== $confirmation) {
+        $model['errors'][] = 'Enter the same password in both password fields.';
+    }
+    if (!isset($levels[$level])) {
+        $model['errors'][] = 'Choose a role below your own.';
+    }
+    if ($model['errors']) { return $model; }
+
+    corebb_auth_ensure_schema();
+    try {
+        $hash = corebb_auth_password_hash($password);
+    } catch (ValueError | RuntimeException $e) {
+        $model['errors'][] = 'Could not set this password. Enter a different password.';
+        return $model;
+    }
+    $newUser = ['username' => $username, 'password' => $hash, 'accesslevel' => $level];
+    $columns = corebb_admin_table_columns('users');
+    foreach (['regdate', 'profadded'] as $dateColumn) {
+        if (isset($columns[$dateColumn])) { $newUser[$dateColumn] = date('M y'); }
+    }
+    $failure = 'Could not create the account. Please try again.';
+    if (!db_begin()) {
+        $model['errors'][] = $failure;
+        return $model;
+    }
+    try {
+        $lock = corebb_db_connection()->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql' ? ' FOR UPDATE' : '';
+        $existing = db_one('SELECT id FROM users WHERE username = ? LIMIT 1' . $lock, [$username]);
+        if ($existing) {
+            $model['errors'][] = 'That username already exists.';
+            return $model;
+        }
+        $names = '`' . implode('`, `', array_keys($newUser)) . '`';
+        $placeholders = implode(', ', array_fill(0, count($newUser), '?'));
+        if (db_error() !== '' || !db_run('INSERT INTO users (' . $names . ') VALUES (' . $placeholders . ')', array_values($newUser))) {
+            $model['errors'][] = $failure;
+            return $model;
+        }
+        $id = db_insert_id();
+        if (!$id || !db_commit()) {
+            $model['errors'][] = $failure;
+            return $model;
+        }
+    } finally {
+        if (corebb_db_connection()->inTransaction()) { db_rollback(); }
+    }
+    corebb_adminlog_viewer($viewer, 'Added new user: ' . $username . ' - Userlevel: ' . $level, 'add_user');
+    $model['created_user'] = ['id' => $id, 'username' => $username, 'role' => $levels[$level], 'accesslevel' => $level];
     return $model;
 }
 
@@ -1079,178 +1156,109 @@ function corebb_admin_view_message_author_error(array $viewer, ?array $author): 
  */
 function corebb_admin_view_message_apply_post(array $model, array $viewer, int $messageId): array
 {
-    corebb_mod_ensure_schema();
-    $postRow = db_one('SELECT * FROM posts WHERE id = ? LIMIT 1', [$messageId]);
-    if ($postRow && !corebb_private_user_can_view_board_id((int)($postRow['boardid'] ?? 0), (int)($viewer['id'] ?? 0), (int)($viewer['accesslevel'] ?? 0))) {
-        $postRow = false;
-    }
-    if (!$postRow) {
-        $model['errors'][] = 'Unknown message ID.';
-        $model['mode'] = 'form';
+    $row = corebb_mod_get_post($messageId, true);
+    $board = $row ? corebb_private_board_row((int)$row['boardid']) : null;
+    if (!$board || !corebb_private_user_can_view_board_row($board, (int)$viewer['id'], (int)$viewer['accesslevel'])) {
+        $model['errors'][] = 'No visible message found for that ID.';
         return $model;
     }
-
-    $user = null;
-    if (!empty($postRow['posterid'])) {
-        $user = corebb_admin_find_user((string)$postRow['posterid']);
-    }
-
-    $model['mode'] = 'view';
-    $model['post'] = $postRow;
-    $model['poster'] = $user ? corebb_admin_user_summary($user) : null;
-    $rightsError = corebb_admin_view_message_author_error($viewer, $user);
-    $archiveError = corebb_secure_archive_user_can_write_board_id((int)($postRow['boardid'] ?? 0), (int)($viewer['accesslevel'] ?? 0)) ? '' : corebb_secure_archive_denied_message();
-    $isDeleted = (int)($postRow['is_deleted'] ?? 0) === 1;
-    $model['is_deleted'] = $isDeleted;
-    $model['can_modify_message'] = (!$isDeleted && $rightsError === '' && $archiveError === '');
-    $model['modify_block_reason'] = $isDeleted ? 'This message is currently in the Deleted Posts bin. Restore or purge it from that tool.' : ($archiveError !== '' ? $archiveError : $rightsError);
-    $model['edit_subject'] = (string)($postRow['title'] ?? '');
-    $model['edit_body'] = (string)($postRow['body'] ?? '');
-    $model['post_date'] = convert_to_vndate((string)($postRow['posttime'] ?? ''));
-    $editCount = max(1, (int)($postRow['editcount'] ?? 0));
+    $author = $row['posterid'] ? corebb_admin_find_user((string)$row['posterid']) : null;
+    $topic = db_one('SELECT id,title,is_deleted FROM topics WHERE id=? AND boardid=?', [$row['threadid'],$row['boardid']]);
+    $model['post'] = array_intersect_key($row, array_flip(['id','posterid','author','boardid','threadid','title','body']));
+    $model['poster'] = $author ? corebb_admin_user_summary($author) : null;
+    $model['board_name'] = $board['name'];
+    $model['board_url'] = corebb_board_url((int)$board['id'], 1, $board['name']);
+    $model['topic_title'] = $topic['title'] ?? '';
+    $model['topic_url'] = $topic && !$topic['is_deleted'] ? corebb_thread_url((int)$topic['id'], (int)$board['id'], 1, $board['name']) : '';
+    $model['is_deleted'] = (bool)$row['is_deleted'];
+    $model['post_date'] = convert_to_vndate((string)$row['posttime']);
     $model['post_edit'] = [
-        'was_edited' => (int)($postRow['wasedited'] ?? 0) === 1,
-        'date' => convert_to_vndate((string)($postRow['editdate'] ?? '')),
-        'count_text' => $editCount === 1 ? '1 edit total' : $editCount . ' edits total',
-        'edited_by_id' => (int)($postRow['editedby'] ?? 0),
+        'was_edited'=>(bool)$row['wasedited'], 'date'=>convert_to_vndate((string)$row['editdate']),
+        'count'=>max(1,(int)$row['editcount']), 'edited_by_id'=>(int)$row['editedby'],
     ];
-
+    $model['revision'] = corebb_admin_message_revision($row);
+    $model['modify_block_reason'] = corebb_admin_view_message_author_error($viewer,$author);
+    if (!corebb_secure_archive_user_can_write_board_row($board, (int)$viewer['accesslevel'])) {
+        $model['modify_block_reason'] = corebb_secure_archive_denied_message();
+    }
     return $model;
 }
 
-/**
- * Usage: Build and process the View a Message admin page.
- * Referenced by: admin route act=view_message.
- *
- * @param array<string, mixed> $viewer Current admin user row.
- * @param array<string, mixed> $request Query parameters.
- * @param array<string, mixed> $post Posted form data.
- * @return array<string, mixed> Page model.
- */
+function corebb_admin_message_revision(array $row): string
+{
+    return hash('sha256', serialize(array_map(static fn($key) => (string)($row[$key] ?? ''),
+        ['id','boardid','threadid','posterid','title','body','editcount','is_deleted'])));
+}
+
 function corebb_admin_view_message_model(array $viewer, array $request, array $post): array
 {
-    corebb_mod_ensure_schema();
-    $model = corebb_admin_require_model_base($viewer, 'View a Message', $request);
-    $model['mode'] = 'form';
-    $model['messageid'] = 0;
-    $model['edit_subject'] = '';
-    $model['edit_body'] = '';
-    $model['can_modify_message'] = false;
-    $model['modify_block_reason'] = '';
-    $model['delete_redirect'] = '';
-
-    $method = (string)($request['method'] ?? '');
+    $model = ['messages'=>[], 'errors'=>[], 'messageid'=>'', 'post'=>null];
+    if (corebb_admin_viewer_id($viewer) <= 0 || !corebb_admin_can_access_tool($viewer, 'view_message')) {
+        $model['errors'][] = 'You do not have access to View a Message.';
+        return $model;
+    }
+    $model['can_view_bin'] = corebb_admin_can_access_tool($viewer, 'deleted_posts');
+    $method = $request['method'] ?? '';
     $isPost = ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST';
-    $messageId = (int)($isPost ? ($post['messageid'] ?? 0) : ($request['messageid'] ?? 0));
-    $model['messageid'] = $messageId > 0 ? $messageId : 0;
-
-    if ($isPost && $method === 'edit') {
-        if ($messageId <= 0) {
-            $model['errors'][] = 'Unknown message ID.';
-            return $model;
-        }
-        $postRow = corebb_mod_get_post($messageId);
-        if ($postRow && !corebb_private_user_can_view_board_id((int)($postRow['boardid'] ?? 0), (int)($viewer['id'] ?? 0), (int)($viewer['accesslevel'] ?? 0))) {
-            $postRow = false;
-        }
-        if (!$postRow) {
-            $model['errors'][] = 'Unknown visible message ID. Deleted-bin messages must be restored before editing.';
-            return $model;
-        }
-        $author = !empty($postRow['posterid']) ? corebb_admin_find_user((string)$postRow['posterid']) : null;
-        $rightsError = corebb_admin_view_message_author_error($viewer, $author ?: null);
-        if (!corebb_secure_archive_user_can_write_board_id((int)($postRow['boardid'] ?? 0), (int)($viewer['accesslevel'] ?? 0))) {
-            $model['errors'][] = corebb_secure_archive_denied_message();
-            return corebb_admin_view_message_apply_post($model, $viewer, $messageId);
-        }
-        if ($rightsError !== '') {
-            $model['errors'][] = $rightsError;
-            return corebb_admin_view_message_apply_post($model, $viewer, $messageId);
-        }
-
-        [$subject, $body] = corebb_admin_view_message_normalize(
-            (string)($post['message_subject'] ?? ''),
-            (string)($post['message_body'] ?? '')
-        );
-        $now = convert_to_timestamp_raw(time());
-        $ok = corebb_mod_update_post_with_edit_metadata(
-            $messageId,
-            $subject,
-            $body,
-            (int)($viewer['id'] ?? 0),
-            $now
-        );
-        if (!$ok) {
-            $model['errors'][] = 'Error updating message: ' . db_error();
-            return corebb_admin_view_message_apply_post($model, $viewer, $messageId);
-        }
-
-        $topicId = (int)($postRow['threadid'] ?? 0);
-        if ($topicId > 0) {
-            corebb_mod_refresh_topic_from_posts($topicId);
-        }
-        corebb_mod_log('Moderator edited post ' . $messageId . ' from View a Message');
-        corebb_notifications_notify_moderated_post(
-            $postRow,
-            'edited',
-            (int)($viewer['id'] ?? 0),
-            (string)($viewer['username'] ?? 'A moderator')
-        );
-        $model['messages'][] = 'Message #' . $messageId . ' was updated.';
-        return corebb_admin_view_message_apply_post($model, $viewer, $messageId);
+    $input = $isPost ? ($post['messageid'] ?? '') : ($request['messageid'] ?? '');
+    $model['messageid'] = is_scalar($input) ? trim((string)$input) : '';
+    if ($method === '' && $model['messageid'] === '') { return $model; }
+    $id = filter_var($model['messageid'], FILTER_VALIDATE_INT, ['options'=>['min_range'=>1]]);
+    if (!$id) { $model['errors'][] = 'Enter a positive message ID.'; return $model; }
+    $write = $isPost && in_array($method, ['edit','delete'], true);
+    if ($write && (!corebb_security_csrf_valid($post) || (isset($request['messageid']) && (string)$id !== (string)$request['messageid']))) {
+        $model['errors'][] = 'Reopen the message before making changes.';
+        return $model;
     }
-
-    if ($isPost && $method === 'delete') {
-        if ($messageId <= 0) {
-            $model['errors'][] = 'Unknown message ID.';
-            return $model;
-        }
-        $postRow = corebb_mod_get_post($messageId, true);
-        if ($postRow && !corebb_private_user_can_view_board_id((int)($postRow['boardid'] ?? 0), (int)($viewer['id'] ?? 0), (int)($viewer['accesslevel'] ?? 0))) {
-            $postRow = false;
-        }
-        if (!$postRow) {
-            $model['errors'][] = 'Unknown message ID.';
-            return $model;
-        }
-        $author = !empty($postRow['posterid']) ? corebb_admin_find_user((string)$postRow['posterid']) : null;
-        $rightsError = corebb_admin_view_message_author_error($viewer, $author ?: null);
-        if (!corebb_secure_archive_user_can_write_board_id((int)($postRow['boardid'] ?? 0), (int)($viewer['accesslevel'] ?? 0))) {
-            $model['errors'][] = corebb_secure_archive_denied_message();
-            return corebb_admin_view_message_apply_post($model, $viewer, $messageId);
-        }
-        if ($rightsError !== '') {
-            $model['errors'][] = $rightsError;
-            return corebb_admin_view_message_apply_post($model, $viewer, $messageId);
-        }
-
-        $result = corebb_mod_remove_post($messageId);
-        if (!empty($result['ok'])) {
-            $model['messages'][] = (string)($result['message'] ?? 'Message moved to deleted-posts bin.');
-            $model['delete_redirect'] = (string)($result['redirect'] ?? '');
-            $model['messageid'] = 0;
-            return $model;
-        }
-        $model['errors'][] = (string)($result['message'] ?? 'Error deleting message.');
-        return corebb_admin_view_message_apply_post($model, $viewer, $messageId);
+    $model = corebb_admin_view_message_apply_post($model, $viewer, $id);
+    $row = $model['post'];
+    if (!$row) { return $model; }
+    if (!$write) {
+        corebb_adminlog_viewer($viewer, 'Viewed admin message #' . $id . ' by user #' . (int)$row['posterid'], 'view_message');
+        return $model;
     }
-
-    if ($method === 'view' || $messageId > 0) {
-        if ($messageId <= 0) {
-            $model['errors'][] = 'Unknown message ID.';
+    if ($model['is_deleted'] || $model['modify_block_reason'] !== '') {
+        $model['errors'][] = $model['modify_block_reason'] ?: 'This message is already in Deleted Posts.';
+        return $model;
+    }
+    if (isset($post['revision']) && $post['revision'] !== $model['revision']) {
+        $model['errors'][] = 'This message changed. Review the latest version before continuing.';
+        return $model;
+    }
+    if ($method === 'delete') {
+        $result = corebb_mod_remove_post($id);
+        if (empty($result['ok'])) { $model['errors'][] = 'Could not move this message to Deleted Posts.'; return $model; }
+        $model['saved'] = true;
+        $model['messages'][] = $result['message'];
+        $model['continue_url'] = $result['redirect'] ?? '';
+        return $model;
+    }
+    if (!is_string($post['message_subject'] ?? null) || !is_string($post['message_body'] ?? null)) {
+        $model['errors'][] = 'Submit both the subject and the message.';
+        return $model;
+    }
+    [$subject,$body] = corebb_admin_view_message_normalize($post['message_subject'],$post['message_body']);
+    if (!db_begin()) { $model['errors'][] = 'Could not start the edit.'; return $model; }
+    try {
+        $lock = corebb_db_connection()->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql' ? ' FOR UPDATE' : '';
+        $latest = db_one('SELECT id,boardid,threadid,posterid,title,body,editcount,is_deleted FROM posts WHERE id=?' . $lock, [$id]);
+        if (!$latest || corebb_admin_message_revision($latest) !== $model['revision']) {
+            $model['errors'][] = 'This message changed during the edit. Reopen it before continuing.';
             return $model;
         }
-
-        $model = corebb_admin_view_message_apply_post($model, $viewer, $messageId);
-        if (($model['mode'] ?? '') === 'view' && (int)($viewer['accesslevel'] ?? 0) >= 3 ) {
-            $posterId = (int)($model['post']['posterid'] ?? 0);
-            corebb_adminlog_viewer(
-                $viewer,
-                'Viewed admin message #' . $messageId . ($posterId > 0 ? ' by user #' . $posterId : ''),
-                'view_message'
-            );
+        $ok = corebb_mod_update_post_with_edit_metadata($id,$subject,$body,(int)$viewer['id'],convert_to_timestamp_raw(time()));
+        if (!$ok || !db_commit()) {
+            $model['errors'][] = 'Could not save this edit. Please try again.';
+            $model['draft'] = ['title'=>$post['message_subject'], 'body'=>$post['message_body']];
+            return $model;
         }
+    } finally {
+        if (corebb_db_connection()->inTransaction()) { db_rollback(); }
     }
-
+    if ($row['threadid'] > 0) { corebb_mod_refresh_topic_from_posts((int)$row['threadid']); }
+    corebb_mod_log('Moderator edited post ' . $id . ' from View a Message');
+    corebb_notifications_notify_moderated_post($row, 'edited', (int)$viewer['id'], (string)$viewer['username']);
+    $model['saved'] = true;
+    $model['messages'][] = 'Message #' . $id . ' was updated.';
     return $model;
 }

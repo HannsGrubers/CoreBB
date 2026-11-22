@@ -1,61 +1,78 @@
-{% include 'partials/admin_messages.twig' with {messages: model.messages|default([]), errors: model.errors|default([])} only %}
-{% set boards = model.boards|default([]) %}
-{% set selectedBoard = model.selected_board|default(0) %}
-{% set unit = model.unit|default('days') %}
-
-<div class="corebb-admin-modern-page">
-    <div class="corebb-admin-modern-header">
-        <div>
-            <div class="corebb-admin-modern-eyebrow">Moderation</div>
-            <h2>Spam Ratings</h2>
-            <div class="corebb-admin-modern-meta">
-                <span>{{ boards|length|number_format }} boards available</span>
-                {% if selectedBoard > 0 %}<span>Board #{{ selectedBoard }}</span>{% endif %}
-            </div>
-        </div>
-        <div class="corebb-admin-modern-actions">
-            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
-        </div>
-    </div>
-
-    <div class="corebb-admin-modern-note is-muted">
-        Generate postable BBCode ratings for a target board. This tool only reads forum activity and does not post anything automatically.
-    </div>
-
-    <div class="corebb-admin-modern-panel">
-        <form class="corebb-admin-modern-form" method="get" action="/admin/">
-            <input type="hidden" name="act" value="spam_ratings">
-            <div class="corebb-admin-modern-grid">
-                <label for="corebbSpamBoard">Target Board</label>
-                <select id="corebbSpamBoard" name="board">
-                    <option value="0">Select a board...</option>
-                    {% for board in boards %}
-                        {% set boardId = board.id|default(0) %}
-                        <option value="{{ boardId }}"{% if boardId == selectedBoard %} selected{% endif %}>{{ board.category_name|default('')|trim }} / {{ board.name|default('')|trim }}</option>
-                    {% endfor %}
-                </select>
-
-                <label for="corebbSpamPeriod">Period</label>
-                <span>
-                    <input id="corebbSpamPeriod" type="text" name="period" size="4" value="{{ model.period|default(7) }}">
-                    <select name="unit">
-                        <option value="days"{% if unit == 'days' %} selected{% endif %}>Days</option>
-                        <option value="weeks"{% if unit == 'weeks' %} selected{% endif %}>Weeks</option>
-                    </select>
-                    <span class="corebb-admin-modern-help">Days: 1-365. Weeks: 1-52.</span>
-                </span>
-
-                <div class="corebb-admin-modern-submit corebb-admin-modern-full">
-                    <button class="corebb-board-action-link" type="submit">Generate Spam Ratings</button>
-                </div>
-            </div>
-        </form>
-    </div>
-
-    {% if selectedBoard > 0 %}
-        <div class="corebb-admin-modern-panel">
-            <div class="corebb-admin-section-title">Postable BBCode</div>
-            <textarea class="corebb-admin-schema-textarea" cols="100" rows="32" wrap="soft">{{ model.bbcode|default('') }}</textarea>
-        </div>
+<div class="admin-overview admin-settings stats-report ratings-report">
+    <header class="admin-dash-heading"><div><h1>Spam Ratings</h1>
+        <p class="admin-history-count">Generate a board’s posting leaderboard, awards, and poll results to share in a forum post.</p></div>
+        <a href="{{ url('/admin/') }}">Dashboard</a>
+    </header>
+    {% include 'partials/admin_messages.twig' with {errors:model.errors|default([]),messages:[]} only %}
+    {% if model.boards is defined %}
+    <form class="admin-settings-form stats-filters" method="get" action="{{ url('/admin/') }}">
+        <input type="hidden" name="act" value="spam_ratings">
+        <div class="admin-auth-field"><label for="ratings-board">Board</label><select id="ratings-board" name="board" required>
+            <option value="">Select a board</option>
+            {% for board in model.boards %}<option value="{{ board.id }}"{% if board.id == model.selected_board %} selected{% endif %}>{{ board.label }}</option>{% endfor %}
+        </select></div>
+        <fieldset class="ratings-period"><legend>Reporting period</legend>
+            <input type="number" id="ratings-period" name="period" aria-label="Period length" aria-describedby="ratings-limits" min="1" max="365" value="{{ model.period }}" required>
+            <select id="ratings-unit" name="unit" aria-label="Period unit" aria-describedby="ratings-limits">
+                <option value="days"{% if model.unit == 'days' %} selected{% endif %}>Days</option>
+                <option value="weeks"{% if model.unit == 'weeks' %} selected{% endif %}>Weeks</option>
+            </select>
+        </fieldset>
+        <div class="admin-settings-save"><button type="submit">Generate ratings</button></div>
+        <small id="ratings-limits">Choose 1–365 days or 1–52 weeks.</small>
+    </form>
+    {% endif %}
+    {% if model.board_name is defined %}
+    <section class="ratings-result" aria-labelledby="ratings-title">
+        <header class="admin-section-head"><div><h2 id="ratings-title">{{ model.board_name }}</h2>
+            <p class="admin-history-count">{{ model.range }} · {{ model.period }} {{ model.period == 1 ? (model.unit == 'weeks' ? 'week' : 'day') : model.unit }}</p></div>
+            {% if model.bbcode %}<div class="admin-settings-save ratings-copy"><span role="status" id="ratings-feedback"></span><button type="button" id="ratings-copy" hidden>Copy BBCode</button></div>{% endif %}
+        </header>
+        {% if model.empty|default(false) %}
+        <p class="ratings-empty">No visible posts during this period. Choose another board or a longer period.</p>
+        {% else %}
+        <dl class="admin-metrics">
+            {% for label,value in {'Posts':model.posts|number_format,'Posters':model.posters|number_format,'Active topics':model.topics|number_format,'Posts per day':model.per_day|number_format(2)} %}
+            <div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>
+            {% endfor %}
+        </dl>
+        {% if model.leaders %}<section class="ratings-leaders" aria-labelledby="ratings-leaders-title"><h3 id="ratings-leaders-title">Top posters</h3>
+            <table><thead><tr><th scope="col">Rank</th><th scope="col">Member</th><th scope="col">Posts</th><th scope="col">Per day</th></tr></thead>
+            <tbody>{% for row in model.leaders %}<tr><td>{{ loop.index }}</td><th scope="row">{{ row.name }}</th><td>{{ row.posts|number_format }}</td><td>{{ row.per_day|number_format(2) }}</td></tr>{% endfor %}</tbody></table>
+        </section>{% endif %}
+        <details class="ratings-export" id="ratings-export"><summary>Full report in BBCode</summary>
+            <label for="ratings-text">Review or edit before posting</label>
+            <textarea id="ratings-text" rows="12" spellcheck="false">{{ model.bbcode }}</textarea>
+        </details>
+        {% endif %}
+    </section>
     {% endif %}
 </div>
+<script nonce="{{ csp_nonce() }}">
+(() => {
+    const period = document.getElementById('ratings-period');
+    const unit = document.getElementById('ratings-unit');
+    if (unit) {
+        const updateLimit = () => { period.max = unit.value === 'weeks' ? '52' : '365'; };
+        unit.addEventListener('change', updateLimit);
+        updateLimit();
+    }
+    const copy = document.getElementById('ratings-copy');
+    if (!copy) return;
+    const source = document.getElementById('ratings-text');
+    const feedback = document.getElementById('ratings-feedback');
+    copy.hidden = false;
+    copy.addEventListener('click', async () => {
+        try {
+            await navigator.clipboard.writeText(source.value);
+            feedback.textContent = 'BBCode copied.';
+        } catch {
+            document.getElementById('ratings-export').open = true;
+            source.focus();
+            source.select();
+            feedback.textContent = 'Report selected. Use your device’s Copy command.';
+        }
+    });
+    source.addEventListener('input', () => { feedback.textContent = ''; });
+})();
+</script>

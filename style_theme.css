@@ -2276,6 +2276,36 @@ button.corebb-move-button:hover .corebb-move-arrow {
 }
 
 .wb-w-full { width: 100%; }
+
+/* Knowledge Base pages use the same themed cells as boards and topics. */
+.wb-kb-heading { margin: 0; font: inherit; font-weight: bold; }
+.wb-kb-controls, .wb-kb-details { display: flex; flex-wrap: wrap; align-items: baseline; gap: .35em 1.1em; }
+.wb-kb-controls { margin: 0; }
+.wb-kb-controls :is(label, input, select) { max-width: 100%; box-sizing: border-box; }
+.wb-kb-controls [aria-current="page"] { border-block-end: 2px solid currentColor; padding-block-end: 2px; }
+.wb-kb-reader { table-layout: fixed; }
+.wb-kb-intro {
+    display: grid; grid-template-columns: minmax(0, 1fr) minmax(14em, 28%);
+    align-items: start; gap: 1.6em; padding: .85em 1em; overflow-wrap: anywhere;
+}
+.wb-kb-category { display: inline-block; margin-bottom: .4em; }
+.wb-kb-title { margin: 0; font: inherit; font-size: 1.55em; font-weight: bold; line-height: 1.2; }
+.wb-kb-summary { margin: .55em 0 0; max-width: 74ch; line-height: 1.5; }
+.wb-kb-facts {
+    display: grid; grid-template-columns: max-content minmax(0, 1fr);
+    gap: .35em 1em; margin: 0; padding-inline-start: 1.2em;
+    border-inline-start: 1px solid currentColor;
+    border-color: color-mix(in srgb, currentColor 25%, transparent);
+}
+.wb-kb-facts dt { font-weight: bold; }
+.wb-kb-facts dd { margin: 0; }
+@media (max-width: 640px) {
+    .wb-kb-intro { grid-template-columns: minmax(0, 1fr); gap: .8em; padding: .6em; }
+    .wb-kb-facts { padding-inline-start: 0; border-inline-start: 0; }
+}
+.wb-kb-reader .wb-post-body-cell, .wb-kb-entry { overflow-wrap: anywhere; }
+.wb-kb-reader img { max-width: 100%; height: auto; }
+.wb-kb-reader pre { max-width: 100%; overflow-x: auto; }
 .wb-w-99p { width: 99%; }
 .wb-w-98p { width: 98%; }
 .wb-w-97p { width: 97%; }
@@ -3370,3 +3400,5 @@ html.corebb-dark-mode body.wb-vn-eol .corebb-post-composer__board {
         width: 100%;
     }
 }
+.corebb-maintenance-notice { max-width: 42rem; margin: clamp(2rem, 12vh, 8rem) auto; padding: 1rem 1.5rem; border-inline-start: 3px solid #b57951; font: 1rem/1.6 system-ui, sans-serif; overflow-wrap: anywhere; }
+.corebb-maintenance-notice h1 { margin: 0; font-size: clamp(1.5rem, 4vw, 2.2rem); line-height: 1.2; }

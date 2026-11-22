@@ -1,0 +1,63 @@
+{% macro source(key, title, hint, form) %}
+<fieldset class="admin-schema-source">
+    <legend>{{ title }}</legend>
+    <p>{{ hint }}</p>
+    <div class="admin-setting-choice" role="group" aria-label="{{ title }} source">
+        {% for mode, label in {schema: 'SQL dump', database: 'Database connection'} %}
+            <label><input type="radio" name="{{ key }}_source" value="{{ mode }}"{% if form[key ~ '_source'] == mode %} checked{% endif %}><span>{{ label }}</span></label>
+        {% endfor %}
+    </div>
+    <div class="admin-schema-dump">
+        <div class="admin-auth-field"><label for="{{ key }}-file">Upload SQL file</label>
+            <input id="{{ key }}-file" type="file" name="{{ key }}_schema_file" accept=".sql,.txt">
+        </div>
+        <div class="admin-auth-field"><label for="{{ key }}-sql">Or paste schema SQL</label>
+            <textarea id="{{ key }}-sql" name="{{ key }}_schema" rows="5" spellcheck="false">{{ form[key ~ '_schema'] }}</textarea>
+            <small>An uploaded file takes priority over pasted SQL.</small>
+        </div>
+    </div>
+    <div class="admin-schema-connection">
+        <div class="admin-schema-address">
+            <div class="admin-auth-field"><label for="{{ key }}-host">Host</label><input id="{{ key }}-host" name="{{ key }}_host" value="{{ form[key ~ '_host'] }}" spellcheck="false"></div>
+            <div class="admin-auth-field"><label for="{{ key }}-port">Port</label><input id="{{ key }}-port" name="{{ key }}_port" value="{{ form[key ~ '_port'] }}" inputmode="numeric"></div>
+        </div>
+        <div class="admin-auth-field"><label for="{{ key }}-database">Database name</label><input id="{{ key }}-database" name="{{ key }}_database" value="{{ form[key ~ '_database'] }}" spellcheck="false"></div>
+        <div class="admin-auth-field"><label for="{{ key }}-user">Username</label><input id="{{ key }}-user" name="{{ key }}_username" value="{{ form[key ~ '_username'] }}" autocomplete="off" spellcheck="false"></div>
+        <div class="admin-auth-field"><label for="{{ key }}-password">Password</label><input id="{{ key }}-password" type="password" name="{{ key }}_password" autocomplete="new-password"></div>
+    </div>
+</fieldset>
+{% endmacro %}
+{% include 'partials/admin_messages.twig' with {messages: schema.messages, errors: schema.errors} only %}
+{% if schema.plan is not null %}
+<section class="admin-schema-plan" aria-labelledby="schema-plan-title">
+    <h2 id="schema-plan-title">Deployment preview</h2>
+    <p>{{ schema.plan.operations|length }} planned {{ schema.plan.operations|length == 1 ? 'change' : 'changes' }} · {{ schema.plan.warnings|length }} {{ schema.plan.warnings|length == 1 ? 'warning' : 'warnings' }}</p>
+    {% if schema.plan.warnings %}<ul>{% for warning in schema.plan.warnings %}<li>{{ warning }}</li>{% endfor %}</ul>{% endif %}
+    {% if schema.plan.operations %}
+        <details open><summary>Planned SQL</summary>
+        {% for op in schema.plan.operations %}
+            <pre><code>{{ op.sql }}</code></pre>
+            {% if op.archive %}<small>Touches an archive or legacy identifier.</small>{% endif %}
+        {% endfor %}
+        </details>
+    {% endif %}
+</section>
+{% endif %}
+<form class="admin-settings-form admin-schema-form" method="post" action="{{ url(page ~ '&section=schema') }}" enctype="multipart/form-data">
+    {% include 'partials/csrf_field.twig' %}
+    <input type="hidden" name="admin_db_schema_deploy_token" value="{{ schema.token }}">
+    <div class="admin-schema-sources">
+        {{ _self.source('staging', 'Staging schema', 'The structure you want the destination to match.', schema.form) }}
+        {{ _self.source('production', 'Production schema', 'The current structure of the destination.', schema.form) }}
+    </div>
+    <div class="admin-settings-save"><button type="submit" name="action" value="dry_run">Preview changes</button></div>
+    {% if schema.plan is not null %}<p class="admin-history-count">For another run, reselect any uploaded files and re-enter any database passwords.</p>{% endif %}
+    <details class="admin-schema-apply">
+        <summary>Apply to production</summary>
+        <p>Choose a database connection for the production schema. CoreBB reads that database again and applies the missing tables, columns and indexes.</p>
+        <div class="admin-auth-field"><label for="schema-confirm">Type <code>APPLY SCHEMA</code> to confirm</label>
+            <input id="schema-confirm" name="apply_confirm" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="admin-settings-save"><button type="submit" name="action" value="apply" data-confirm-click="Apply the planned schema additions to the production database you entered?">Apply schema</button></div>
+    </details>
+</form>

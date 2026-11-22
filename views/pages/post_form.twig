@@ -11,7 +11,7 @@
 
 <script src="{{ asset('scripts/posttoolbar_support.js') }}" id="posttoolbar_support"></script>
 <script src="{{ asset('scripts/posttoolbar.js') }}" id="posttoolbar_main"></script>
-<script>
+<script nonce="{{ csp_nonce() }}">
 var submitted = false;
 function SubmitTheForm(form){
     if(submitted == true){ return false; }
@@ -292,7 +292,7 @@ function wbPostPollAddChoice(){
     {% set composerKicker = 'Topic' %}
 {% endif %}
 
-<form name="frmMain" id="frmMain" class="corebb-post-composer{% if pollEnabled %} is-poll-enabled{% endif %}" method="post" action="/post/submit/" enctype="multipart/form-data" onsubmit="return SubmitTheForm(this);">
+<form name="frmMain" id="frmMain" class="corebb-post-composer{% if pollEnabled %} is-poll-enabled{% endif %}" method="post" action="/post/submit/" enctype="multipart/form-data" data-forum-submit="post">
 {% include 'partials/csrf_field.twig' %}
 
 <div class="corebb-post-composer__head">
@@ -319,7 +319,17 @@ function wbPostPollAddChoice(){
 {% endif %}
 
 <section class="corebb-post-section">
-    <label class="corebb-post-label" for="message_subject">Subject</label>
+    {% if model.articleEditor|default(false) %}
+    <label class="corebb-post-label" for="kb_summary">Article summary</label>
+    <input class="corebb-post-input" id="kb_summary" name="kb_summary" maxlength="255" value="{{ model.article.kb_summary|default('') }}">
+    <label class="corebb-post-label" for="kb_category">Category</label>
+    <input class="corebb-post-input" id="kb_category" name="kb_category" maxlength="80" value="{{ model.article.kb_category|default('') }}">
+    <label class="corebb-post-label" for="kb_versions">Applies to versions</label>
+    <input class="corebb-post-input" id="kb_versions" name="kb_versions" maxlength="100" value="{{ model.article.kb_versions|default('') }}">
+    <label class="corebb-post-label" for="kb_verified">Last verified on</label>
+    <input id="kb_verified" name="kb_verified" type="date" value="{{ model.article.kb_verified|default('') }}">
+    {% endif %}
+    <label class="corebb-post-label" for="message_subject">{{ model.articleEditor|default(false) ? 'Article title' : 'Subject' }}</label>
     <input class="corebb-post-input" name="message_subject" maxlength="100" tabindex="1" value="{{ model.subject|default('') }}" id="message_subject" type="text">
 </section>
 
@@ -350,7 +360,7 @@ function wbPostPollAddChoice(){
     <div class="corebb-post-label">Poll</div>
     <div class="corebb-post-action-row">
         <input class="corebb-sr-only" type="checkbox" name="create_poll" id="create_poll" value="1"{% if pollEnabled %} checked{% endif %}>
-        <input class="corebb-post-secondary-button" type="button" id="corebbPollToggleButton" value="{{ pollEnabled ? 'Remove Poll' : 'Add Poll' }}" aria-expanded="{{ pollEnabled ? 'true' : 'false' }}" onclick="return wbPostPollToggle();">
+        <input class="corebb-post-secondary-button" type="button" id="corebbPollToggleButton" value="{{ pollEnabled ? 'Remove Poll' : 'Add Poll' }}" aria-expanded="{{ pollEnabled ? 'true' : 'false' }}" data-forum-action="poll-toggle">
         <span class="corebb-post-note">Question plus two choices minimum.</span>
     </div>
 </section>
@@ -370,7 +380,7 @@ function wbPostPollAddChoice(){
         {% endfor %}
     </div>
     <div class="corebb-post-action-row">
-        <input class="corebb-post-secondary-button" type="button" id="corebbPollAddChoiceButton" value="Add Choice" onclick="return wbPostPollAddChoice();">
+        <input class="corebb-post-secondary-button" type="button" id="corebbPollAddChoiceButton" value="Add Choice" data-forum-action="poll-choice">
         <span class="corebb-post-note">Users may vote once.</span>
     </div>
 </section>
@@ -385,8 +395,8 @@ function wbPostPollAddChoice(){
         {% endif %}
         <input type="hidden" name="post_image_upload_already_inserted" id="post_image_upload_already_inserted" value="0">
         <input type="hidden" id="post_image_upload_endpoint" value="{{ model.postImageUploadEndpoint|default('/post/image-upload/') }}">
-        <input type="file" name="post_image_upload" id="post_image_upload" accept="image/png,image/jpeg,image/gif" onchange="wbPostImageResetInsertedFlag();">
-        <input class="corebb-post-secondary-button" type="button" id="post_image_upload_button" value="Upload + Insert" onclick="return wbPostImageUploadAndInsert();">
+        <input type="file" name="post_image_upload" id="post_image_upload" accept="image/png,image/jpeg,image/gif" data-forum-image>
+        <input class="corebb-post-secondary-button" type="button" id="post_image_upload_button" value="Upload + Insert" data-forum-action="upload-image">
         <span id="post_image_upload_status" class="corebb-post-note"></span>
     </div>
     <div class="corebb-post-note">PNG, GIF, or JPG up to {{ ((model.postImageMaxBytes|default(0)) / 1048576)|number_format(1) }} MB. Large images scale to {{ model.postImageMaxWidth|default(900) }}x{{ model.postImageMaxHeight|default(900) }}.</div>
@@ -395,7 +405,7 @@ function wbPostPollAddChoice(){
 
 <section class="corebb-post-section corebb-post-message">
     <label class="corebb-post-label" for="message_body">Message</label>
-    <textarea class="corebb-post-textarea" name="message_body" cols="60" rows="17" wrap="soft" onselect="pst_fnSaveCaret(this);" onkeyup="pst_fnSaveCaret(this);" onclick="pst_fnSaveCaret(this);" tabindex="2" id="message_body">{{ model.body|default('') }}</textarea>
+    <textarea class="corebb-post-textarea" name="message_body" cols="60" rows="17" wrap="soft" data-forum-caret data-forum-action="caret" tabindex="2" id="message_body">{{ model.body|default('') }}</textarea>
     <div class="corebb-post-note">
         {{ model.notes|default('Please read the Terms Of Service before posting. By pressing the POST button below, you are agreeing to the TOS.') }}
     </div>

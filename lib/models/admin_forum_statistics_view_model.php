@@ -20,6 +20,7 @@
 require_once __DIR__ . '/../helpers/forum_statistics_helpers.php';
 require_once __DIR__ . '/../helpers/corebb_route_helpers.php';
 require_once __DIR__ . '/../helpers/moderation_helpers.php';
+require_once __DIR__ . '/admin_user_tools_view_model.php';
 
 /**
  * Usage: Normalize the selected reporting window.
@@ -47,22 +48,6 @@ function corebb_admin_forum_stats_days($days): int
 function corebb_admin_forum_stats_board_id($boardId): int
 {
     return max(0, (int)$boardId);
-}
-
-/**
- * Usage: Convert a value into a whole-number chart percentage.
- * Referenced by: admin statistics chart builders.
- *
- * @param int $value Value being displayed.
- * @param int $max Maximum value in the chart set.
- * @return int Percentage from 0 through 100.
- */
-function corebb_admin_forum_stats_percent(int $value, int $max): int
-{
-    if ($value <= 0 || $max <= 0) {
-        return 0;
-    }
-    return min(100, max(1, (int)round(($value / $max) * 100)));
 }
 
 /**
@@ -179,10 +164,11 @@ function corebb_admin_forum_stats_daily_rows(int $boardId, int $days, int $start
     }
 
     $rows = [];
-    $today = strtotime(date('Y-m-d'));
+    $day = (new DateTimeImmutable())->setTimestamp($startTs);
     $engagementTypes = corebb_forum_stats_engagement_event_types();
-    for ($i = $days - 1; $i >= 0; $i--) {
-        $date = date('Y-m-d', (int)$today - ($i * 86400));
+    for ($i = 0; $i < $days; $i++) {
+        $date = $day->format('Y-m-d');
+        $day = $day->modify('+1 day');
         $events = $raw[$date] ?? [];
         $visits = (int)($events['board_visit'] ?? 0) + (int)($events['topic_view'] ?? 0);
         $engagements = 0;
@@ -196,20 +182,12 @@ function corebb_admin_forum_stats_daily_rows(int $boardId, int $days, int $start
             'topic_views' => (int)($events['topic_view'] ?? 0),
             'topics' => (int)($events['topic_created'] ?? 0),
             'replies' => (int)($events['reply_created'] ?? 0),
+            'poll_votes' => (int)($events['poll_vote'] ?? 0),
+            'favorites_added' => (int)($events['favorite_added'] ?? 0),
             'engagements' => $engagements,
         ];
     }
 
-    $maxVisits = 0;
-    $maxEngagements = 0;
-    foreach ($rows as $row) {
-        $maxVisits = max($maxVisits, (int)($row['visits'] ?? 0));
-        $maxEngagements = max($maxEngagements, (int)($row['engagements'] ?? 0));
-    }
-    foreach ($rows as $index => $row) {
-        $rows[$index]['visit_width'] = corebb_admin_forum_stats_percent((int)($row['visits'] ?? 0), $maxVisits);
-        $rows[$index]['engagement_width'] = corebb_admin_forum_stats_percent((int)($row['engagements'] ?? 0), $maxEngagements);
-    }
     return $rows;
 }
 
@@ -221,14 +199,19 @@ function corebb_admin_forum_stats_daily_rows(int $boardId, int $days, int $start
  * @param int $selectedBoardId Selected board id, or 0 for all boards.
  * @return array<int, array<string, mixed>> Per-board rows.
  */
-function corebb_admin_forum_stats_board_rows(int $startTs, int $selectedBoardId = 0): array
+function corebb_admin_forum_stats_board_rows(int $startTs, int $selectedBoardId = 0, int $days = 30): array
 {
     $boardWhere = '';
-    $params = [$startTs];
+    $params = [];
+    $topicScope = $postScope = '';
     if ($selectedBoardId > 0) {
+        $topicScope = ' AND boardid = ?';
+        $postScope = ' AND p.boardid = ?';
         $boardWhere = 'WHERE f.id = ?';
-        $params[] = $selectedBoardId;
+        $params = [$selectedBoardId, $selectedBoardId];
     }
+    $params[] = $startTs;
+    if ($selectedBoardId > 0) { $params[] = $selectedBoardId; }
 
     $rows = db_all(
         "SELECT f.id, f.name,
@@ -245,14 +228,14 @@ function corebb_admin_forum_stats_board_rows(int $startTs, int $selectedBoardId 
            LEFT JOIN (
                 SELECT boardid, COUNT(*) AS topic_total
                   FROM topics
-                 WHERE is_deleted = 0
+                 WHERE is_deleted = 0 {$topicScope}
                  GROUP BY boardid
            ) tc ON tc.boardid = f.id
            LEFT JOIN (
                 SELECT p.boardid, COUNT(*) AS post_total
                   FROM posts p
                   INNER JOIN topics t ON t.id = p.threadid AND t.is_deleted = 0
-                 WHERE p.is_deleted = 0
+                 WHERE p.is_deleted = 0 {$postScope}
                  GROUP BY p.boardid
            ) pc ON pc.boardid = f.id
            LEFT JOIN forum_stat_events e ON e.boardid = f.id AND e.occurred_at >= ?
@@ -271,7 +254,7 @@ function corebb_admin_forum_stats_board_rows(int $startTs, int $selectedBoardId 
         $out[] = [
             'id' => (int)($row['id'] ?? 0),
             'name' => (string)($row['name'] ?? 'Unnamed Board'),
-            'url' => '/admin/?act=forum_statistics&boardid=' . (int)($row['id'] ?? 0),
+            'url' => '/admin/?act=forum_statistics&boardid=' . (int)($row['id'] ?? 0) . '&days=' . $days,
             'public_url' => corebb_board_url((int)($row['id'] ?? 0), 1, (string)($row['name'] ?? 'Board')),
             'topiccount' => (int)($row['topiccount'] ?? 0),
             'postcount' => (int)($row['postcount'] ?? 0),
@@ -286,16 +269,6 @@ function corebb_admin_forum_stats_board_rows(int $startTs, int $selectedBoardId 
         ];
     }
 
-    $maxVisits = 0;
-    $maxEngagements = 0;
-    foreach ($out as $row) {
-        $maxVisits = max($maxVisits, (int)($row['visits'] ?? 0));
-        $maxEngagements = max($maxEngagements, (int)($row['engagements'] ?? 0));
-    }
-    foreach ($out as $index => $row) {
-        $out[$index]['visit_width'] = corebb_admin_forum_stats_percent((int)($row['visits'] ?? 0), $maxVisits);
-        $out[$index]['engagement_width'] = corebb_admin_forum_stats_percent((int)($row['engagements'] ?? 0), $maxEngagements);
-    }
     return $out;
 }
 
@@ -309,27 +282,16 @@ function corebb_admin_forum_stats_board_rows(int $startTs, int $selectedBoardId 
 function corebb_admin_forum_stats_metric_chart(array $summary): array
 {
     $metrics = [
-        ['label' => 'Board Visits', 'value' => (int)($summary['board_visits'] ?? 0), 'class' => 'is-one'],
-        ['label' => 'Topic Views', 'value' => (int)($summary['topic_views'] ?? 0), 'class' => 'is-two'],
-        ['label' => 'New Topics', 'value' => (int)($summary['topics_created'] ?? 0), 'class' => 'is-three'],
-        ['label' => 'Replies', 'value' => (int)($summary['replies_created'] ?? 0), 'class' => 'is-four'],
-        ['label' => 'Poll Votes', 'value' => (int)($summary['poll_votes'] ?? 0), 'class' => 'is-five'],
-        ['label' => 'Favorites', 'value' => (int)($summary['favorites_added'] ?? 0), 'class' => 'is-six'],
+        ['label' => 'Board Visits', 'value' => (int)($summary['board_visits'] ?? 0)],
+        ['label' => 'Topic Views', 'value' => (int)($summary['topic_views'] ?? 0)],
+        ['label' => 'New Topics', 'value' => (int)($summary['topics_created'] ?? 0)],
+        ['label' => 'Replies', 'value' => (int)($summary['replies_created'] ?? 0)],
+        ['label' => 'Poll Votes', 'value' => (int)($summary['poll_votes'] ?? 0)],
+        ['label' => 'Favorites', 'value' => (int)($summary['favorites_added'] ?? 0)],
     ];
-    $max = 0;
-    $total = 0;
-    foreach ($metrics as $metric) {
-        $max = max($max, (int)$metric['value']);
-        $total += (int)$metric['value'];
-    }
-    $offset = 0.0;
+    $total = array_sum(array_column($metrics, 'value'));
     foreach ($metrics as $index => $metric) {
-        $value = (int)$metric['value'];
-        $percent = $total > 0 ? round(($value / $total) * 100, 2) : 0.0;
-        $metrics[$index]['width'] = corebb_admin_forum_stats_percent($value, $max);
-        $metrics[$index]['percent'] = $percent;
-        $metrics[$index]['offset'] = 0 - $offset;
-        $offset += $percent;
+        $metrics[$index]['percent'] = $total ? round(100 * $metric['value'] / $total, 2) : 0;
     }
     return ['total' => $total, 'segments' => $metrics];
 }
@@ -356,14 +318,15 @@ function corebb_admin_forum_stats_trend_chart(array $dailyRows): array
     foreach ($dailyRows as $row) {
         $maxValue = max($maxValue, (int)($row['visits'] ?? 0), (int)($row['engagements'] ?? 0));
     }
-    $maxValue = max(1, $maxValue);
+    $maxValue = max(2, (int)ceil($maxValue / 2) * 2);
 
     $series = [
         'visits' => [],
         'engagements' => [],
     ];
     $labels = [];
-    $labelEvery = max(1, (int)ceil(max(1, $count) / 6));
+    $labelIndices = [];
+    for ($i = 0; $i < 4; $i++) { $labelIndices[] = (int)round(($count - 1) * $i / 3); }
     foreach ($dailyRows as $index => $row) {
         $x = $left + ($count <= 1 ? ($plotWidth / 2) : (($plotWidth / max(1, $count - 1)) * $index));
         foreach (['visits', 'engagements'] as $key) {
@@ -375,7 +338,7 @@ function corebb_admin_forum_stats_trend_chart(array $dailyRows): array
                 'value' => $value,
             ];
         }
-        if ($index === 0 || $index === $count - 1 || $index % $labelEvery === 0) {
+        if (in_array($index, $labelIndices, true)) {
             $labels[] = [
                 'x' => round($x, 2),
                 'label' => substr((string)($row['date'] ?? ''), 5, 5),
@@ -409,9 +372,6 @@ function corebb_admin_forum_stats_trend_chart(array $dailyRows): array
         'visits_points' => $makePoints($series['visits']),
         'engagements_points' => $makePoints($series['engagements']),
         'visits_area' => $makeArea($series['visits']),
-        'engagements_area' => $makeArea($series['engagements']),
-        'visit_markers' => array_slice($series['visits'], -8),
-        'engagement_markers' => array_slice($series['engagements'], -8),
         'labels' => $labels,
     ];
 }
@@ -426,11 +386,21 @@ function corebb_admin_forum_stats_trend_chart(array $dailyRows): array
  */
 function corebb_admin_forum_statistics_model(array $viewer, array $get): array
 {
+    if (!corebb_admin_can_access_tool($viewer, 'forum_statistics')) {
+        return ['errors'=>['You do not have access to Forum Statistics.']];
+    }
     corebb_mod_ensure_schema();
     corebb_forum_stats_ensure_schema();
 
     $days = corebb_admin_forum_stats_days($get['days'] ?? 30);
     $boardId = corebb_admin_forum_stats_board_id($get['boardid'] ?? 0);
+    $options = corebb_admin_forum_stats_board_options();
+    $base = [
+        'can_manage_boards'=>corebb_admin_can_access_tool($viewer, 'manage_boards'),
+        'board_options'=>$options, 'boardid'=>$boardId, 'days'=>$days, 'day_options'=>[7,30,90,365],
+    ];
+    $names = array_column($options, 'name', 'id');
+    if ($boardId && !isset($names[$boardId])) { return $base + ['errors'=>['This board could not be found.']]; }
     $startTs = strtotime('-' . ($days - 1) . ' days 00:00:00');
     if ($startTs === false) {
         $startTs = time() - (($days - 1) * 86400);
@@ -457,21 +427,16 @@ function corebb_admin_forum_statistics_model(array $viewer, array $get): array
         'engagements' => $engagements,
     ];
     $dailyRows = corebb_admin_forum_stats_daily_rows($boardId, $days, $startTs);
-    $boardRows = corebb_admin_forum_stats_board_rows($startTs, $boardId);
+    $boardRows = corebb_admin_forum_stats_board_rows($startTs, $boardId, $days);
 
-    return [
-        'viewer' => $viewer,
-        'viewer_accesslevel' => (int)($viewer['accesslevel'] ?? 0),
-        'days' => $days,
-        'day_options' => [7, 30, 90, 365],
-        'boardid' => $boardId,
-        'board_options' => corebb_admin_forum_stats_board_options(),
-        'event_labels' => corebb_forum_stats_event_labels(),
+    return $base + [
+        'scope' => $names[$boardId] ?? 'All boards',
+        'range' => date('M j, Y', $startTs) . ' – ' . date('M j, Y', strtotime($dailyRows[$days - 1]['date'])),
         'summary' => $summary,
         'metric_chart' => corebb_admin_forum_stats_metric_chart($summary),
         'trend_chart' => corebb_admin_forum_stats_trend_chart($dailyRows),
         'daily_rows' => $dailyRows,
         'board_rows' => $boardRows,
-        'top_board_rows' => array_slice($boardRows, 0, 10),
+        'top_board_rows' => array_slice(array_filter($boardRows, static fn($row) => $row['visits'] || $row['engagements']), 0, 10),
     ];
 }

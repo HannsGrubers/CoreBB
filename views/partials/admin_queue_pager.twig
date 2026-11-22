@@ -1,0 +1,8 @@
+{% if pager.visible %}<nav class="admin-latest-pager" aria-label="{{ label }}">
+    {% if pager.prev.enabled %}<a rel="prev" href="{{ url(pager.prev.url) }}">Previous</a>{% endif %}
+    {% for item in pager.items %}
+        {% if item.type == 'ellipsis' %}<span>…</span>{% elseif item.current %}<strong aria-current="page">{{ item.page }}</strong>
+        {% else %}<a href="{{ url(item.url) }}" aria-label="Page {{ item.page }}">{{ item.page }}</a>{% endif %}
+    {% endfor %}
+    {% if pager.next.enabled %}<a rel="next" href="{{ url(pager.next.url) }}">Next</a>{% endif %}
+</nav>{% endif %}

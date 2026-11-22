@@ -1,0 +1,13 @@
+<fieldset class="rights-roles">
+    <legend>Base role</legend>
+    <div class="rights-role-grid">
+        {% for level, label in levels %}
+        <label class="rights-role-card">
+            <span class="rights-role-top"><span>Level {{ level }}</span><input type="radio" name="userlevel" value="{{ level }}" data-role-label="{{ label }}" data-inherited="{{ role_details[level].inherited_tool_count }}"{% if level == selected_level %} checked{% endif %} required></span>
+            <strong>{{ label }}</strong>
+            <span class="rights-role-description">{{ role_details[level].description }}</span>
+            <span class="rights-role-foot">{{ role_details[level].inherited_tool_count }} inherited tools{% if marker_level is not null and level == marker_level %}<b>{{ marker }}</b>{% endif %}</span>
+        </label>
+        {% endfor %}
+    </div>
+</fieldset>

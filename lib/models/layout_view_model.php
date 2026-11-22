@@ -73,6 +73,9 @@ function corebb_layout_debug_rows(array $viewer): array
  */
 function corebb_layout_public_style_file(array $viewer): string
 {
+    if (corebb_signal_staging_preview()) {
+        return 'style_signal.css';
+    }
     if (corebb_load_logged_in_user() && !empty($viewer['userstyle'])) {
         $userStyle = corebb_public_style_resolve_user_value((string)$viewer['userstyle']);
         if ($userStyle !== '') {
@@ -93,15 +96,20 @@ function corebb_layout_public_style_file(array $viewer): string
  * @param array<string, mixed> $viewer Current viewer row.
  * @return array<int, string> Public stylesheet URLs.
  */
-function corebb_layout_public_stylesheets(array $viewer): array
+function corebb_layout_public_stylesheets(array $viewer, ?string $style = null): array
 {
-    $style = corebb_layout_public_style_file($viewer);
-    if ($style === 'style_emberline.css') {
+    $style ??= corebb_layout_public_style_file($viewer);
+    if ($style === 'style_signal.css') {
+        $stylesheets = ['style_vn_eol.css', 'style_theme.css', 'style_modern_4.css', 'style_signal.css'];
+    } elseif ($style === 'style_emberline.css') {
         $stylesheets = ['style_vn_eol.css', 'style_theme.css', 'style_emberline.css'];
     } elseif ($style === 'style_modern_2.css' || $style === 'style_modern.css') {
         $stylesheets = ['style_vn_eol.css', 'style_theme.css', 'style_modern_4.css'];
     } else {
         $stylesheets = [$style, 'style_theme.css'];
+        if ($style === 'style_vn_eol.css') {
+            $stylesheets[] = 'style_vn_forms.css';
+        }
     }
 
     $urls = [];
@@ -439,11 +447,16 @@ function corebb_public_layout_model(array $vars = [], array $context = []): arra
     }
 
     $stats = '';
+    $activity = null;
     if (corebb_board_setting_enabled('showbasicstats')) {
-        $today = date('m/d/y');
-        $stats = number_format((int)corebb_perf_total_forums()) . ' Boards | '
-            . number_format((int)corebb_perf_total_posts()) . ' Messages ('
-            . number_format((int)corebb_perf_today_posts($today)) . ' Today)';
+        $activity = [
+            'boards' => (int)corebb_perf_total_forums(),
+            'messages' => (int)corebb_perf_total_posts(),
+            'today' => (int)corebb_perf_today_posts(date('m/d/y')),
+        ];
+        $stats = number_format($activity['boards']) . ' Boards | '
+            . number_format($activity['messages']) . ' Messages ('
+            . number_format($activity['today']) . ' Today)';
     }
 
     $activeStyle = corebb_layout_public_style_file($viewerRow);
@@ -455,6 +468,8 @@ function corebb_public_layout_model(array $vars = [], array $context = []): arra
         $modernBodyClass = ' wb-modern-static';
     } elseif ($activeStyle === 'style_emberline.css') {
         $modernBodyClass = ' wb-emberline';
+    } elseif ($activeStyle === 'style_signal.css') {
+        $modernBodyClass = ' wb-modern-static wb-signal';
     }
     $publicScripts = [
         corebb_theme_url('scripts/minmax.js'),
@@ -469,21 +484,27 @@ function corebb_public_layout_model(array $vars = [], array $context = []): arra
     return [
         'head' => [
             'title' => (string)$breadcrumbs['title'],
-            'stylesheets' => corebb_layout_public_stylesheets($viewerRow),
+            'style_file' => $activeStyle,
+            'stylesheets' => corebb_layout_public_stylesheets($viewerRow, $activeStyle),
             'scripts' => $publicScripts,
+            'kb_page' => !empty($GLOBALS['corebb_kb_page']),
+            'maintenance_auth' => defined('COREBB_MAINTENANCE_AUTH'),
             'mobile_fallback' => corebb_layout_mobile_fallback_payload(),
+            'view_mode' => in_array($_COOKIE['corebb_view_mode'] ?? '', ['mobile', 'desktop'], true) ? $_COOKIE['corebb_view_mode'] : '',
             'mobile_url' => corebb_public_join_base_path('/mobile/'),
             'body_class' => 'wb-vn-eol' . $modernBodyClass,
-            'theme_mode_fixed' => $activeStyle === 'style_emberline.css',
+            'theme_mode_fixed' => in_array($activeStyle, ['style_emberline.css', 'style_signal.css'], true),
+            'signal_preview' => corebb_signal_staging_preview(),
             'staging' => defined('COREBB_ENV') && (string)COREBB_ENV === 'staging',
         ],
         'chrome' => [
+            'activity' => $activity,
             'site_url' => $SiteURL,
             'site_name' => $SiteName,
             'board_url' => $BoardURL,
             'board_name' => $BoardName,
             'assets' => [
-                'header_mode' => in_array($activeStyle, $compactHeaderStyles, true) ? 'compact' : 'split',
+                'header_mode' => $activeStyle === 'style_signal.css' ? 'signal' : (in_array($activeStyle, $compactHeaderStyles, true) ? 'compact' : 'split'),
                 'header_single' => corebb_theme_asset('mainbanner.png'),
                 'header_bg' => corebb_theme_asset('HeaderBackgroundVN.png'),
                 'header_left' => corebb_theme_asset('HeaderLeftVN.png'),
@@ -520,7 +541,7 @@ function corebb_public_layout_model(array $vars = [], array $context = []): arra
         'alerts' => $alerts,
         'footer' => [
             'stats' => $stats,
-            'version_label' => corebb_version_label(),
+            'version_label' => corebb_browser_version_label(),
             'copyright_start' => 2005,
             'copyright_year' => date('Y'),
             'copyright_name' => 'CoreBB',

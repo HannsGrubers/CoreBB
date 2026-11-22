@@ -51,7 +51,7 @@
 
                 <div class="corebb-login-section-head">
                     <h3>Forgot Password?</h3>
-                    <span>Enter the email address on your account. If it matches an account, a password reset link will be emailed to you.</span>
+                    <span>Enter the email address on your account. If it matches an account, reset instructions will be emailed to you.</span>
                 </div>
 
                 <label class="corebb-login-field">
@@ -65,5 +65,13 @@
                 </div>
             </form>
         {% endif %}
+        <form class="corebb-login-form" method="post" action="{{ url('/reset-password/') }}">
+            {% include 'partials/csrf_field.twig' %}
+            <input type="hidden" name="check_code" value="1">
+            <label class="corebb-login-field">Recovery code from your email
+                <input name="token" autocomplete="one-time-code" required>
+            </label>
+            <button class="formsubmit" type="submit">Use recovery code</button>
+        </form>
     </div>
 </div>

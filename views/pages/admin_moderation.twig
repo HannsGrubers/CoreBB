@@ -1,338 +1,203 @@
-{% include 'partials/admin_messages.twig' with {messages: model.messages|default([]), errors: model.errors|default([])} only %}
 {% set mode = model.mode|default('ban') %}
 {% set token = model.token|default('') %}
 {% set confirmUser = model.confirm_user|default(null) %}
-{% set tabs = [
-    {key: 'ban', label: 'Ban User'},
-    {key: 'unban', label: 'Unban User'},
-    {key: 'requests', label: 'Unban Requests'}
-] %}
-
-<div class="corebb-admin-modern-page">
-    <div class="corebb-admin-modern-header">
-        <div>
-            <div class="corebb-admin-modern-eyebrow">Moderation</div>
-            <h2>Moderation Tools</h2>
-            <div class="corebb-admin-modern-meta">
-                <span>{{ mode == 'ban' ? 'Ban active users' : (mode == 'unban' ? 'Review banned users' : 'Handle unban requests') }}</span>
+{% if mode == 'ban' %}
+{% set base = '/admin/?act=moderation&mode=ban' %}
+{% set resultsUrl = base ~ (model.query ? '&q=' ~ model.query|url_encode : '') %}
+<div class="admin-overview admin-settings admin-members ban-workspace">
+    <header class="admin-dash-heading"><h1>Ban User</h1>
+        <nav class="board-dir-links" aria-label="Moderation links">
+            {% if model.can_unban %}<a href="{{ url('/admin/?act=moderation&mode=unban') }}">Unban User</a>{% endif %}
+            {% if model.can_requests %}<a href="{{ url('/admin/?act=moderation&mode=requests') }}">Unban Requests</a>{% endif %}
+            <a href="{{ url('/admin/') }}">Dashboard</a>
+        </nav>
+    </header>
+    {% include 'partials/admin_messages.twig' with {messages:model.messages|default([]),errors:model.errors|default([])} only %}
+    {% if confirmUser %}
+    <section class="admin-title-editor" aria-labelledby="ban-review-heading">
+        <header class="admin-member-head"><div><h2 id="ban-review-heading">Review ban for {{ confirmUser.username }}</h2>
+            <p class="admin-history-count">#{{ confirmUser.id }} · {{ confirmUser.level_name }}</p></div>
+            <a href="{{ url(confirmUser.profile_url) }}">Public profile</a>
+        </header>
+        <form class="admin-settings-form ban-confirm" method="post" action="{{ url(base ~ '&review=' ~ confirmUser.id) }}">
+            {% include 'partials/csrf_field.twig' %}
+            <input type="hidden" name="admin_moderation_token" value="{{ token }}">
+            <input type="hidden" name="userid" value="{{ confirmUser.id }}">
+            <input type="hidden" name="reviewed_level" value="{{ confirmUser.accesslevel }}">
+            <input type="hidden" name="action" value="ban_save">
+            <p class="ban-effect">This bans {{ confirmUser.username }}’s account.{% if confirmUser.accesslevel > 1 %} Their base role will change from <strong>{{ confirmUser.level_name }}</strong> to <strong>User</strong>.{% endif %}</p>
+            <div class="admin-auth-field"><label for="ban-reason">Reason (optional)</label>
+                <textarea id="ban-reason" name="reason" rows="4" aria-describedby="ban-reason-help"></textarea>
+                <small id="ban-reason-help">The member can see this reason on their ban notice. It is also recorded in the admin action log.</small>
             </div>
+            <div class="admin-settings-save"><button type="submit" class="ban-commit">Confirm ban</button> <a href="{{ url(resultsUrl) }}">Cancel</a></div>
+        </form>
+    </section>
+    {% elseif model.token is defined %}
+    <form class="admin-settings-form admin-member-search" method="get" action="{{ url('/admin/') }}">
+        <input type="hidden" name="act" value="moderation"><input type="hidden" name="mode" value="ban">
+        <div class="admin-auth-field"><label for="ban-search">Find an active member</label>
+            <input type="search" id="ban-search" name="q" value="{{ model.query }}" placeholder="Username, user ID, email, or IP address" required autocomplete="off" spellcheck="false">
         </div>
-        <div class="corebb-admin-modern-actions">
-            {% for tab in tabs %}
-                {% if mode == tab.key %}
-                    <span class="corebb-board-action-disabled">{{ tab.label }}</span>
-                {% else %}
-                    <a class="corebb-board-action-link" href="/admin/?act=moderation&amp;mode={{ tab.key }}">{{ tab.label }}</a>
-                {% endif %}
+        <div class="admin-settings-save"><button type="submit">Find member</button></div>
+    </form>
+    {% if model.results %}
+    <section aria-labelledby="ban-matches"><header class="admin-section-head"><h2 id="ban-matches">Matching members</h2>
+        <span class="admin-history-count">{{ model.results|length }} shown{% if model.results|length == model.result_limit %} · Refine your search for more specific matches{% endif %}</span></header>
+        <ul class="ban-matches">
+            {% for member in model.results %}
+            <li><div><a class="ban-member-name" href="{{ member.profile_url }}">{{ member.username }}</a> <small>#{{ member.id }}</small>
+                <p>{{ member.level_name }} · {{ member.posts|number_format }} {{ member.posts == 1 ? 'post' : 'posts' }}</p>
+                {% if model.can_ip and member.last_ip %}<p>Last IP <a href="{{ url('/admin/?act=user_ip_check&userid=' ~ member.id) }}">{{ member.last_ip }}</a></p>{% endif %}
+            </div>
+            {% if member.blocked %}<span class="ban-protected">{{ member.blocked }}</span>
+            {% else %}<a class="board-dir-add ban-review-link" href="{{ url(resultsUrl ~ '&review=' ~ member.id) }}">Review ban</a>{% endif %}</li>
             {% endfor %}
-            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
-        </div>
-    </div>
-
-    {% if confirmUser and model.confirm_action|default('') == 'ban' %}
-        <div class="corebb-admin-modern-panel">
-            <div class="corebb-admin-section-title">Confirm Ban</div>
-            <form class="corebb-admin-modern-form" method="post" action="/admin/?act=moderation&amp;mode=ban">
-                {% include 'partials/csrf_field.twig' %}
-                <div class="corebb-admin-modern-grid">
-                    <label>User</label>
-                    <span><a class="corebb-admin-text-link" href="{{ confirmUser.profile_url }}">{{ confirmUser.username }}</a> <span class="corebb-admin-modern-help">#{{ confirmUser.id|default(0) }}</span></span>
-
-                    <label>Level</label>
-                    <span>{{ confirmUser.accesslevel|default(0) }} - {{ confirmUser.level_name|default('') }}</span>
-
-                    <label for="corebbBanReason">Reason</label>
-                    <span>
-                        <textarea id="corebbBanReason" name="reason" cols="60" rows="5"></textarea>
-                        <span class="corebb-admin-modern-help">Optional, but recommended. This is visible to moderators/admins.</span>
-                    </span>
-
-                    <div class="corebb-admin-modern-submit corebb-admin-modern-full">
-                        <input type="hidden" name="action" value="ban_save">
-                        <input type="hidden" name="userid" value="{{ confirmUser.id|default(0) }}">
-                        <input type="hidden" name="admin_moderation_token" value="{{ token }}">
-                        <button class="corebb-board-action-link is-danger" type="submit">Ban User</button>
-                        <button class="corebb-board-action-link" type="button" onclick="window.location.href='/admin/?act=moderation&amp;mode=ban';">Cancel</button>
-                    </div>
-                </div>
-            </form>
-        </div>
-    {% elseif confirmUser and model.confirm_action|default('') == 'unban' %}
-        <div class="corebb-admin-modern-panel">
-            <div class="corebb-admin-section-title">Confirm Unban</div>
-            <form class="corebb-admin-modern-form" method="post" action="/admin/?act=moderation&amp;mode=unban">
-                {% include 'partials/csrf_field.twig' %}
-                <div class="corebb-admin-modern-grid">
-                    <label>User</label>
-                    <span><a class="corebb-admin-text-link" href="{{ confirmUser.profile_url }}">{{ confirmUser.username }}</a> <span class="corebb-admin-modern-help">#{{ confirmUser.id|default(0) }}</span></span>
-
-                    <label>Banned</label>
-                    <span>{{ confirmUser.banned_at|default('Unknown') != '' ? confirmUser.banned_at : 'Unknown' }}</span>
-
-                    {% if confirmUser.ban_reason|default('') != '' %}
-                        <label>Ban Reason</label>
-                        <span class="corebb-admin-prewrap">{{ confirmUser.ban_reason }}</span>
-                    {% endif %}
-
-                    <label for="corebbUnbanNote">Admin Note</label>
-                    <span>
-                        <textarea id="corebbUnbanNote" name="note" cols="60" rows="5"></textarea>
-                        <span class="corebb-admin-modern-help">Optional note for the admin log.</span>
-                    </span>
-
-                    <div class="corebb-admin-modern-submit corebb-admin-modern-full">
-                        <input type="hidden" name="action" value="unban_save">
-                        <input type="hidden" name="userid" value="{{ confirmUser.id|default(0) }}">
-                        <input type="hidden" name="admin_moderation_token" value="{{ token }}">
-                        <button class="corebb-board-action-link" type="submit">Unban User</button>
-                        <button class="corebb-board-action-link" type="button" onclick="window.location.href='/admin/?act=moderation&amp;mode=unban';">Cancel</button>
-                    </div>
-                </div>
-            </form>
-        </div>
+        </ul>
+    </section>
     {% endif %}
-
-    {% if mode == 'ban' and not confirmUser %}
-        <div class="corebb-admin-modern-panel">
-            <form class="corebb-admin-modern-form" method="get" action="/admin/">
-                <input type="hidden" name="act" value="moderation">
-                <input type="hidden" name="mode" value="ban">
-                <div class="corebb-admin-modern-grid">
-                    <label for="corebbBanSearch">Find User</label>
-                    <span>
-                        <input id="corebbBanSearch" type="text" name="q" value="{{ model.query|default('') }}" size="35">
-                        <button class="corebb-board-action-link" type="submit">Search</button>
-                        <span class="corebb-admin-modern-help">Username, user ID, email, or IP for an active user.</span>
-                    </span>
-                </div>
-            </form>
-        </div>
-
-        {% if model.results|default([]) %}
-            <table class="corebb-admin-modern-table wb-table">
-                <thead>
-                    <tr>
-                        <th>User</th>
-                        <th>Level</th>
-                        <th>Posts</th>
-                        <th>Last IP</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for user in model.results %}
-                        <tr>
-                            <td><a class="corebb-admin-text-link" href="{{ user.profile_url }}">{{ user.username }}</a> <span class="corebb-admin-modern-help">#{{ user.id|default(0) }}</span></td>
-                            <td>{{ user.accesslevel|default(0) }} - {{ user.level_name|default('') }}</td>
-                            <td>{{ user.posts|default(0)|number_format }}</td>
-                            <td>{{ user.last_ip|default('') }}</td>
-                            <td>
-                                <form class="corebb-admin-modern-form" method="post" action="/admin/?act=moderation&amp;mode=ban">
-                                    {% include 'partials/csrf_field.twig' %}
-                                    <input type="hidden" name="action" value="ban_confirm">
-                                    <input type="hidden" name="userid" value="{{ user.id|default(0) }}">
-                                    <input type="hidden" name="admin_moderation_token" value="{{ token }}">
-                                    <button class="corebb-board-action-link is-danger" type="submit">Ban</button>
-                                </form>
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        {% endif %}
-    {% elseif mode == 'unban' and not confirmUser %}
-        {% set unbanSearch = model.unban_search|default({username: '', ip_address: '', host_address: ''}) %}
-        <div class="corebb-admin-modern-panel">
-            <form class="corebb-admin-modern-form" method="get" action="/admin/">
-                <input type="hidden" name="act" value="moderation">
-                <input type="hidden" name="mode" value="unban">
-                <div class="corebb-admin-modern-grid">
-                    <label for="corebbUnbanUsername">User Name</label>
-                    <input id="corebbUnbanUsername" type="text" name="username" value="{{ unbanSearch.username|default('') }}">
-
-                    <label for="corebbUnbanIp">IP Address</label>
-                    <input id="corebbUnbanIp" type="text" name="ip_address" value="{{ unbanSearch.ip_address|default('') }}">
-
-                    <label for="corebbUnbanHost">Host Address</label>
-                    <input id="corebbUnbanHost" type="text" name="host_address" value="{{ unbanSearch.host_address|default('') }}">
-
-                    <div class="corebb-admin-modern-submit corebb-admin-modern-full">
-                        <button class="corebb-board-action-link" type="submit">Search</button>
-                    </div>
-                </div>
-            </form>
-        </div>
-
-        <table class="corebb-admin-modern-table wb-table">
-            <thead>
-                <tr>
-                    <th>Moderator</th>
-                    <th>User</th>
-                    <th>IP Address</th>
-                    <th>Date Banned</th>
-                    <th>Reason</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% if model.results|default([]) is empty %}
-                    <tr>
-                        <td colspan="6" class="corebb-admin-modern-empty">No banned users found.</td>
-                    </tr>
-                {% else %}
-                    {% for user in model.results %}
-                        <tr>
-                            <td>
-                                {% if user.banned_by_username|default('') != '' and user.banned_by_profile_url|default('') != '' %}
-                                    <a class="corebb-admin-text-link" target="_top" href="{{ user.banned_by_profile_url }}">{{ user.banned_by_username }}</a>
-                                {% elseif user.banned_by|default(0) > 0 %}
-                                    #{{ user.banned_by }}
-                                {% endif %}
-                            </td>
-                            <td><a class="corebb-admin-text-link" target="_top" href="{{ user.profile_url }}">{{ user.username }}</a></td>
-                            <td>
-                                {% if user.last_ip|default('') != '' %}
-                                    <a class="corebb-admin-text-link" href="/admin/?act=moderation&amp;mode=unban&amp;ip_address={{ user.last_ip|url_encode }}">{{ user.last_ip }}</a>
-                                {% endif %}
-                            </td>
-                            <td>{{ user.banned_at_vn|default('') != '' ? user.banned_at_vn : '' }}</td>
-                            <td><span class="corebb-admin-prewrap">{{ user.ban_reason|default('') }}</span></td>
-                            <td>
-                                <form class="corebb-admin-modern-form" method="post" action="/admin/?act=moderation&amp;mode=unban" onsubmit="return confirm('Are you sure you want to unban this user?');">
-                                    {% include 'partials/csrf_field.twig' %}
-                                    <input type="hidden" name="action" value="unban_save">
-                                    <input type="hidden" name="userid" value="{{ user.id|default(0) }}">
-                                    <input type="hidden" name="admin_moderation_token" value="{{ token }}">
-                                    <input type="hidden" name="username" value="{{ unbanSearch.username|default('') }}">
-                                    <input type="hidden" name="ip_address" value="{{ unbanSearch.ip_address|default('') }}">
-                                    <input type="hidden" name="host_address" value="{{ unbanSearch.host_address|default('') }}">
-                                    <button class="corebb-board-action-link" type="submit">Unban</button>
-                                </form>
-                            </td>
-                        </tr>
-                    {% endfor %}
-                {% endif %}
-            </tbody>
-        </table>
-    {% elseif mode == 'requests' %}
-        {% set counts = model.request_counts|default({}) %}
-        {% set requests = model.requests|default({items: [], total: 0, page: 1, total_pages: 1}) %}
-        {% set requestsView = model.requests_view|default({is_old: false, title: 'New Unban Requests', toggle_href: '/admin/?act=moderation&mode=requests&responded=True', toggle_text: 'Click here for Old Unban Requests'}) %}
-        {% set respondRequest = model.respond_request|default(null) %}
-
-        <div class="corebb-admin-modern-note is-muted">
-            Pending: {{ counts.pending|default(0)|number_format }}. Resolved: {{ counts.resolved|default(0)|number_format }}. Total: {{ counts.all|default(0)|number_format }}.
-        </div>
-
-        {% if respondRequest %}
-            <div class="corebb-admin-modern-panel">
-                <div class="corebb-admin-section-title">Respond To Unban Request</div>
-                <form class="corebb-admin-modern-form" method="post" action="/admin/?act=moderation&amp;mode=requests{% if requestsView.is_old|default(false) %}&amp;responded=True{% endif %}">
-                    {% include 'partials/csrf_field.twig' %}
-                    <div class="corebb-admin-modern-grid">
-                        <label>User</label>
-                        <span><a class="corebb-admin-text-link" target="_top" href="{{ respondRequest.profile_url|default('#') }}">{{ respondRequest.username|default('#' ~ respondRequest.userid|default(0)) }}</a> <span class="corebb-admin-modern-help">#{{ respondRequest.userid|default(0) }}</span></span>
-
-                        <label>Reason</label>
-                        <span class="corebb-admin-prewrap">{{ respondRequest.request_text|default('') }}</span>
-
-                        <label for="corebbUnbanRequestNote">Moderator Response</label>
-                        <textarea id="corebbUnbanRequestNote" name="admin_note" cols="70" rows="5"></textarea>
-
-                        <div class="corebb-admin-modern-submit corebb-admin-modern-full">
-                            <input type="hidden" name="request_id" value="{{ respondRequest.id|default(0) }}">
-                            <input type="hidden" name="admin_moderation_token" value="{{ token }}">
-                            <button class="corebb-board-action-link" type="submit" name="action" value="request_approve" onclick="return confirm('Are you sure you want to approve this unban request?');">Approve + Unban</button>
-                            <button class="corebb-board-action-link is-danger" type="submit" name="action" value="request_deny" onclick="return confirm('Are you sure you want to deny this unban request?');">Deny Request</button>
-                            <button class="corebb-board-action-link" type="button" onclick="window.location.href='/admin/?act=moderation&amp;mode=requests{% if requestsView.is_old|default(false) %}&amp;responded=True{% endif %}';">Cancel</button>
-                        </div>
-                    </div>
-                </form>
-            </div>
-        {% endif %}
-
-        <div class="corebb-admin-modern-panel">
-            <div class="corebb-admin-modern-header">
-                <div>
-                    <div class="corebb-admin-modern-eyebrow">Unban Requests</div>
-                    <h2>{{ requestsView.title|default('New Unban Requests') }}</h2>
-                    <div class="corebb-admin-modern-meta">
-                        <span>{{ requests.total|default(0)|number_format }} total</span>
-                        <span>Page {{ requests.page|default(1)|number_format }} of {{ requests.total_pages|default(1)|number_format }}</span>
-                    </div>
-                </div>
-                <div class="corebb-admin-modern-actions">
-                    <a class="corebb-board-action-link" href="{{ requestsView.toggle_href|default('/admin/?act=moderation&mode=requests&responded=True') }}">{{ requestsView.toggle_text|default('Old Unban Requests') }}</a>
-                </div>
-            </div>
-
-            <table class="corebb-admin-modern-table corebb-admin-unban-requests-table wb-table">
-                <thead>
-                    <tr>
-                        <th>User</th>
-                        <th>Banned By</th>
-                        <th>IP / Host</th>
-                        <th>Date Added</th>
-                        <th>Verified</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% if requests.items|default([]) is empty %}
-                        <tr>
-                            <td colspan="6" class="corebb-admin-modern-empty">No unban requests found.</td>
-                        </tr>
-                    {% else %}
-                        {% for req in requests.items %}
-                            <tr>
-                                <td><a class="corebb-admin-text-link" target="_top" href="{{ req.profile_url|default('#') }}">{{ req.username|default('#' ~ req.userid|default(0)) }}</a></td>
-                                <td>
-                                    {% if req.banned_by_username|default('') != '' %}
-                                        <a class="corebb-admin-text-link" target="_top" href="{{ req.banned_by_url|default('#') }}">{{ req.banned_by_username }}</a>
-                                    {% elseif req.banned_by|default(0) > 0 %}
-                                        #{{ req.banned_by }}
-                                    {% else %}
-                                        Unknown
-                                    {% endif %}
-                                </td>
-                                <td class="corebb-admin-unban-host-cell">
-                                    <a class="corebb-admin-text-link corebb-admin-unban-host-link" href="{{ req.host_lookup_url|default('#') }}">{{ req.ip_address|default('') }}<br>{{ req.host_address|default('') }}</a>
-                                </td>
-                                <td>{{ req.created_at_vn|default('') != '' ? req.created_at_vn : req.created_at|default('') }}</td>
-                                <td>{{ req.verified|default('False') }}</td>
-                                <td>
-                                    <div class="corebb-admin-modern-submit">
-                                        <a class="corebb-board-action-link" href="{{ req.notes_url|default('#') }}">Admin Notes</a>
-                                        {% if req.status|default('pending') == 'pending' %}
-                                            <form class="corebb-admin-modern-form" method="get" action="/admin/">
-                                                <input type="hidden" name="act" value="moderation">
-                                                <input type="hidden" name="mode" value="requests">
-                                                <input type="hidden" name="respond" value="{{ req.id|default(0) }}">
-                                                <button class="corebb-board-action-link" type="submit">Respond</button>
-                                            </form>
-                                        {% else %}
-                                            <span class="corebb-admin-modern-help">Responded</span>
-                                        {% endif %}
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td colspan="6">
-                                    <strong>Reason:</strong> <span class="corebb-admin-prewrap">{{ req.request_text|default('') }}</span>
-                                    {% if req.status|default('pending') != 'pending' %}
-                                        <br><strong>Moderator Response:</strong> <span class="corebb-admin-prewrap">{{ req.admin_note|default('') }}</span>
-                                        {% if req.resolved_at_vn|default('') != '' %}<br><span class="corebb-admin-modern-help">Resolved: {{ req.resolved_at_vn }}</span>{% endif %}
-                                    {% endif %}
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    {% endif %}
-                </tbody>
-            </table>
-
-            {% if requests.pagination.visible|default(false) %}
-                <div class="corebb-admin-modern-panel wb-text-center">{% include 'partials/board_pagination.twig' with {pagination: requests.pagination} only %}</div>
-            {% endif %}
-        </div>
     {% endif %}
 </div>
+{% elseif mode == 'unban' %}
+{% set base = '/admin/?act=moderation&mode=unban' %}
+<div class="admin-overview admin-settings admin-members unban-workspace">
+    <header class="admin-dash-heading"><h1>Unban User</h1>
+        <nav class="board-dir-links" aria-label="Moderation links">
+            {% if model.can_ban %}<a href="{{ url('/admin/?act=moderation&mode=ban') }}">Ban User</a>{% endif %}
+            {% if model.can_requests %}<a href="{{ url('/admin/?act=moderation&mode=requests') }}">Unban Requests</a>{% endif %}
+            <a href="{{ url('/admin/') }}">Dashboard</a>
+        </nav>
+    </header>
+    {% include 'partials/admin_messages.twig' with {messages:model.messages|default([]),errors:model.errors|default([])} only %}
+    {% if confirmUser %}
+        <section class="admin-title-editor" aria-labelledby="unban-heading">
+            <header class="admin-member-head"><div><h2 id="unban-heading">Review ban for {{ confirmUser.username }}</h2>
+                <p class="admin-history-count">#{{ confirmUser.id }} · {{ confirmUser.level_name }}</p></div>
+                <a href="{{ confirmUser.profile_url }}">Public profile</a>
+            </header>
+            <div class="unban-record"><dl>
+                <div><dt>Banned by</dt><dd>{{ confirmUser.staff_name ?: (confirmUser.banned_by ? 'User #' ~ confirmUser.banned_by : 'Not recorded') }}</dd></div>
+                <div><dt>When</dt><dd>{{ confirmUser.banned_at ?: 'Not recorded' }}</dd></div>
+                <div><dt>Ban reason</dt><dd>{{ confirmUser.ban_reason ?: 'No reason recorded' }}</dd></div>
+            </dl></div>
+            {% if confirmUser.blocked %}<div class="unban-decision"><p>{{ confirmUser.blocked }}</p><a href="{{ url(model.back_url) }}">Back to accounts</a></div>
+            {% else %}
+            <form class="admin-settings-form unban-decision" method="post" action="{{ url(model.back_url ~ '&review=' ~ confirmUser.id) }}">
+                {% include 'partials/csrf_field.twig' %}
+                <input type="hidden" name="action" value="unban_save">
+                <input type="hidden" name="userid" value="{{ confirmUser.id }}">
+                <input type="hidden" name="revision" value="{{ model.revision }}">
+                <input type="hidden" name="admin_moderation_token" value="{{ token }}">
+                <p>The account ban will be lifted. {{ confirmUser.username }} will keep the <strong>{{ confirmUser.level_name }}</strong> role.</p>
+                <div class="admin-auth-field"><label for="unban-note">Staff note (optional)</label>
+                    <textarea id="unban-note" name="note" rows="3" aria-describedby="unban-note-help"></textarea>
+                    <small id="unban-note-help">Saved in the admin action log.</small></div>
+                <div class="admin-settings-save"><button type="submit">Confirm unban</button><a href="{{ url(model.back_url) }}">Cancel</a></div>
+            </form>{% endif %}
+        </section>
+    {% elseif model.back_url is defined %}
+        <form class="admin-settings-form unban-filters" method="get" action="{{ url('/admin/') }}">
+            <input type="hidden" name="act" value="moderation"><input type="hidden" name="mode" value="unban">
+            <div class="admin-auth-field"><label for="unban-member">Member</label><input type="search" id="unban-member" name="username" value="{{ model.member_filter }}" placeholder="Username, user ID, or email" autocomplete="off"></div>
+            <div class="admin-auth-field"><label for="unban-address">Last IP or stored host</label><input type="search" id="unban-address" name="ip_address" value="{{ model.address_filter }}" spellcheck="false" autocomplete="off"></div>
+            <div class="admin-settings-save"><button type="submit">Find members</button>{% if model.member_filter or model.address_filter %}<a href="{{ url(base) }}">Reset</a>{% endif %}</div>
+        </form>
+        {% if model.total is defined %}
+        <section aria-labelledby="banned-accounts"><header class="admin-section-head"><h2 id="banned-accounts">Banned accounts</h2>
+            {% if model.total %}<span class="admin-history-count">{{ model.first|number_format }}–{{ model.last|number_format }} of {{ model.total|number_format }} · Newest bans first</span>{% endif %}</header>
+            {% if model.results %}
+            <div class="unban-list"><div class="unban-columns" aria-hidden="true"><span>Member</span><span>Banned by</span><span>When</span><span></span></div>
+                {% for user in model.results %}
+                <div class="unban-row"><div><a class="ban-member-name" href="{{ user.profile_url }}">{{ user.username }}</a> <small>#{{ user.id }}</small>
+                    {% if model.can_ip and user.last_ip %}<p>Last IP <a href="{{ url('/admin/?act=user_ip_check&userid=' ~ user.id) }}">{{ user.last_ip }}</a></p>{% endif %}</div>
+                    <div><span class="unban-mobile-label">Banned by </span>{{ user.staff_name ?: (user.banned_by ? 'User #' ~ user.banned_by : 'Not recorded') }}</div>
+                    <div><span class="unban-mobile-label">When · </span>{{ user.banned_at ?: 'Not recorded' }}</div>
+                    <a class="unban-review-link" href="{{ url(model.back_url ~ '&review=' ~ user.id) }}">Review ban</a>
+                </div>{% endfor %}
+            </div>
+            {% if model.pagination.visible %}<nav class="admin-latest-pager" aria-label="Banned account pages">
+                {% if model.pagination.prev.enabled %}<a rel="prev" href="{{ url(model.pagination.prev.url) }}">Previous</a>{% endif %}
+                {% for item in model.pagination.items %}{% if item.type=='ellipsis' %}<span>…</span>{% elseif item.current %}<strong aria-current="page">{{ item.page }}</strong>{% else %}<a href="{{ url(item.url) }}" aria-label="Page {{ item.page }}">{{ item.page }}</a>{% endif %}{% endfor %}
+                {% if model.pagination.next.enabled %}<a rel="next" href="{{ url(model.pagination.next.url) }}">Next</a>{% endif %}
+            </nav>{% endif %}
+            {% elseif model.member_filter or model.address_filter %}<p>No banned accounts match these filters. <a href="{{ url(base) }}">Show all banned accounts</a></p>
+            {% else %}<p>No banned accounts.</p>{% endif %}
+        </section>{% endif %}
+    {% endif %}
+</div>
+{% else %}
+{% set base = '/admin/?act=moderation&mode=requests' %}
+{% set appeal = model.appeal|default(null) %}
+<div class="admin-overview admin-settings admin-members appeals-workspace">
+    <header class="admin-dash-heading"><h1>Unban Requests</h1>
+        <nav class="board-dir-links" aria-label="Moderation links">
+            {% if model.can_ban %}<a href="{{ url('/admin/?act=moderation&mode=ban') }}">Ban User</a>{% endif %}
+            {% if model.can_unban %}<a href="{{ url('/admin/?act=moderation&mode=unban') }}">Unban User</a>{% endif %}
+            <a href="{{ url('/admin/') }}">Dashboard</a>
+        </nav>
+    </header>
+    {% include 'partials/admin_messages.twig' with {messages:model.messages|default([]),errors:model.errors|default([])} only %}
+    {% if appeal %}
+    <section class="admin-title-editor">
+        <header class="admin-member-head"><div><h2>{{ appeal.username }}</h2><p class="admin-history-count">Request #{{ appeal.id }} · {{ appeal.status|capitalize }}</p></div>
+            <a href="{{ url(model.queue_url) }}">Back to requests</a></header>
+        <div class="appeal-reading">
+            <section><h3>Member’s appeal</h3><p class="admin-history-count">Submitted {{ appeal.created ?: 'at an unknown time' }}</p>
+                <blockquote>{{ appeal.text ?: 'No explanation recorded.' }}</blockquote>
+                {% if appeal.status != 'pending' %}<h3>Staff response</h3>
+                    <p class="admin-history-count">{{ appeal.reviewer ?: 'Staff member not recorded' }}{% if appeal.resolved %} · {{ appeal.resolved }}{% endif %}</p>
+                    <p class="appeal-response">{{ appeal.response ?: 'No written response.' }}</p>
+                {% endif %}
+            </section>
+            <section class="appeal-context"><h3>Account details</h3><dl>
+                <dt>Member ID</dt><dd>{% if appeal.userid %}<a href="{{ url(appeal.member_url) }}">#{{ appeal.userid }}</a>{% else %}Unknown{% endif %}</dd>
+                <dt>Verification</dt><dd>{{ appeal.verified }}</dd>
+                {% if appeal.banned_by %}<dt>Last banned by</dt><dd>{{ appeal.banned_by }}</dd>{% endif %}
+                {% if appeal.ban_date %}<dt>Ban date</dt><dd>{{ appeal.ban_date }}</dd>{% endif %}
+                {% if appeal.ban_reason %}<dt>Ban reason</dt><dd>{{ appeal.ban_reason }}</dd>{% endif %}
+                {% if appeal.ip %}<dt>IP address</dt><dd>{% if appeal.can_host %}<a href="{{ url('/admin/?act=host_lookup&ip_address=' ~ appeal.ip|url_encode) }}">{{ appeal.ip }}</a>{% else %}{{ appeal.ip }}{% endif %}</dd>{% endif %}
+            </dl>{% if appeal.can_notes and appeal.userid %}<a href="{{ url('/admin/?act=admin_notes&userid=' ~ appeal.userid) }}">Staff notes</a>{% endif %}</section>
+        </div>
+        {% if appeal.status == 'pending' %}
+        <form class="admin-settings-form appeal-decision" method="post" action="{{ url(model.queue_url ~ '&respond=' ~ appeal.id) }}">
+            {% include 'partials/csrf_field.twig' %}
+            <input type="hidden" name="request_id" value="{{ appeal.id }}"><input type="hidden" name="admin_moderation_token" value="{{ token }}">
+            <input type="hidden" name="revision" value="{{ appeal.revision }}"><input type="hidden" name="ban_revision" value="{{ appeal.ban_revision }}">
+            <fieldset><legend>Decision</legend><div class="appeal-options">
+                <label><input name="action" type="radio" value="request_approve" required{% if not appeal.can_approve %} disabled{% endif %}><span><strong>Approve</strong><small>{{ appeal.can_approve ? 'Lift this member’s account ban.' : 'No active ban you can lift.' }}</small></span></label>
+                <label><input name="action" type="radio" value="request_deny" required><span><strong>Deny</strong><small>Close the appeal and keep the current account status.</small></span></label>
+            </div></fieldset>
+            <div class="admin-auth-field"><label for="appeal-note">Response to member (optional)</label>
+                <textarea id="appeal-note" name="admin_note" rows="3" aria-describedby="appeal-note-help">{{ model.draft_response|default('') }}</textarea>
+                <small id="appeal-note-help">The member can read this in their request history.</small></div>
+            <div class="admin-settings-save"><button type="submit">Confirm decision</button> <a href="{{ url(model.queue_url) }}">Cancel</a></div>
+        </form>{% endif %}
+    </section>
+    {% elseif model.queue_url is defined and model.requests.pagination is defined %}
+        {% set state = model.request_status %}
+        <nav class="appeal-tabs" aria-label="Request queues">
+            {% for key,label in {pending:'Pending',resolved:'Resolved',all:'All requests'} %}
+                <a href="{{ url(base ~ '&status=' ~ key) }}"{% if state==key or (key=='resolved' and state in ['approved','denied']) %} aria-current="page"{% endif %}>{{ label }} <small>{{ model.request_counts[key]|number_format }}</small></a>
+            {% endfor %}
+        </nav>
+        <section aria-labelledby="appeal-list-heading">
+            <header class="admin-section-head"><h2 id="appeal-list-heading">{{ model.statuses[state] }} requests</h2>
+            {% if state in ['resolved','approved','denied'] %}<nav class="board-dir-links" aria-label="Decision filter">
+                {% for key,label in {resolved:'Both decisions',approved:'Approved',denied:'Denied'} %}<a href="{{ url(base ~ '&status=' ~ key) }}"{% if key==state %} aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}
+            </nav>{% endif %}</header>
+            {% if model.requests.items %}<ul class="appeal-list">
+                {% for req in model.requests.items %}<li><div><strong>{{ req.username ?: 'User #' ~ req.userid }}</strong> <small>#{{ req.id }}</small>
+                    <p>Submitted {{ req.created_at ?: 'at an unknown time' }}</p></div>
+                    {% if state != 'pending' %}<span>{{ req.status|capitalize }}</span>{% endif %}
+                    <a class="unban-review-link" href="{{ url(model.queue_url ~ '&respond=' ~ req.id) }}">{{ req.status=='pending' ? 'Review request' : 'View decision' }}</a></li>{% endfor %}
+            </ul>{% else %}<p class="appeal-empty">{{ state=='pending' ? 'No requests are waiting for a decision.' : 'No requests in this queue.' }}</p>{% endif %}
+            {% set p=model.requests.pagination %}
+            {% if p.visible %}<nav class="admin-latest-pager" aria-label="Request pages">
+                {% if p.prev.enabled %}<a rel="prev" href="{{ url(p.prev.url) }}">Previous</a>{% endif %}
+                {% for item in p.items %}{% if item.type=='ellipsis' %}<span>…</span>{% elseif item.current %}<strong aria-current="page">{{ item.page }}</strong>{% else %}<a href="{{ url(item.url) }}" aria-label="Page {{ item.page }}">{{ item.page }}</a>{% endif %}{% endfor %}
+                {% if p.next.enabled %}<a rel="next" href="{{ url(p.next.url) }}">Next</a>{% endif %}
+            </nav>{% endif %}
+        </section>
+    {% elseif model.queue_url is defined %}<a href="{{ url(model.queue_url) }}">Back to requests</a>{% endif %}
+</div>
+{% endif %}

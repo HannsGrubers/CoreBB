@@ -1,104 +1,57 @@
-{% include 'partials/admin_messages.twig' with {messages: model.messages|default([]), errors: model.errors|default([])} only %}
-{% set mode = model.mode|default('search') %}
-{% set user = model.user|default(null) %}
-{% set profile = model.profile|default({}) %}
-{% set fields = model.fields|default([]) %}
-
-<div class="corebb-admin-modern-page">
-    {% if model.message|default('') != '' %}
-        <div class="corebb-admin-modern-note">{{ model.message|replace({'+': ' '}) }}</div>
-    {% endif %}
-
-    <div class="corebb-admin-modern-header">
-        <div>
-            <div class="corebb-admin-modern-eyebrow">People</div>
-            <h2>{{ mode == 'edit' and user ? 'Edit User Profile' : 'Find User Profile' }}</h2>
-            <div class="corebb-admin-modern-meta">
-                {% if user %}
-                    <span>{{ user.username|default('') }}</span>
-                    <span>#{{ user.id|default(0) }}</span>
-                    <span>{{ user.accesslevel|default(0) }} - {{ user.level_name|default('') }}</span>
-                {% else %}
-                    <span>Search by username or user ID.</span>
-                {% endif %}
-            </div>
+{% set page = '/admin/?act=edit_profile' %}
+{% set user = model.user %}
+<div class="admin-overview admin-settings admin-members admin-profile-editor">
+    <header class="admin-dash-heading"><h1>Edit User’s Profile</h1><a href="{{ url('/admin/') }}">Dashboard</a></header>
+    <form class="admin-settings-form admin-member-search" action="{{ url('/admin/') }}" method="get">
+        <input type="hidden" name="act" value="edit_profile">
+        <div class="admin-auth-field"><label for="profile-lookup">Username or user ID</label>
+            <input id="profile-lookup" name="user" type="search" value="{{ model.search_value }}" spellcheck="false" autocomplete="off" required>
         </div>
-        <div class="corebb-admin-modern-actions">
-            {% if user %}
-                <a class="corebb-board-action-link" href="{{ user.profile_url|default('#') }}">Public Profile</a>
-                <a class="corebb-board-action-link" href="/admin/?act=edit_profile">Find Another User</a>
-            {% endif %}
-            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
+        <div class="admin-settings-save"><button type="submit">Find member</button></div>
+    </form>
+    {% include 'partials/admin_messages.twig' with {messages:model.messages, errors:model.errors} only %}
+    {% if user %}
+    <header class="admin-member-head">
+        <div><h2>{{ user.username }}</h2><p class="admin-history-count">#{{ user.id }} · {{ user.level_name }}</p></div>
+        <div class="admin-member-links">
+            {% if model.can_view_member %}<a href="{{ url('/admin/?act=user_pages&userid=' ~ user.id ~ '&section=profile') }}">User Pages</a>{% endif %}
+            <a href="{{ url(user.profile_url) }}">Public profile</a>
         </div>
-    </div>
-
-    {% if mode == 'edit' and user %}
-        <table class="corebb-admin-modern-table corebb-admin-profile-summary-table wb-table">
-            <tbody>
-                <tr>
-                    <th>User Name</th>
-                    <td>{{ user.username|default('') }}</td>
-                </tr>
-                <tr>
-                    <th>Public Profile</th>
-                    <td><a class="corebb-board-action-link" href="{{ user.profile_url|default('#') }}">Open Profile</a></td>
-                </tr>
-                <tr>
-                    <th>UID</th>
-                    <td>{{ user.id|default(0) }}</td>
-                </tr>
-                <tr>
-                    <th>User Level</th>
-                    <td>{{ user.accesslevel|default(0) }} <span class="corebb-admin-modern-help">{{ user.level_name|default('') }}</span></td>
-                </tr>
-            </tbody>
-        </table>
-
-        <div class="corebb-admin-modern-panel">
-            <form class="corebb-admin-modern-form" method="post" action="/admin/?act=edit_profile&amp;method=save">
+    </header>
+    {% if model.sections %}
+    {% set record = page ~ '&userid=' ~ user.id %}
+    <div class="member-workspace">
+        <nav class="member-record-nav" aria-label="Profile sections">
+            {% for key,label in model.sections %}<a href="{{ url(record ~ '&section=' ~ key) }}"{% if model.section == key %} aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}
+        </nav>
+        <section class="member-record-content" aria-labelledby="profile-section">
+            <h2 id="profile-section">{{ model.sections[model.section] }}</h2>
+            {% if model.profile is defined %}
+            <form class="admin-settings-form" method="post" action="{{ url(record ~ '&section=' ~ model.section ~ '&method=save') }}">
                 {% include 'partials/csrf_field.twig' %}
-                <input type="hidden" name="userid" value="{{ user.id|default(0) }}">
-                <input type="hidden" name="admin_edit_profile_token" value="{{ model.token|default('') }}">
-
-                <div class="corebb-admin-section-title">Profile Fields</div>
-                <div class="corebb-admin-modern-grid">
-                    {% for field in fields %}
-                        <label for="corebbProfile{{ field.key|default(loop.index) }}">{{ field.label|default('') }}</label>
-                        <input id="corebbProfile{{ field.key|default(loop.index) }}" name="{{ field.key|default('') }}" type="text" size="50" maxlength="{{ field.maxlength|default(255) }}" value="{{ profile[field.key]|default('') }}">
-                    {% endfor %}
-
-                    <div class="corebb-admin-section-title corebb-admin-modern-full">Picture</div>
-                    <label for="corebbProfilePicture">Picture URL</label>
-                    <input id="corebbProfilePicture" name="profpic" type="text" size="50" maxlength="255" value="{{ profile.profpic|default('') }}">
-
-                    <div class="corebb-admin-section-title corebb-admin-modern-full">Bio</div>
-                    <label for="corebbProfileBio">Bio</label>
-                    <span>
-                        <textarea id="corebbProfileBio" name="bio" cols="65" rows="7">{{ profile.bio|default('') }}</textarea>
-                        <span class="corebb-admin-modern-help">Board markup is allowed. HTML is stripped.</span>
-                    </span>
-
-                    <div class="corebb-admin-modern-submit corebb-admin-modern-full">
-                        <button class="corebb-board-action-link" type="submit">Apply Changes</button>
-                        <button class="corebb-board-action-link" type="button" onclick="window.location.href='/admin/?act=edit_profile';">Find Another User</button>
-                        <button class="corebb-board-action-link" type="button" onclick="window.location.href='/admin/';">Admin Home</button>
+                <input type="hidden" name="userid" value="{{ user.id }}">
+                <input type="hidden" name="admin_edit_profile_token" value="{{ model.token }}">
+                <input type="hidden" name="revision" value="{{ model.revision }}">
+                <div class="profile-edit-fields">
+                {% for key,field in model.fields %}
+                    <div class="admin-auth-field">
+                        <label for="profile-{{ key }}">{{ key == 'birthday' ? 'Birthday' : field.label|trim(':') }}</label>
+                        {% if key == 'bio' %}
+                            <textarea id="profile-bio" name="bio" rows="8" aria-describedby="profile-bio-help">{{ model.profile.bio }}</textarea>
+                            <small id="profile-bio-help">Board markup is supported. HTML tags are stripped when you save.</small>
+                        {% else %}
+                            <input id="profile-{{ key }}" name="{{ key }}" type="text" maxlength="{{ field.maxlength }}" value="{{ model.profile[key] }}"{% if key in ['websiteurl','profpic','pubemail'] %} spellcheck="false" inputmode="{{ key == 'pubemail' ? 'email' : 'url' }}"{% endif %}{% if key in ['birthday','pubemail'] %} aria-describedby="profile-{{ key }}-help"{% endif %}>
+                            {% if key == 'birthday' %}<small id="profile-birthday-help">Shown on the public profile.</small>{% endif %}
+                            {% if key == 'pubemail' %}<small id="profile-pubemail-help">Shown on the public profile. The recovery address is managed separately.</small>{% endif %}
+                        {% endif %}
                     </div>
+                {% endfor %}
                 </div>
+                <div class="admin-settings-save"><button type="submit">Save {{ model.sections[model.section]|lower }}</button></div>
             </form>
-        </div>
-    {% else %}
-        <div class="corebb-admin-modern-panel">
-            <form class="corebb-admin-modern-form" method="post" action="/admin/?act=edit_profile&amp;method=view">
-                {% include 'partials/csrf_field.twig' %}
-                <div class="corebb-admin-modern-grid">
-                    <label for="corebbEditProfileUser">User</label>
-                    <span>
-                        <input id="corebbEditProfileUser" type="text" name="user" value="{{ model.search_value|default('') }}">
-                        <button class="corebb-board-action-link" type="submit">Submit</button>
-                        <span class="corebb-admin-modern-help">Username or user ID.</span>
-                    </span>
-                </div>
-            </form>
-        </div>
+            {% endif %}
+        </section>
+    </div>
+    {% endif %}
     {% endif %}
 </div>

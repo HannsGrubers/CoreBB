@@ -3,7 +3,10 @@
 <head>
     <title>{{ layout.head.title|default('CoreBB Admin') }}</title>
     <meta charset="utf-8">
-    <script>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script defer src="{{ asset('scripts/forum_actions.js') }}"></script>
+    <script defer src="{{ asset('scripts/admin_navigation.js') }}"></script>
+<script nonce="{{ csp_nonce() }}">
     (function(){
         try {
             var storedMode = window.localStorage ? localStorage.getItem('corebbAdminThemeMode') : '';
@@ -34,21 +37,25 @@
 <div class="corebb-admin-app">
     <header class="corebb-admin-header">
         <div class="corebb-admin-brand">
-            <a href="/admin/" class="corebb-admin-brand-link">CoreBB Admin / {{ layout.chrome.board_name|default('Forum') }}</a>
-            <span class="corebb-admin-route">{{ layout.route.label|default('Dashboard') }}</span>
+            <a href="{{ url('/admin/') }}" class="corebb-admin-brand-link">CoreBB <b>Admin</b></a>
+            <span class="admin-forum-name">{{ layout.chrome.board_name|default('Forum') }}</span>
         </div>
-        <div class="corebb-admin-user">
-            <span class="corebb-admin-user-name">{{ layout.viewer.username }}</span>
-            <span class="corebb-admin-user-level">{{ layout.viewer.level_label }}</span>
-        </div>
-    </header>
-
-    <nav class="corebb-admin-topnav" aria-label="Admin quick links">
+        <nav class="corebb-admin-topnav" aria-label="Admin quick links">
         <a href="{{ layout.chrome.board_url }}">View Forum</a>
         <a href="{{ layout.menu.pm_url }}">Private Messages{% if layout.menu.pm_unread|default(0) > 0 %} ({{ layout.menu.pm_unread }}){% endif %}</a>
         <a href="{{ layout.menu.notifications_url }}">Notifications{% if layout.menu.notification_count|default(0) > 0 %} ({{ layout.menu.notification_count }}){% endif %}</a>
-        <a href="{{ layout.menu.logout_url }}">Logoff</a>
-    </nav>
+        </nav>
+        <details class="admin-account">
+            <summary>{{ layout.viewer.username }}</summary>
+            <div><span>{{ layout.viewer.level_label }}</span>
+                {% if layout.viewer.profile_url %}<a href="{{ layout.viewer.profile_url }}">View profile</a>{% endif %}
+                <form method="post" action="{{ layout.menu.logout_url }}">
+                    {% include 'partials/csrf_field.twig' %}
+                    <button type="submit">Log off</button>
+                </form>
+            </div>
+        </details>
+    </header>
 
     {% if layout.alerts|default([]) %}
         <section class="corebb-admin-alerts" aria-label="Admin notices">

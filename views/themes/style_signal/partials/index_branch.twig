@@ -1,0 +1,32 @@
+<section class="signal-branch" id="signal-category-{{ anchor }}">
+    <header class="signal-branch-heading">
+        <h2>{{ category.title|default(category.name|default('Board category')) }}</h2>
+        {% if category.collapse_url %}<a href="{{ url(category.collapse_url) }}" aria-label="Collapse {{ category.title }}">Collapse</a>{% endif %}
+    </header>
+    {% if forums %}
+        <ul class="signal-boards">
+            {% for forum in forums %}
+                <li class="signal-board{% if forum.has_new_posts %} has-new-posts{% endif %}">
+                    <div class="signal-board-copy">
+                        <h3><a href="{{ url(forum.board_url) }}">{{ forum.title }}</a></h3>
+                        {% if forum.description %}<p>{{ forum.description }}</p>{% endif %}
+                        {% if forum.secure_archive %}<small>Secure Archive</small>{% endif %}
+                    </div>
+                    <div class="signal-board-volume">
+                        <span><b>{{ forum.topic_count|number_format }}</b> {{ forum.topic_count == 1 ? 'topic' : 'topics' }}</span>
+                        <span><b>{{ forum.post_count|number_format }}</b> {{ forum.post_count == 1 ? 'message' : 'messages' }}</span>
+                    </div>
+                    <div class="signal-board-activity">
+                        <span>Last post</span><strong>{{ forum.last_post_display|default('No posts') }}</strong>
+                        {% if forum.has_new_posts %}<small>New posts</small>{% endif %}
+                    </div>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}<p class="signal-index-note">No boards are available in this category.</p>{% endif %}
+    {% if hiddenCount|default(0) > 0 and not showEmpty %}
+        <p class="signal-index-note">{{ hiddenCount }} empty Secure Archive board{{ hiddenCount == 1 ? '' : 's' }} hidden. <a href="{{ url(category.show_empty_url) }}">Show empty boards</a></p>
+    {% elseif emptyCount|default(0) > 0 and showEmpty %}
+        <p class="signal-index-note">Empty Secure Archive boards are visible. <a href="{{ url(category.hide_empty_url) }}">Hide empty boards</a></p>
+    {% endif %}
+</section>

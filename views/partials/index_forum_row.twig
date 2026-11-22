@@ -8,7 +8,7 @@
 {% set secureArchive = forum.secure_archive|default(false) %}
 <tr class="BoardRowB wb-board-index-row">
     <td style="width: 10px;"><div class="wb-text-center"><b>{{ newMark }}</b></div></td>
-    <td style="height: 20px;">&nbsp;&nbsp;<a class="BoardRowBLink" href="{{ boardUrl }}">{{ name }}</a>{% if secureArchive %} <span class="SmallText">(Secure Archive)</span>{% endif %}&nbsp;- {{ description }}</td>
+    <td style="height: 20px;"><span class="wb-board-indent">&nbsp;&nbsp;</span><a class="BoardRowBLink" href="{{ boardUrl }}">{{ name }}</a>{% if secureArchive %} <span class="SmallText">(Secure Archive)</span>{% endif %}{% if description %}<span class="wb-board-description"><span class="wb-board-separator">&nbsp;- </span>{{ description }}</span>{% endif %}</td>
     <td>&nbsp;&nbsp;{{ topics }}</td>
     <td>&nbsp;&nbsp;{{ posts }}</td>
     <td>&nbsp;{{ lastPost }}</td>

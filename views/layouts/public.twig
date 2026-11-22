@@ -8,9 +8,17 @@
     <div class="wb-stage-banner">COREBB STAGING SITE &mdash; NOT LIVE</div>
 {% endif %}
 
-{% include 'partials/public_vn_header.twig' with {layout: layout} only %}
+{% block forum_shell %}
+{% set signal = layout.chrome.assets.header_mode|default('split') == 'signal' %}
+{% if signal %}
+<div id="Container" class="signal-shell">
+    {% include 'partials/signal_header.twig' with {layout: layout} only %}
+    <div class="signal-content">
+{% else %}
+    {% include 'partials/public_vn_header.twig' with {layout: layout} only %}
+{% endif %}
 
-<table class="wb-table wb-w-full wb-table-center wb-cellpad-3 wb-cellspace-1">
+<table class="wb-public-nav wb-table wb-w-full wb-table-center wb-cellpad-3 wb-cellspace-1">
     <tr>
         <td class="MainMenuRow">
             {% if layout.menu.notification_count|default(0) > 0 %}
@@ -27,7 +35,7 @@
         </td>
     </tr>
     <tr>
-        <td class="MainMenuRow">{% include 'partials/public_menu.twig' with {layout: layout} only %}</td>
+        <td class="MainMenuRow"><nav class="wb-forum-links" aria-label="Forum navigation">{% include 'partials/public_menu.twig' with {layout: layout} only %}</nav></td>
     </tr>
     {% for alert in layout.alerts|default([]) %}
         <tr>
@@ -40,6 +48,7 @@
 
 {{ content|raw }}
 
-{% include 'partials/public_footer.twig' with {layout: layout} only %}
+{% include 'partials/public_footer.twig' with {layout: layout, signal: signal} only %}
+{% endblock %}
 </body>
 </html>

@@ -1,60 +1,31 @@
 {% set entries = model.entries|default([]) %}
-{% set sections = {
-    'added': 'Added',
-    'changes': 'Changed',
-    'removed': 'Removed',
-    'security': 'Security',
-    'verified': 'Verified',
-    'notes': 'Notes'
-} %}
-
-<div class="corebb-admin-modern-page">
-    <div class="corebb-admin-modern-header">
+<div class="admin-overview admin-history">
+    <header class="admin-dash-heading">
         <div>
-            <div class="corebb-admin-modern-eyebrow">Overview</div>
-            <h2>{{ model.title|default('Version History') }}</h2>
-            <div class="corebb-admin-modern-meta">
-                <span>{{ entries|length|number_format }} entries</span>
-                <span>Source: VERSION_HISTORY.md</span>
-            </div>
+            <h1>Version history</h1>
+            <p class="admin-history-count">{{ entries|length|number_format }} {{ entries|length == 1 ? 'entry' : 'entries' }} · VERSION_HISTORY.md</p>
         </div>
-        <div class="corebb-admin-modern-actions">
-            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
-        </div>
-    </div>
-
-    {% if entries is empty %}
-        <div class="corebb-admin-modern-panel">
-            <span class="corebb-admin-modern-help">No version history entries have been recorded.</span>
+        <a href="{{ url('/admin/') }}">Dashboard</a>
+    </header>
+    {% if entries %}
+        <div class="admin-history-list">
+            {% for entry in entries %}
+                <details class="admin-history-entry"{% if loop.first %} open{% endif %}>
+                    <summary>
+                        <strong>{{ entry.version }}</strong>
+                        {% if entry.type %}<span class="admin-history-type">{{ entry.type }}</span>{% endif %}
+                        {% if entry.date %}<span class="admin-history-date">{{ entry.date }}</span>{% endif %}
+                    </summary>
+                    <div class="admin-history-notes">
+                        {% if entry.base %}<p class="admin-history-base">Updates from <b>{{ entry.base }}</b></p>{% endif %}
+                        {% if entry.markdown|trim %}
+                            {% include 'partials/formatted_content.twig' with {content: {type: 'release_notes', body: entry.markdown}} only %}
+                        {% else %}<p>No release notes recorded.</p>{% endif %}
+                    </div>
+                </details>
+            {% endfor %}
         </div>
     {% else %}
-        {% for entry in entries %}
-            <details class="corebb-admin-modern-panel corebb-admin-version-entry"{% if loop.first %} open{% endif %}>
-                <summary class="corebb-admin-version-summary">
-                    <span class="corebb-admin-section-title">{{ entry.version|default('CoreBB Release') }}</span>
-                    <span class="corebb-admin-version-summary-meta">
-                        {% if entry.date|default('') != '' %}<span>{{ entry.date }}</span>{% endif %}
-                        {% if entry.type|default('') != '' %}<span>{{ entry.type }}</span>{% endif %}
-                    </span>
-                </summary>
-                <div class="corebb-admin-version-body">
-                    {% if entry.summary|default('') != '' %}
-                        <p>{{ entry.summary|default('') }}</p>
-                    {% endif %}
-                    {% for key, label in sections %}
-                        {% if entry[key]|default([]) %}
-                            <div class="corebb-admin-version-section">
-                                <strong>{{ label }}</strong>
-                                <ul class="corebb-admin-list">
-                                    {% for item in entry[key] %}
-                                        <li>{{ item }}</li>
-                                    {% endfor %}
-                                </ul>
-                            </div>
-                        {% endif %}
-                    {% endfor %}
-                </div>
-            </details>
-        {% endfor %}
+        <p>No version history entries have been recorded.</p>
     {% endif %}
 </div>

@@ -72,8 +72,8 @@ function corebb_admin_schema_deploy_form(array $post): array
 {
     $form = corebb_admin_schema_deploy_default_form();
     foreach ($form as $key => $_) {
-        if (array_key_exists($key, $post)) {
-            $form[$key] = (string)$post[$key];
+        if (is_string($post[$key] ?? null)) {
+            $form[$key] = $post[$key];
         }
     }
     $form['staging_source'] = in_array($form['staging_source'], ['schema', 'database'], true) ? $form['staging_source'] : 'schema';
@@ -189,29 +189,42 @@ function corebb_admin_schema_deploy_load_source(string $prefix, string $label, a
 function corebb_admin_db_schema_deploy_model(array $viewer, array $get, array $post, array $files): array
 {
     $model = [
-        'title' => 'DB Schema Deploy',
+        'result' => null,
         'errors' => [],
         'messages' => [],
-        'apply_messages' => [],
         'plan' => null,
-        'plan_text' => '',
-        'sources' => [],
-        'token' => corebb_admin_schema_deploy_token(),
-        'form' => corebb_admin_schema_deploy_form($post),
+        'token' => '',
+        'form' => corebb_admin_schema_deploy_default_form(),
     ];
 
-    if ((int)($viewer['accesslevel'] ?? 0) < 5) {
+    if (!corebb_admin_can_access_tool($viewer, 'db_schema_deploy')) {
         $model['errors'][] = 'Administrator access is required.';
         return $model;
     }
 
-    $action = (string)($post['action'] ?? '');
-    if ($action === '') {
+    $model['token'] = corebb_admin_schema_deploy_token();
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
         return $model;
     }
 
     if (!corebb_admin_schema_deploy_token_ok($post)) {
         $model['errors'][] = 'Security token expired. Please reload the page and try again.';
+        return $model;
+    }
+
+    $model['form'] = corebb_admin_schema_deploy_form($post);
+    $action = $post['action'] ?? '';
+    if (!in_array($action, ['dry_run', 'apply'], true)) {
+        $model['errors'][] = 'Choose Preview changes or Apply schema.';
+        return $model;
+    }
+    $confirmation = $post['apply_confirm'] ?? '';
+    if ($action === 'apply' && (!is_string($confirmation) || strtoupper(trim($confirmation)) !== 'APPLY SCHEMA')) {
+        $model['errors'][] = 'Type APPLY SCHEMA to confirm production schema changes.';
+        return $model;
+    }
+    if ($action === 'apply' && $model['form']['production_source'] !== 'database') {
+        $model['errors'][] = 'Choose Database connection for the production schema before applying changes.';
         return $model;
     }
 
@@ -222,30 +235,33 @@ function corebb_admin_db_schema_deploy_model(array $viewer, array $get, array $p
 
         $plan = corebb_schema_build_plan($current['schema'], $target['schema']);
         $model['plan'] = $plan;
-        $model['plan_text'] = corebb_schema_plan_text($plan);
-        $model['sources'] = [$target['source'], $current['source']];
-        $model['messages'][] = 'Plan generated from ' . $target['source'] . ' to ' . $current['source'] . '.';
 
         if ($action === 'apply') {
-            if (strtoupper(trim((string)($post['apply_confirm'] ?? ''))) !== 'APPLY SCHEMA') {
-                $model['errors'][] = 'Type APPLY SCHEMA to confirm production schema changes.';
-                return $model;
-            }
             if (!$current['pdo'] instanceof PDO) {
                 $model['errors'][] = 'Production database credentials are required for apply mode.';
                 return $model;
             }
             if (!$plan['operations']) {
-                $model['messages'][] = 'No schema changes were needed.';
+                $model['result'] = ['ok' => true, 'summary' => 'The destination already has the planned additions.', 'details' => $plan['warnings']];
                 return $model;
             }
-            $model['apply_messages'] = corebb_schema_apply_plan_pdo($current['pdo'], $plan, (string)$current['database']);
-            $model['messages'][] = 'Apply completed using non-destructive operations.';
+            // DDL can commit one operation at a time. Redirect even after a partial apply.
+            $model['result'] = ['ok' => false, 'summary' => 'Schema deployment stopped. Preview again to see which changes are still pending.', 'details' => []];
+            $applied = corebb_schema_apply_plan_pdo($current['pdo'], $plan, (string)$current['database']);
+            $model['result'] = ['ok' => true, 'summary' => 'Schema deployment completed.', 'details' => array_merge($applied, $plan['warnings'])];
         } else {
-            $model['messages'][] = 'Dry run only. No database changes were made.';
+            $model['messages'][] = 'Preview complete. No database changes were made.';
         }
     } catch (Throwable $e) {
-        $model['errors'][] = $e->getMessage();
+        if ($model['result'] !== null && $e instanceof PDOException) {
+            // Only the result survives the apply redirect. Keep credentials and raw SQL out of the session.
+            $state = (string)$e->getCode();
+            if (preg_match('/^[0-9A-Z]{5}$/D', $state)) {
+                $model['result']['details'][] = 'Database error (SQLSTATE ' . $state . ').';
+            }
+        } else {
+            $model['errors'][] = $e->getMessage();
+        }
     }
 
     return $model;

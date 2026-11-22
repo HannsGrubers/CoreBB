@@ -1,0 +1,78 @@
+{% set branches = model.openCategories|default([]) %}
+{% if not model.expandedCategory and model.favorites %}
+    {% set branches = [{category: {title: 'Your Favorite Boards', category_id: 'favorites'}, forums: model.favorites}]|merge(branches) %}
+{% endif %}
+{% set closed = model.collapsedCategories|default([]) %}
+{% if model.expandedCategory %}
+    {% set closed = [{title: 'Your Favorite Boards', expand_url: '/', category_id: 'favorites'}]|merge(closed) %}
+{% endif %}
+<main class="signal-index" id="signal-directory" aria-label="Board directory">
+    <nav class="signal-category-nav" aria-label="Board categories">
+        <h2>Browse</h2>
+        <a class="signal-category-choice" data-directory-choice href="#signal-directory" aria-current="true">All boards</a>
+        {% for branch in branches %}
+            <a class="signal-category-choice" data-directory-choice href="#signal-category-{{ branch.category.category_id|default('open-' ~ loop.index) }}">{{ branch.category.title }}<span>{{ branch.forums|length }}</span></a>
+        {% endfor %}
+        {% for category in closed %}
+            <a class="signal-category-choice" aria-label="Expand {{ category.title }}" href="{{ url(category.expand_url) }}#signal-category-{{ category.category_id|default(category.id) }}">{{ category.title }}<span aria-hidden="true">›</span></a>
+        {% endfor %}
+    </nav>
+    <div class="signal-directory-body">
+        <header class="signal-directory-heading">
+            <h1>Board directory</h1>
+            <label class="signal-filter" hidden><input type="search" aria-label="Filter visible boards" placeholder="Filter boards"></label>
+        </header>
+        {% if model.message %}<p class="signal-index-note">{{ model.message }}</p>{% endif %}
+        {% for branch in branches %}
+            {% include 'partials/index_branch.twig' with {
+                category: branch.category, anchor: branch.category.category_id|default('open-' ~ loop.index), forums: branch.forums,
+                hiddenCount: branch.hiddenEmptyArchiveBoardCount, emptyCount: branch.emptySecureArchiveBoardCount,
+                showEmpty: model.showEmptyArchiveBoards
+            } only %}
+        {% endfor %}
+        {% if not branches and not model.message %}<p class="signal-index-note">{{ closed ? 'Choose a category to browse its boards.' : 'No boards are available.' }}</p>{% endif %}
+        <p class="signal-index-note signal-no-matches" role="status" hidden>No visible boards match your filter.</p>
+    </div>
+</main>
+<script nonce="{{ csp_nonce() }}">
+(() => {
+    const directory = document.getElementById('signal-directory');
+    const choices = [...directory.querySelectorAll('[data-directory-choice]')];
+    const sections = [...directory.querySelectorAll('.signal-branch')];
+    const filter = directory.querySelector('.signal-filter');
+    const input = filter.querySelector('input');
+    filter.hidden = sections.length === 0;
+    function update() {
+        const selected = choices.find(link => link.hash === location.hash) || choices[0];
+        const query = input.value.trim().toLocaleLowerCase();
+        let total = 0;
+        for (const link of choices) {
+            if (link === selected) link.setAttribute('aria-current', 'true');
+            else link.removeAttribute('aria-current');
+        }
+        for (const section of sections) {
+            let matches = 0;
+            for (const row of section.querySelectorAll('.signal-board')) {
+                const text = row.querySelector('.signal-board-copy').textContent.toLocaleLowerCase();
+                row.hidden = !text.includes(query);
+                if (!row.hidden) matches++;
+            }
+            const inCategory = selected === choices[0] || selected.hash === '#' + section.id;
+            section.hidden = !inCategory || (query !== '' && !matches);
+            if (inCategory) total += matches;
+        }
+        directory.querySelector('.signal-no-matches').hidden = !query || total > 0;
+    }
+    input.addEventListener('input', update);
+    for (const link of choices) {
+        link.addEventListener('click', event => {
+            if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+            event.preventDefault();
+            if (location.hash !== link.hash) history.pushState(null, '', link.hash);
+            update();
+        });
+    }
+    window.addEventListener('hashchange', update);
+    update();
+})();
+</script>

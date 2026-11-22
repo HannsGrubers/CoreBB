@@ -20,6 +20,7 @@ require_once __DIR__ . '/../helpers/admin_log_helpers.php';
 
 require_once __DIR__ . '/admin_user_tools_view_model.php';
 require_once __DIR__ . '/admin_user_notes_view_model.php';
+require_once __DIR__ . '/admin_moderation_view_model.php';
 require_once __DIR__ . '/../helpers/moderation_helpers.php';
 require_once __DIR__ . '/../helpers/private_board_helpers.php';
 
@@ -169,7 +170,10 @@ function corebb_user_pages_format_full_date(string $value): string
     if ($value === '' || $value === '0000-00-00 00:00:00') {
         return '';
     }
-    $ts = strtotime($value);
+    if ($value === '0') { return ''; }
+    $month = corebb_account_month_label($value);
+    if ($month !== null) { return $month; }
+    $ts = ctype_digit($value) ? (int)$value : strtotime($value);
     if ($ts === false) {
         return $value;
     }
@@ -202,22 +206,6 @@ function corebb_user_pages_plain_bool($value): string
 function corebb_user_pages_yes_no($value): string
 {
     return corebb_user_pages_plain_bool($value);
-}
-
-/**
- * Usage: Normalize an IP value for the user portal.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @param string $ip IP address.
- * @return string Normalized or display-ready string.
- */
-function corebb_user_pages_display_ip(string $ip): string
-{
-    $ip = trim($ip);
-    if (preg_match('/^\d{1,3}(?:-\d{1,3}){3}$/', $ip)) {
-        return str_replace('-', '.', $ip);
-    }
-    return $ip;
 }
 
 /**
@@ -359,16 +347,17 @@ function corebb_user_pages_special_access(int $userId): array
  * @param int $userId User id.
  * @return array Data prepared for the admin template or caller.
  */
-function corebb_user_pages_fetch_recent_posts(int $userId): array
+function corebb_user_pages_fetch_recent_posts(int $userId, array $viewer): array
 {
     if ($userId <= 0) {
         return [];
     }
 
-    [$visibleSql, $visibleParams] = corebb_private_sql_visible_board_clause('f', 'b');
+    [$visibleSql, $visibleParams] = corebb_private_sql_visible_board_clause('f', 'b', corebb_admin_viewer_id($viewer), corebb_admin_viewer_level($viewer));
     $sql = 'SELECT ' . corebb_admin_select_columns('posts', ['id', 'threadid', 'boardid', 'title', 'body', 'posttime', 'posttimeraw'], 'p') . ', f.name AS board_name
             FROM posts p
-            LEFT JOIN forums f ON f.id = p.boardid
+            INNER JOIN topics t ON t.id = p.threadid AND t.boardid = p.boardid AND t.is_deleted = 0
+            INNER JOIN forums f ON f.id = p.boardid
             LEFT JOIN boards b ON b.id = f.categoryid
             WHERE p.posterid = ? AND p.is_deleted = 0 AND ' . $visibleSql . '
             ORDER BY p.id DESC
@@ -499,13 +488,14 @@ function corebb_user_pages_clear_value(array $viewer, array $target, string $act
  * @param array $user User row being displayed or edited.
  * @return array Data prepared for the admin template or caller.
  */
-function corebb_user_pages_summary(array $user): array
+function corebb_user_pages_summary(array $user, array $viewer): array
 {
     $userId = (int)($user['id'] ?? 0);
     $username = (string)($user['username'] ?? '');
     $isBanned = ((string)($user['status'] ?? '') === '2');
     $isDisabled = array_key_exists('approved', $user) ? ((int)$user['approved'] !== 1) : false;
     $userType = corebb_user_pages_user_type($user);
+    $lastIp = corebb_admin_can_access_tool($viewer, 'user_ip_check') ? (string)($user['lastip'] ?? '') : '';
 
     return [
         'id' => $userId,
@@ -518,8 +508,8 @@ function corebb_user_pages_summary(array $user): array
         'moderator_role' => $userType,
         'user_type' => $userType,
         'special_access' => corebb_user_pages_special_access($userId),
-        'last_ip' => (string)($user['lastip'] ?? ''),
-        'last_ip_display' => corebb_user_pages_display_ip((string)($user['lastip'] ?? '')),
+        'last_ip' => $lastIp,
+        'last_ip_display' => corebb_admin_display_ip($lastIp),
         'banned' => $isBanned ? 'True' : 'False',
         'banned_raw' => $isBanned,
         'actual_post_count' => corebb_user_pages_actual_post_count($userId),
@@ -531,7 +521,6 @@ function corebb_user_pages_summary(array $user): array
         'date_account_added' => corebb_user_pages_format_full_date((string)($user['regdate'] ?? '')),
         'last_login_date' => corebb_user_pages_format_full_date((string)($user['lastlogindate'] ?? '')),
         'last_post_date' => corebb_user_pages_format_full_date((string)($user['lastpstdate'] ?? $user['lastpost'] ?? '')),
-        'raw' => $user,
     ];
 }
 
@@ -546,10 +535,14 @@ function corebb_user_pages_summary(array $user): array
  */
 function corebb_admin_user_pages_model(array $viewer, array $request, array $post): array
 {
-    corebb_admin_notes_ensure_schema();
     corebb_mod_ensure_schema();
 
-    $model = corebb_admin_require_model_base($viewer, 'User Portal', $request);
+    $canNotes = corebb_admin_can_access_tool($viewer, 'admin_notes');
+    $sections = ['overview'=>'Overview', 'profile'=>'Profile content', 'posts'=>'Recent posts'];
+    if ($canNotes) { $sections['notes'] = 'Staff notes'; }
+    $section = $request['section'] ?? '';
+    $model = ['sections'=>$sections, 'section'=>is_string($section) && isset($sections[$section]) ? $section : 'overview',
+        'messages'=>[], 'errors'=>[]];
     $model['token'] = corebb_user_pages_token();
     $model['search'] = ['username' => '', 'userid' => ''];
     $model['selected_user'] = null;
@@ -562,10 +555,13 @@ function corebb_admin_user_pages_model(array $viewer, array $request, array $pos
     [$username, $userId, $selectedUser] = corebb_user_pages_find_user($request, $post);
 
     if ($isPost && in_array($action, ['clear_title', 'clear_signature', 'remove_icon'], true)) {
+        $model['section'] = 'profile';
         if (!corebb_user_pages_token_ok($post)) {
             $model['errors'][] = 'Security token expired. Please reload the user page and try again.';
         } elseif (!$selectedUser) {
             $model['errors'][] = 'No user selected.';
+        } elseif (isset($post['userid']) && (string)$post['userid'] !== (string)$selectedUser['id']) {
+            $model['errors'][] = 'The account on the form differs from the selected account. Find the member again.';
         } elseif (($error = corebb_user_pages_action_error($viewer, $selectedUser, $action)) !== '') {
             $model['errors'][] = $error;
         } else {
@@ -580,14 +576,17 @@ function corebb_admin_user_pages_model(array $viewer, array $request, array $pos
     }
 
     if ($selectedUser) {
-        $model['selected_user'] = corebb_user_pages_summary($selectedUser);
-        $model['selected_user']['can_assign_title'] = corebb_user_pages_can_use_tool($viewer, 'assign_title')
-            && corebb_admin_target_content_error($viewer, $selectedUser) === '';
-        $model['selected_user']['can_edit_profile'] = corebb_user_pages_can_use_tool($viewer, 'edit_profile')
-            && corebb_admin_target_content_error($viewer, $selectedUser) === '';
-        $model['selected_user']['can_manage_icons'] = corebb_user_pages_can_use_tool($viewer, 'manage_icons')
-            && corebb_admin_target_content_error($viewer, $selectedUser) === '';
-        $model['selected_user']['can_edit_appearance'] = corebb_admin_can_access_tool($viewer, 'user_appearance_admin');
+        $model['selected_user'] = corebb_user_pages_summary($selectedUser, $viewer);
+        $canChangeContent = corebb_admin_target_content_error($viewer, $selectedUser) === '';
+        foreach (['assign_title'=>'assign_title', 'edit_profile'=>'edit_profile', 'manage_icons'=>'manage_icons', 'edit_appearance'=>'user_appearance_admin'] as $name => $tool) {
+            $model['selected_user']['can_' . $name] = $canChangeContent && corebb_admin_can_access_tool($viewer, $tool);
+        }
+        $verb = $model['selected_user']['banned_raw'] ? 'unban' : 'ban';
+        $model['can_moderate'] = corebb_admin_can_access_tool($viewer, 'moderation_' . $verb)
+            && corebb_admin_mod_can_touch_user($viewer, $selectedUser, $verb)[0];
+        $model['can_edit_rights'] = corebb_admin_can_access_tool($viewer, 'edit_rights') && corebb_admin_target_rights_error($viewer, $selectedUser) === '';
+        $model['can_host_lookup'] = corebb_admin_can_access_tool($viewer, 'host_lookup');
+        $model['can_view_message'] = corebb_admin_can_access_tool($viewer, 'view_message');
         $model['search'] = [
             'username' => (string)($selectedUser['username'] ?? $username),
             'userid' => (string)($selectedUser['id'] ?? $userId),
@@ -599,8 +598,11 @@ function corebb_admin_user_pages_model(array $viewer, array $request, array $pos
                 'user_pages'
             );
         }
-        $model['recent_posts'] = corebb_user_pages_fetch_recent_posts((int)$selectedUser['id']);
-        $model['recent_notes'] = corebb_user_pages_fetch_recent_notes((int)$selectedUser['id']);
+        if ($model['section'] === 'posts') {
+            $model['recent_posts'] = corebb_user_pages_fetch_recent_posts((int)$selectedUser['id'], $viewer);
+        } elseif ($model['section'] === 'notes') {
+            $model['recent_notes'] = corebb_user_pages_fetch_recent_notes((int)$selectedUser['id']);
+        }
     } else {
         $model['search'] = ['username' => $username, 'userid' => $userId];
         if ($username !== '' || $userId !== '') {

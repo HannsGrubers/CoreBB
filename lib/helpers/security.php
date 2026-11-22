@@ -36,7 +36,7 @@ function corebb_security_is_https(): bool
     }
 
     if (corebb_security_trust_proxy_headers() && !empty($_SERVER['HTTP_X_FORWARDED_PROTO'])) {
-        $proto = strtolower(trim(explode(',', (string)$_SERVER['HTTP_X_FORWARDED_PROTO'])[0] ?? ''));
+        $proto = strtolower(trim((string)$_SERVER['HTTP_X_FORWARDED_PROTO']));
         if ($proto === 'https') {
             return true;
         }
@@ -54,17 +54,13 @@ function corebb_security_trust_proxy_headers(): bool
         return (bool)COREBB_TRUST_PROXY_HEADERS;
     }
 
-    $remote = trim((string)($_SERVER['REMOTE_ADDR'] ?? ''));
-    if ($remote === '') {
-        return false;
-    }
-    if (in_array($remote, ['127.0.0.1', '::1'], true)) {
-        return true;
-    }
-    if (!filter_var($remote, FILTER_VALIDATE_IP)) {
-        return false;
-    }
-    return filter_var($remote, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false;
+    return false;
+}
+
+function corebb_security_script_nonce(): string
+{
+    static $nonce;
+    return $nonce ??= base64_encode(random_bytes(24));
 }
 
 /**
@@ -73,7 +69,26 @@ function corebb_security_trust_proxy_headers(): bool
  */
 function corebb_security_bootstrap(): void
 {
+    // A hosted forum must not create an HTTP login/session even if its web-server redirect is lost.
+    $hosted = defined('COREBB_ENV') && in_array(COREBB_ENV, ['live', 'staging'], true);
+    if (PHP_SAPI !== 'cli' && $hosted && !corebb_security_is_https()) {
+        $base = defined('COREBB_PUBLIC_BASE_URL') ? parse_url(COREBB_PUBLIC_BASE_URL) : false;
+        $uri = (string)($_SERVER['REQUEST_URI'] ?? '/');
+        if (is_array($base) && ($base['scheme'] ?? '') === 'https' && !empty($base['host'])
+            && !isset($base['user']) && str_starts_with($uri, '/') && !preg_match('/[\x00-\x20\x7f]/', $uri)
+            && in_array($_SERVER['REQUEST_METHOD'] ?? '', ['GET', 'HEAD'], true)) {
+            $port = isset($base['port']) ? ':' . (int)$base['port'] : '';
+            header('Location: https://' . $base['host'] . $port . $uri, true, 302);
+        } else {
+            http_response_code(403);
+        }
+        header('Cache-Control: no-store');
+        exit('HTTPS is required for this forum.');
+    }
     if (session_status() !== PHP_SESSION_ACTIVE) {
+        ini_set('session.use_strict_mode', '1');
+        ini_set('session.use_only_cookies', '1');
+        ini_set('session.use_trans_sid', '0');
         $params = session_get_cookie_params();
         session_set_cookie_params([
             'lifetime' => (int)($params['lifetime'] ?? 0),
@@ -90,6 +105,11 @@ function corebb_security_bootstrap(): void
         header('X-Content-Type-Options: nosniff');
         header('Referrer-Policy: same-origin');
         header('Permissions-Policy: geolocation=(), microphone=(), camera=()');
+        header("Content-Security-Policy: base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'; script-src 'self' 'nonce-" . corebb_security_script_nonce() . "' https://accounts.google.com/gsi/; script-src-attr 'none'");
+        header('Cache-Control: private, no-store');
+        if (corebb_security_is_https()) {
+            header('Strict-Transport-Security: max-age=300');
+        }
     }
 }
 
@@ -298,7 +318,7 @@ function corebb_security_admin_pretty_href_url(string $script, array $params, st
     $knownActs = [
         'version_history', 'edit_settings', 'auth_settings', 'mail_services', 'administrator_tools', 'database_tools',
         'api_explorer', 'forum_sim', 'edit_tos', 'edit_style', 'edit_rights',
-        'change_user_password', 'add_user', 'view_message', 'global_message',
+        'change_user_password', 'add_user', 'view_message', 'global_messages', 'global_message',
         'edit_global_message', 'remove_global_message', 'manageboards', 'movebrd',
         'movecat', 'add_category', 'delete_category', 'manageboards_cat', 'addboard',
         'modifyboard', 'manage_icons', 'moderation', 'admin_notes', 'action_log',
@@ -636,7 +656,7 @@ function corebb_security_root_relative_html_urls(string $html): string
     }
 
     return preg_replace_callback(
-        '~\b(href|src|action)\s*=\s*(["\'])([^"\']*)\2~i',
+        '~(?<=\s)(href|src|action)\s*=\s*(["\'])([^"\']*)\2~i',
         static function (array $m): string {
             $attr = strtolower($m[1]);
             $rawUrl = htmlspecialchars_decode($m[3], ENT_QUOTES);
@@ -665,6 +685,9 @@ function corebb_security_inject_csrf_fields(string $html): string
         '~(<form\b(?=[^>]*\bmethod\s*=\s*(["\']?)post\2)[^>]*>)(.*?</form>)~is',
         static function (array $m) use ($field): string {
             $formHtml = $m[0];
+            if (!corebb_security_local_form_action($m[1])) {
+                return $formHtml;
+            }
             if (preg_match('~<input\b[^>]*\bname\s*=\s*(["\']?)(?:corebb_csrf_token|wb_csrf_token)\1~i', $formHtml)) {
                 return $formHtml;
             }
@@ -680,9 +703,20 @@ function corebb_security_inject_csrf_fields(string $html): string
 
     return preg_replace_callback(
         '~(<form\b(?=[^>]*\bmethod\s*=\s*(["\']?)post\2)[^>]*>)(?!\s*<input\b[^>]*\bname\s*=\s*(["\']?)(?:corebb_csrf_token|wb_csrf_token)\3)~i',
-        static fn(array $m): string => $m[1] . $field,
+        static fn(array $m): string => $m[1] . (corebb_security_local_form_action($m[1]) ? $field : ''),
         $html
     ) ?? $html;
+}
+
+// Legacy templates may omit a token. Only local POST forms should receive one.
+function corebb_security_local_form_action(string $openingTag): bool
+{
+    if (!preg_match('~\saction\s*=\s*(?:"([^"]*)"|\x27([^\x27]*)\x27|([^\s>]+))~i', $openingTag, $match, PREG_UNMATCHED_AS_NULL)) {
+        return true;
+    }
+    $action = trim(html_entity_decode($match[1] ?? $match[2] ?? $match[3] ?? '', ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+    return !str_starts_with($action, '//') && !str_contains($action, '\\')
+        && !preg_match('~^(?:[a-z][a-z0-9+.-]*:)|[\x00-\x20\x7f]~i', $action);
 }
 
 /**
@@ -765,8 +799,7 @@ function corebb_security_login_cookie_secret(): string
             $parts[] = (string)$GLOBALS[$key];
         }
     }
-    $base = implode('|', $parts);
-    return $base !== '' ? hash('sha256', $base) : 'corebbboards-local-cookie-secret';
+    return count($parts) === 4 && (string)$GLOBALS['MySQL_Pass'] !== '' ? hash('sha256', implode('|', $parts)) : '';
 }
 
 /**
@@ -776,7 +809,11 @@ function corebb_security_login_cookie_secret(): string
 function corebb_security_sign_login_cookie(array $payload): array
 {
     unset($payload['sig']);
-    $payload['sig'] = hash_hmac('sha256', json_encode($payload, JSON_UNESCAPED_SLASHES), corebb_security_login_cookie_secret());
+    $key = corebb_security_login_cookie_secret();
+    if ($key === '') {
+        throw new RuntimeException('A private cookie-signing key is required.');
+    }
+    $payload['sig'] = hash_hmac('sha256', json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR), $key);
     return $payload;
 }
 
@@ -786,13 +823,14 @@ function corebb_security_sign_login_cookie(array $payload): array
  */
 function corebb_security_verify_login_cookie(array $payload): bool
 {
-    if (empty($payload['sig'])) {
+    $key = corebb_security_login_cookie_secret();
+    if ($key === '' || !is_string($payload['sig'] ?? null)) {
         return false;
     }
     $sig = (string)$payload['sig'];
     unset($payload['sig']);
-    $expected = hash_hmac('sha256', json_encode($payload, JSON_UNESCAPED_SLASHES), corebb_security_login_cookie_secret());
-    return hash_equals($expected, $sig);
+    $encoded = json_encode($payload, JSON_UNESCAPED_SLASHES);
+    return is_string($encoded) && hash_equals(hash_hmac('sha256', $encoded, $key), $sig);
 }
 
 /**

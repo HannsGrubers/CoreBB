@@ -27,25 +27,6 @@ require_once __DIR__ . '/../helpers/performance_helpers.php';
 require_once __DIR__ . '/../helpers/poll_helpers.php';
 
 /**
- * Usage: Normalize input before it is displayed or saved.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @param mixed $value Raw value to normalize.
- * @param int $default Fallback value.
- * @param int $min Minimum value.
- * @param int $max Maximum value.
- * @return int Numeric result for the caller.
- */
-function corebb_forum_sim_limit_int($value, int $default, int $min, int $max): int
-{
-    $value = filter_var($value, FILTER_VALIDATE_INT);
-    if ($value === false) {
-        return $default;
-    }
-    return max($min, min($max, (int)$value));
-}
-
-/**
  * Usage: Return a random integer inside the requested bounds.
  * Referenced by: admin route handlers and helper chains in this file.
  *
@@ -595,31 +576,42 @@ function corebb_forum_sim_ids_placeholders(array $ids): string
 }
 
 /**
- * Usage: Remove content created by previous simulator runs.
- * Referenced by: admin route handlers and helper chains in this file.
- *
- * @return array Data prepared for the admin template or caller.
+ * Use the generator's account name and reserved email format for both the preview and wipe.
  */
-function corebb_forum_sim_wipe(): array
+function corebb_forum_sim_cleanup_queries(): array
 {
-    @set_time_limit(0);
-    corebb_poll_ensure_schema();
-
     $userColumns = corebb_admin_table_columns('users');
     $emailConditions = [];
     foreach (['email', 'privemail', 'privateemail'] as $column) {
         if (isset($userColumns[$column])) {
-            $emailConditions[] = '`' . $column . "` LIKE '%@sim.corebb.invalid'";
+            $emailConditions[] = "u.`{$column}` = CONCAT(LOWER(u.username), '@sim.corebb.invalid')";
         }
     }
-    $userRows = [];
-    if ($emailConditions) {
-        $userWhere = "username LIKE 'Sim%' AND (" . implode(' OR ', $emailConditions) . ')';
-        $userRows = db_all("SELECT id FROM users WHERE {$userWhere}");
+    $where = corebb_forum_sim_non_archive_conditions('u', $userColumns);
+    $where[] = "u.username REGEXP '^Sim([0-9]{9}|Mod[0-9]{8})$'";
+    $where[] = $emailConditions ? '(' . implode(' OR ', $emailConditions) . ')' : '1 = 0';
+    $users = 'SELECT u.id FROM users u WHERE ' . implode(' AND ', $where);
+    $topics = "SELECT id, boardid FROM topics WHERE posterid IN ({$users}) AND title LIKE 'Sim Test % Topic %'";
+    return ['users' => $users, 'topics' => $topics];
+}
+
+function corebb_forum_sim_wipe(): array
+{
+    @set_time_limit(0);
+    corebb_poll_ensure_schema();
+    $queries = corebb_forum_sim_cleanup_queries();
+    if (!db_begin()) {
+        return ['ok' => false, 'messages' => [], 'errors' => ['Could not start the cleanup transaction.']];
+    }
+    $userRows = db_all($queries['users']);
+    $userError = db_error();
+    $topicRows = db_all($queries['topics']);
+    if ($userError !== '' || db_error() !== '') {
+        db_rollback();
+        return ['ok' => false, 'messages' => [], 'errors' => ['Could not identify simulation data for cleanup.']];
     }
     $userIds = array_values(array_unique(array_filter(array_map(static fn($row): int => (int)($row['id'] ?? 0), $userRows))));
 
-    $topicRows = db_all("SELECT id, boardid FROM topics WHERE title LIKE 'Sim Test % Topic %'");
     $topicIds = array_values(array_unique(array_filter(array_map(static fn($row): int => (int)($row['id'] ?? 0), $topicRows))));
     $boardIds = array_values(array_unique(array_filter(array_map(static fn($row): int => (int)($row['boardid'] ?? 0), $topicRows))));
 
@@ -632,10 +624,8 @@ function corebb_forum_sim_wipe(): array
     ];
 
     if (!$userIds && !$topicIds) {
+        db_rollback();
         return ['ok' => true, 'messages' => ['No generated forum sim-test rows were found.'], 'errors' => []];
-    }
-    if (!db_begin()) {
-        return ['ok' => false, 'messages' => [], 'errors' => ['Could not start wipe transaction: ' . db_error()]];
     }
 
     if ($topicIds) {
@@ -751,6 +741,7 @@ function corebb_forum_sim_create_topic(array $board, array $author, string $titl
         'posttime' => $now['vn_date'],
         'posttimeraw' => $now['unix'],
         'postip' => '127.0.10.' . (($userId % 200) + 1),
+        'wasedited' => '0',
     ]);
     if ($postId <= 0) {
         db_rollback();
@@ -802,6 +793,7 @@ function corebb_forum_sim_create_reply(int $topicId, int $boardId, array $author
         'posttime' => $now['vn_date'],
         'posttimeraw' => $now['unix'],
         'postip' => '127.0.20.' . (($userId % 200) + 1),
+        'wasedited' => '0',
     ]);
     if ($postId <= 0) {
         db_rollback();
@@ -1023,7 +1015,6 @@ function corebb_forum_sim_run(array $viewer, array $settings): array
             'Generated ' . $quotesCreated . ' quote blocks with randomized per-user quote frequency.',
             'Created ' . $pollsCreated . ' generated polls and ' . $votesCreated . ' generated poll votes.',
             'Performed ' . (int)$modSummary['edits'] . ' moderator edits and ' . (int)$modSummary['topic_actions'] . ' topic lock/sticky updates.',
-            'Archive users, archive boards, archive topics, and archive posts were not selected as simulation targets.',
         ],
         'errors' => [],
     ];
@@ -1040,74 +1031,95 @@ function corebb_forum_sim_run(array $viewer, array $settings): array
  */
 function corebb_admin_forum_sim_model(array $viewer, array $request, array $post): array
 {
-    $defaults = [
-        'users' => 25,
-        'mods' => 2,
-        'topics' => 40,
-        'replies' => 5,
-        'poll_topics' => 8,
-        'poll_votes' => 10,
-        'span_days' => 14,
-        'registration_span_days' => 365,
-        'edits' => 25,
-        'topic_actions' => 10,
-        'target_board' => 0,
+    // Each field defines its label, default and accepted range for both the form and server.
+    $groups = [
+        'Accounts' => [
+            'users' => ['Regular users', 25, 1, 250],
+            'mods' => ['Moderator users', 2, 1, 2],
+            'registration_span_days' => ['Registration span (days)', 365, 1, 5000],
+        ],
+        'Threads and replies' => [
+            'topics' => ['New threads', 40, 1, 500],
+            'replies' => ['Max replies per thread', 5, 0, 25],
+            'span_days' => ['Post activity span (days)', 14, 1, 90],
+        ],
+        'Polls' => [
+            'poll_topics' => ['Threads with polls', 8, 0, 250],
+            'poll_votes' => ['Max votes per poll', 10, 0, 100],
+        ],
+        'Moderation' => [
+            'edits' => ['Moderator edits', 25, 0, 500],
+            'topic_actions' => ['Lock or sticky actions', 10, 0, 250],
+        ],
     ];
-
-    $settings = [
-        'target_board' => corebb_forum_sim_limit_int($post['target_board'] ?? $request['target_board'] ?? $defaults['target_board'], $defaults['target_board'], 0, 2147483647),
-        'users' => corebb_forum_sim_limit_int($post['users'] ?? $request['users'] ?? $defaults['users'], $defaults['users'], 1, 250),
-        'mods' => corebb_forum_sim_limit_int($post['mods'] ?? $request['mods'] ?? $defaults['mods'], $defaults['mods'], 1, 2),
-        'topics' => corebb_forum_sim_limit_int($post['topics'] ?? $request['topics'] ?? $defaults['topics'], $defaults['topics'], 1, 500),
-        'replies' => corebb_forum_sim_limit_int($post['replies'] ?? $request['replies'] ?? $defaults['replies'], $defaults['replies'], 0, 25),
-        'poll_topics' => corebb_forum_sim_limit_int($post['poll_topics'] ?? $request['poll_topics'] ?? $defaults['poll_topics'], $defaults['poll_topics'], 0, 250),
-        'poll_votes' => corebb_forum_sim_limit_int($post['poll_votes'] ?? $request['poll_votes'] ?? $defaults['poll_votes'], $defaults['poll_votes'], 0, 100),
-        'span_days' => corebb_forum_sim_limit_int($post['span_days'] ?? $request['span_days'] ?? $defaults['span_days'], $defaults['span_days'], 1, 90),
-        'registration_span_days' => corebb_forum_sim_limit_int($post['registration_span_days'] ?? $request['registration_span_days'] ?? $defaults['registration_span_days'], $defaults['registration_span_days'], 1, 5000),
-        'edits' => corebb_forum_sim_limit_int($post['edits'] ?? $request['edits'] ?? $defaults['edits'], $defaults['edits'], 0, 500),
-        'topic_actions' => corebb_forum_sim_limit_int($post['topic_actions'] ?? $request['topic_actions'] ?? $defaults['topic_actions'], $defaults['topic_actions'], 0, 250),
-    ];
-
+    $section = ($request['section'] ?? '') === 'cleanup' ? 'cleanup' : 'run';
     $messages = [];
     $errors = [];
+    $isPost = ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST';
+    $action = $isPost ? ($post['action'] ?? '') : '';
+    if ($isPost) { $section = $action === 'wipe_forum_sim' ? 'cleanup' : 'run'; }
+    $input = $isPost ? $post + $request : $request;
+    $target = filter_var($input['target_board'] ?? 0, FILTER_VALIDATE_INT, ['options' => ['min_range'=>0, 'max_range'=>2147483647]]);
+    $settings = ['target_board' => $target === false ? -1 : $target];
+    foreach ($groups as $fields) {
+        foreach ($fields as $name => [$label, $default, $min, $max]) {
+            $value = filter_var($input[$name] ?? $default, FILTER_VALIDATE_INT, ['options' => ['min_range'=>$min, 'max_range'=>$max]]);
+            if ($value === false && $action === 'run_forum_sim') {
+                $errors[] = $label . ' must be a whole number from ' . $min . ' to ' . $max . '.';
+            }
+            $settings[$name] = $value === false ? $default : $value;
+        }
+    }
     $maxPosts = 5000;
     $maxVotes = 10000;
     $plannedPosts = $settings['topics'] * (1 + $settings['replies']);
-    $plannedPolls = min($settings['poll_topics'], $settings['topics']);
+    $plannedPolls = $settings['poll_votes'] === 0 ? 0 : min($settings['poll_topics'], $settings['topics']);
     $plannedVotes = $plannedPolls * min($settings['poll_votes'], $settings['users'] + $settings['mods']);
-    $eligibleBoards = corebb_forum_sim_available_boards();
+    $eligibleBoards = $section === 'run' ? corebb_forum_sim_available_boards() : [];
     $targetBoards = corebb_forum_sim_filter_target_boards($eligibleBoards, (int)$settings['target_board']);
 
-    if (strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET')) === 'POST') {
-        $action = (string)($post['action'] ?? '');
+    if ($isPost) {
         if ($action === 'wipe_forum_sim') {
-            if (strtoupper(trim((string)($post['wipe_confirm'] ?? ''))) !== 'WIPE SIM') {
+            if (!is_string($post['wipe_confirm'] ?? null) || strtoupper(trim($post['wipe_confirm'])) !== 'WIPE SIM') {
                 $errors[] = 'Type WIPE SIM to remove generated simulator rows.';
             } else {
                 $result = corebb_forum_sim_wipe();
                 $messages = $result['messages'] ?? [];
                 $errors = $result['errors'] ?? [];
+                corebb_adminlog_viewer($viewer, $result['ok'] ? 'Forum sim-test cleanup completed' : 'Forum sim-test cleanup failed',
+                    'forum_sim', implode(' ', $result['ok'] ? $messages : $errors));
             }
         } elseif ($action !== 'run_forum_sim') {
             $errors[] = 'Unknown simulator action.';
-        } elseif ((int)$settings['target_board'] > 0 && !$targetBoards) {
+        } elseif ($target === false || ($target > 0 && !$targetBoards)) {
             $errors[] = 'The selected target board is not public/non-archive eligible for simulation.';
-        } elseif (strtoupper(trim((string)($post['confirm'] ?? ''))) !== 'SIMULATE') {
+        } elseif (!$targetBoards) {
+            $errors[] = 'No public non-archive boards are available for simulation.';
+        } elseif (!is_string($post['confirm'] ?? null) || strtoupper(trim($post['confirm'])) !== 'SIMULATE') {
             $errors[] = 'Type SIMULATE to confirm real database writes.';
         } elseif ($plannedPosts > $maxPosts) {
             $errors[] = 'Requested workload would create ' . number_format($plannedPosts) . ' posts. Reduce topics/replies below ' . number_format($maxPosts) . ' total posts.';
         } elseif ($plannedVotes > $maxVotes) {
             $errors[] = 'Requested workload would create ' . number_format($plannedVotes) . ' poll votes. Reduce poll threads/votes below ' . number_format($maxVotes) . ' total votes.';
-        } else {
+        } elseif (!$errors) {
             $result = corebb_forum_sim_run($viewer, $settings);
             $messages = $result['messages'] ?? [];
             $errors = $result['errors'] ?? [];
         }
     }
 
+    $inventory = null;
+    if ($section === 'cleanup' && !isset($result)) {
+        $queries = corebb_forum_sim_cleanup_queries();
+        $inventory = db_one("SELECT (SELECT COUNT(*) FROM ({$queries['users']}) u) AS users,
+                                    (SELECT COUNT(*) FROM ({$queries['topics']}) t) AS topics");
+        if (!$inventory) { $errors[] = 'Could not load the cleanup estimate.'; }
+    }
     return [
-        'viewer' => $viewer,
-        'viewer_accesslevel' => (int)($viewer['accesslevel'] ?? 0),
+        'section' => $section,
+        'attempted' => isset($result),
+        'groups' => $groups,
+        'inventory' => $inventory,
         'settings' => $settings,
         'planned_posts' => $plannedPosts,
         'planned_polls' => $plannedPolls,

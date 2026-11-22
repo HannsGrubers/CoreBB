@@ -1,0 +1,15 @@
+{% set advisory = update.advisory.severity|lower in ['critical', 'high'] %}
+{% set urgent = update.severity == 'danger' or advisory %}
+{% set healthy = update.state == 'current' and update.severity == 'success' and update.check_status == 'verified' and update.signature_status == 'verified' and not update.check_warning and not urgent %}
+<section class="admin-update {% if urgent %}is-urgent{% elseif update.severity == 'warning' %}is-warning{% elseif healthy %}is-current{% endif %}" aria-label="CoreBB updates">
+    <div>
+        <strong>{% if healthy %}<svg class="admin-health-check" aria-hidden="true" focusable="false" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8"/><path d="m6 10 2.7 2.8 5.4-5.7"/></svg>{% endif %}{% if advisory %}{{ update.advisory.severity }} security advisory{% if update.advisory.title %} · {{ update.advisory.title }}{% endif %}{% else %}{{ update.headline }}{% endif %}</strong>
+        <span>Installed <b>{{ update.installed_version }}</b></span>
+        {% if update.latest_stable != 'Unknown' %}<span>Latest stable <b>{{ update.latest_stable }}</b></span>{% endif %}
+        {% if urgent and update.latest_security != 'Unknown' %}<span>Latest security <b>{{ update.latest_security }}</b></span>{% endif %}
+        {% if update.state == 'below_minimum' %}<span>Minimum safe <b>{{ update.minimum_safe_version }}</b></span>{% endif %}
+        {% if update.check_warning %}<p>{% if urgent %}{{ update.check_warning }} {% endif %}Last successful check: {{ update.last_successful_check }}.</p>{% endif %}
+    </div>
+    {% if dashboard %}<a href="{{ url('/admin/?act=updates') }}">View updates</a>
+    {% elseif update.advisory.url|default('') starts with 'https://' %}<a href="{{ update.advisory.url }}">Read advisory</a>{% endif %}
+</section>

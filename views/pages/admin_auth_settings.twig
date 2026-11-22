@@ -1,131 +1,76 @@
-{% set providers = model.providers|default({}) %}
-{% set effective = model.effective|default({}) %}
-
-<div class="corebb-admin-modern-page">
-    {% include 'partials/admin_messages.twig' with {messages: model.messages|default([]), errors: model.errors|default([])} only %}
-
-    <div class="corebb-admin-modern-header">
-        <div>
-            <div class="corebb-admin-modern-eyebrow">System</div>
-            <h2>Authentication Settings</h2>
-            <div class="corebb-admin-modern-meta">
-                <span>{{ effective.enabled_count|default(0) }} enabled provider{{ effective.enabled_count|default(0) == 1 ? '' : 's' }}</span>
-                <span>{{ effective.provider_count|default(0) }} provider template{{ effective.provider_count|default(0) == 1 ? '' : 's' }}</span>
-            </div>
+{% set key = model.selected %}
+{% set provider = model.providers[key] %}
+{% set draft = model.draft %}
+<div class="admin-overview admin-auth">
+    <header class="admin-dash-heading">
+        <div><h1>Authentication settings</h1>
+            <p class="admin-history-count">{{ model.effective.enabled_count }} of {{ model.effective.provider_count }} sign-in providers active</p>
         </div>
-        <div class="corebb-admin-modern-actions">
-            <a class="corebb-board-action-link" href="{{ url('admin.php') }}">Admin Home</a>
-        </div>
-    </div>
+        <a href="{{ url('/admin/') }}">Dashboard</a>
+    </header>
+    <nav class="admin-settings-nav admin-provider-nav" aria-label="Sign-in providers">
+        {% for id, item in model.providers %}
+            <a href="{{ url('/admin/?act=auth_settings&provider=' ~ id) }}"{% if id == key %} aria-current="page"{% endif %}>
+                {{ item.label }} <small>{{ item.enabled ? (item.configured ? 'Active' : 'Needs setup') : 'Off' }}</small>
+            </a>
+        {% endfor %}
+    </nav>
+    {% include 'partials/admin_messages.twig' with {messages: model.messages, errors: model.errors} only %}
 
-    <div class="corebb-admin-modern-note">
-        CoreBB accepts external login and registration, then issues its normal forum session cookie. Google uses an Authorized JavaScript origin and client ID; Microsoft, GitHub, and Discord use the callback URL shown in their panels.
-    </div>
-
-    <form class="corebb-admin-modern-form" method="post" action="{{ url('admin.php?act=auth_settings') }}">
+    <form class="admin-settings-form admin-provider-form" method="post" action="{{ url('/admin/?act=auth_settings&provider=' ~ key) }}">
         {% include 'partials/csrf_field.twig' %}
         <input type="hidden" name="action" value="save_auth">
-
-        <div class="corebb-admin-rights-tool-groups">
-            {% for key, provider in providers %}
-                {% set usesRedirect = provider.uses_redirect_flow is not defined or provider.uses_redirect_flow %}
-                {% set needsSecret = provider.requires_client_secret is not defined or provider.requires_client_secret %}
-                <details class="corebb-admin-rights-tool-group">
-                    <summary class="corebb-admin-rights-tool-group-header">
-                        <span class="corebb-admin-rights-tool-group-title">{{ provider.label }} Login</span>
-                        <span class="corebb-admin-rights-tool-group-meta">
-                            {{ provider.enabled|default(false) ? 'Enabled' : 'Disabled' }},
-                            {{ provider.configured|default(false) ? 'configured' : 'missing credentials' }}.
-                        </span>
-                    </summary>
-                    <div class="corebb-admin-oauth-provider-body">
-                        <div class="corebb-admin-modern-grid">
-                            <label>Setup</label>
-                            <span>
-                                <a class="corebb-board-action-link" href="{{ provider.setup_url }}" target="_blank" rel="noopener">Open {{ provider.label }} Setup</a>
-                                <a class="corebb-board-action-link" href="{{ provider.docs_url }}" target="_blank" rel="noopener">Provider Docs</a>
-                                {% if usesRedirect %}
-                                    <a class="corebb-board-action-link" href="{{ provider.debug_url }}" target="_blank" rel="noopener">Debug Auth URL</a>
-                                {% endif %}
-                                {% if provider.configured|default(false) and usesRedirect %}
-                                    <a class="corebb-board-action-link" href="{{ provider.start_url }}">Test Sign-In</a>
-                                {% endif %}
-                            </span>
-
-                            <label>Checklist</label>
-                            <span class="corebb-admin-modern-help">
-                                {% for step in provider.setup_steps|default([]) %}
-                                    {{ loop.index }}. {{ step }}<br>
-                                {% endfor %}
-                            </span>
-
-                            {% if provider.troubleshooting|default([]) is not empty %}
-                                <label>Troubleshooting</label>
-                                <span class="corebb-admin-modern-help">
-                                    {% for note in provider.troubleshooting %}
-                                        &bull; {{ note }}<br>
-                                    {% endfor %}
-                                </span>
-                            {% endif %}
-
-                            <label for="{{ key }}Enabled">Enabled</label>
-                            <label><input id="{{ key }}Enabled" type="checkbox" name="authp[{{ key }}][en]" value="1"{% if provider.enabled|default(false) %} checked{% endif %}> Show and accept {{ provider.label }} sign-in</label>
-
-                            <label for="{{ key }}ClientId">Client ID</label>
-                            <span>
-                                <input id="{{ key }}ClientId" type="text" name="authp[{{ key }}][cid]" value="{{ provider.saved_client_id|default('') }}" size="80" autocomplete="off">
-                                <span class="corebb-admin-modern-help">Source: {{ provider.client_id_source|default('not configured') }}. Leave blank to use private config or environment variables.</span>
-                            </span>
-
-                            {% if needsSecret %}
-                                <label for="{{ key }}ClientSecret">Client Secret</label>
-                                <span>
-                                    <input id="{{ key }}ClientSecret" type="password" name="authp[{{ key }}][ckey]" value="" size="80" autocomplete="new-password">
-                                    <span class="corebb-admin-modern-help">Source: {{ provider.secret_source|default('not configured') }}. Leave blank to keep the existing secret.</span>
-                                </span>
-                            {% endif %}
-
-                            {% if provider.supports_hosted_domain|default(false) %}
-                                <label for="{{ key }}HostedDomain">Hosted Domain</label>
-                                <span>
-                                    <input id="{{ key }}HostedDomain" type="text" name="authp[{{ key }}][hd]" value="{{ provider.hosted_domain|default('') }}" size="45" placeholder="example.com">
-                                    <span class="corebb-admin-modern-help">Optional. Only users from this hosted domain will be accepted.</span>
-                                </span>
-                            {% endif %}
-
-                            <label for="{{ key }}AutoCreate">Account Creation</label>
-                            <label><input id="{{ key }}AutoCreate" type="checkbox" name="authp[{{ key }}][ac]" value="1"{% if provider.allow_auto_create|default(true) %} checked{% endif %}> Allow verified {{ provider.label }} users to complete a new CoreBB account</label>
-
-                            <label>Scopes</label>
-                            <span class="corebb-admin-modern-help">{{ provider.scope }}</span>
-
-                            {% if usesRedirect %}
-                                <label>Callback URL</label>
-                                <span>
-                                    <input type="text" value="{{ provider.redirect_url }}" size="95" readonly onclick="this.select()">
-                                    <span class="corebb-admin-modern-help">Click the field to select it, then copy it into {{ provider.label }}'s redirect/callback URL setting.</span>
-                                    {% if provider.alternate_redirect_url|default('') %}
-                                        <br><span class="corebb-admin-modern-help">Compatibility callback: {{ provider.alternate_redirect_url }}</span>
-                                    {% endif %}
-                                </span>
-                            {% else %}
-                                <label>Authorized Origin</label>
-                                <span>
-                                    <input type="text" value="{{ provider.origin_url }}" size="95" readonly onclick="this.select()">
-                                    <span class="corebb-admin-modern-help">Click the field to select it, then copy it into {{ provider.label }}'s Authorized JavaScript origins.</span>
-                                </span>
-                            {% endif %}
-                        </div>
-                    </div>
-                </details>
-            {% endfor %}
+        <header class="admin-settings-heading"><h2>{{ provider.label }} sign-in</h2></header>
+        <label class="admin-auth-option">
+            <input type="checkbox" name="authp[{{ key }}][en]" value="1"{% if draft.enabled %} checked{% endif %}>
+            Enable {{ provider.label }} sign-in
+        </label>
+        <div class="admin-auth-field">
+            <label for="auth-client-id">Client ID</label>
+            <input id="auth-client-id" type="text" name="authp[{{ key }}][cid]" value="{{ draft.client_id }}" autocomplete="off" spellcheck="false" aria-describedby="auth-id-help">
+            <small id="auth-id-help">Source: {{ provider.client_id_source }}. Leave blank to use private configuration.</small>
         </div>
-
-        <div class="corebb-admin-modern-panel">
-            <div class="corebb-admin-modern-submit">
-                <button class="corebb-board-action-link" type="submit">Save Authentication Settings</button>
-                <a class="corebb-board-action-link" href="{{ url('admin.php') }}">Admin Home</a>
-            </div>
+        {% if provider.requires_client_secret %}
+        <div class="admin-auth-field">
+            <label for="auth-client-secret">Client secret</label>
+            <input id="auth-client-secret" type="password" name="authp[{{ key }}][ckey]" autocomplete="new-password" aria-describedby="auth-secret-help">
+            <small id="auth-secret-help">Source: {{ provider.secret_source }}. Leave blank to keep the current secret.</small>
         </div>
+        {% endif %}
+        {% if provider.supports_hosted_domain %}
+        <div class="admin-auth-field">
+            <label for="auth-domain">Google Workspace domain</label>
+            <input id="auth-domain" type="text" name="authp[{{ key }}][hd]" value="{{ draft.hosted_domain }}" placeholder="example.com" autocomplete="off" spellcheck="false" aria-describedby="auth-domain-help">
+            <small id="auth-domain-help">Optional. Restricts Google sign-in to accounts from this domain.</small>
+        </div>
+        {% endif %}
+        {% if key == 'microsoft' %}
+            <p class="admin-auth-policy">Members link Microsoft to an existing CoreBB account by confirming their forum password.</p>
+        {% else %}
+            <label class="admin-auth-option">
+                <input type="checkbox" name="authp[{{ key }}][ac]" value="1"{% if draft.allow_auto_create %} checked{% endif %}>
+                Allow verified {{ provider.label }} users to create a forum account
+            </label>
+        {% endif %}
+        <div class="admin-settings-save"><button type="submit">Save {{ provider.label }} settings</button></div>
     </form>
+
+    <section class="admin-provider-setup" aria-labelledby="provider-setup-title">
+        <header class="admin-section-head"><h2 id="provider-setup-title">Provider setup</h2>
+            <a href="{{ provider.setup_url }}" target="_blank" rel="noopener noreferrer">Open {{ provider.label }} setup</a>
+        </header>
+        <div class="admin-auth-field">
+            <label for="auth-endpoint">{{ provider.uses_redirect_flow ? 'Callback URL' : 'Authorized JavaScript origin' }}</label>
+            <input id="auth-endpoint" type="text" readonly value="{{ provider.uses_redirect_flow ? provider.redirect_url : provider.origin_url }}" data-forum-action="select">
+        </div>
+        <details><summary>Setup instructions and troubleshooting</summary>
+            <ol>{% for step in provider.setup_steps %}<li>{{ step }}</li>{% endfor %}</ol>
+            <ul>{% for note in provider.troubleshooting %}<li>{{ note }}</li>{% endfor %}</ul>
+            <p>Scopes: <code>{{ provider.scope }}</code></p>
+            {% if provider.alternate_redirect_url %}<p>Compatibility callback: <code>{{ provider.alternate_redirect_url }}</code></p>{% endif %}
+            <a href="{{ provider.docs_url }}" target="_blank" rel="noopener noreferrer">Provider documentation</a>
+            {% if provider.uses_redirect_flow and model.can_debug %} · <a href="{{ provider.debug_url }}">Debug sign-in URL</a>{% endif %}
+        </details>
+        {% if provider.uses_redirect_flow and provider.enabled and provider.configured %}<p><a href="{{ provider.start_url }}">Test {{ provider.label }} sign-in</a></p>{% endif %}
+    </section>
 </div>

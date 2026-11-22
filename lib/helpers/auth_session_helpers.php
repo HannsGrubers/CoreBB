@@ -19,9 +19,8 @@ function corebb_auth_load_cookie_user(): bool
     global $MyData, $userlogindata_a, $QueryCount;
 
     static $loaded = false;
-    static $ok = false;
     if ($loaded) {
-        return $ok;
+        return !empty($GLOBALS['userlogindata_a']['id']);
     }
     $loaded = true;
 
@@ -63,7 +62,6 @@ function corebb_auth_load_cookie_user(): bool
 
     $MyData = $userlogindata_a;
     $_SESSION['userid'] = $userlogindata_a['id'] ?? '';
-    $ok = true;
 
     return true;
 }

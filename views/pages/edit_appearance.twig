@@ -11,16 +11,18 @@
                 {% endif %}
                 <tr>
                     <td class="BoardRowB" style="padding: 8px;">
-                        VIP users and users with appearance access can customize how their username appears around the boards.
+                        {% if model.managed_preset is defined %}Staff manage your username appearance with the <strong>{{ model.managed_preset }}</strong> preset.
+                        {% else %}VIP users and users with appearance access can customize how their username appears around the boards.{% endif %}
                     </td>
                 </tr>
                 <tr>
                     <td class="BoardRowB">
-                        {% include 'partials/user_appearance_form.twig' with {appearance: model.appearance|default({})} only %}
+                        {% if model.managed_preset is defined %}<span style="{{ model.appearance.preview.style_css }}">{{ model.appearance.preview.username }}</span>
+                        {% else %}{% include 'partials/user_appearance_form.twig' with {appearance: model.appearance|default({})} only %}{% endif %}
                     </td>
                 </tr>
                 <tr>
-                    <td class="MainMenuRow wb-text-right" style="height: 15px;"><input type="button" onclick="window.location.href='/';" value="Forum Index &raquo;" class="formsubmit"> &nbsp;</td>
+                    <td class="MainMenuRow wb-text-right" style="height: 15px;"><input type="button" data-forum-nav="{{ url('/') }}" value="Forum Index &raquo;" class="formsubmit"> &nbsp;</td>
                 </tr>
             </table>
         </td>

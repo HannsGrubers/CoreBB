@@ -17,6 +17,7 @@
  |  board/topic-list template.                           |
  +-------------------------------------------------------+*/
 
+require_once __DIR__ . '/../helpers/knowledge_base_helpers.php';
 require_once __DIR__ . '/../helpers/performance_helpers.php';
 require_once __DIR__ . '/../helpers/poll_helpers.php';
 require_once __DIR__ . '/../helpers/pagination_helpers.php';
@@ -135,6 +136,7 @@ function corebb_board_fetch_model(int $boardId, int $page): array
         'missing' => false,
         'boardId' => $boardId,
         'board' => $board,
+        'kb' => corebb_kb_board($board),
         'boardName' => (string)($board['name'] ?? 'Board'),
         'boardDescription' => (string)($board['description'] ?? ''),
         'perPage' => $perPage,

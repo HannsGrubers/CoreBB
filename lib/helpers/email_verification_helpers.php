@@ -28,7 +28,11 @@ require_once __DIR__ . '/security.php';
  */
 function corebb_email_verification_ensure_schema(): bool
 {
-    return db_run("CREATE TABLE IF NOT EXISTS `email_verifications` (
+    static $ready = false;
+    if ($ready) {
+        return true;
+    }
+    return $ready = db_run("CREATE TABLE IF NOT EXISTS `email_verifications` (
         `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
         `userid` INT UNSIGNED NOT NULL,
         `email` VARCHAR(255) NOT NULL,
@@ -52,15 +56,7 @@ function corebb_email_verification_ensure_schema(): bool
  */
 function corebb_email_verification_base_url(): string
 {
-    if (defined('COREBB_PUBLIC_BASE_URL')) {
-        $base = trim((string)COREBB_PUBLIC_BASE_URL);
-        if ($base !== '') {
-            return rtrim($base, '/');
-        }
-    }
-    $https = strtolower((string)($_SERVER['HTTPS'] ?? ''));
-    $scheme = ($https !== '' && $https !== 'off') ? 'https' : 'http';
-    return $scheme . '://' . corebb_mail_public_host();
+    return corebb_mail_account_base_url();
 }
 
 /**
@@ -72,7 +68,8 @@ function corebb_email_verification_base_url(): string
  */
 function corebb_email_verification_url(string $token): string
 {
-    return corebb_email_verification_base_url() . '/verify-email/?token=' . rawurlencode($token);
+    $base = corebb_email_verification_base_url();
+    return $base === '' ? '' : $base . '/verify-email/?token=' . rawurlencode($token);
 }
 
 /**
@@ -128,13 +125,47 @@ function corebb_email_verification_send(int $userid, string $username, string $e
         return ['sent' => false, 'error' => $created['error'] ?? 'Unable to create verification token.'];
     }
 
-    $url = corebb_email_verification_url((string)$created['token']);
+    return corebb_email_verification_deliver($username, $email, $created['token']);
+}
+
+function corebb_register_pending_user(string $username, string $email, string $password): array
+{
+    // Prepare legacy schema before beginning. MySQL DDL implicitly commits.
+    corebb_auth_ensure_schema();
+    $error = ['ok' => false, 'error' => 'Registration is temporarily unavailable. Please try again later.'];
+    if (!corebb_email_verification_ensure_schema()
+        || (int)db_value("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE()
+            AND table_name IN ('users', 'email_verifications') AND engine = 'InnoDB'", [], 0) !== 2
+        || !db_begin()) {
+        return $error;
+    }
+    try {
+        $user = corebb_create_user($username, $email, $password);
+        if (!$user['ok']) {
+            db_rollback();
+            return $user;
+        }
+        $token = corebb_email_verification_create_token((int)$user['id'], $email);
+        if (empty($token['created']) || !db_commit()) {
+            db_rollback();
+            return $error;
+        }
+        return $user + ['verification_token' => $token['token']];
+    } catch (Throwable $e) {
+        db_rollback();
+        return $error;
+    }
+}
+
+function corebb_email_verification_deliver(string $username, string $email, string $token): array
+{
+    $url = corebb_email_verification_url($token);
     $boardName = corebb_mail_board_name();
     $subject = 'Verify your ' . $boardName . ' account';
     $body = "Welcome to " . $boardName . ", " . $username . ".\n\n"
         . "Please verify your email address before logging in:\n\n"
-        . $url . "\n\n"
-        . "This link expires in 24 hours. If you did not create this account, you can ignore this message.\n\n"
+        . ($url !== '' ? $url : "Open the forum yourself, choose Log in, then Need a verification email? Enter this code:\n" . $token) . "\n\n"
+        . "Verification expires in 24 hours. If you did not create this account, you can ignore this message.\n\n"
         . "- " . $boardName;
 
     return corebb_mail_send($email, $subject, $body);
@@ -150,9 +181,9 @@ function corebb_email_verification_send(int $userid, string $username, string $e
 function corebb_email_verification_is_pending(int $userid): bool
 {
     if ($userid <= 0 || !corebb_email_verification_ensure_schema()) {
-        return false;
+        return true;
     }
-    return db_exists('SELECT id FROM email_verifications WHERE userid = ? AND verified_at IS NULL LIMIT 1', [$userid]);
+    return (int)db_value('SELECT COUNT(*) FROM email_verifications WHERE userid = ? AND verified_at IS NULL', [$userid], 1) > 0;
 }
 
 
@@ -220,7 +251,7 @@ function corebb_email_verification_resend_by_email(string $email): array
 {
     $generic = [
         'ok' => true,
-        'message' => 'If that email address has an unverified account, a new verification link has been sent.',
+        'message' => 'If that email address has an unverified account, verification instructions have been sent.',
         'mail_error' => '',
     ];
 
@@ -228,7 +259,7 @@ function corebb_email_verification_resend_by_email(string $email): array
         return [
             'ok' => false,
             'message' => 'Unable to prepare email verification table.',
-            'mail_error' => db_error() ?: '',
+            'mail_error' => '',
         ];
     }
 
@@ -251,14 +282,7 @@ function corebb_email_verification_resend_by_email(string $email): array
         return $generic;
     }
 
-    $mail = corebb_email_verification_send($userid, (string)($user['username'] ?? 'there'), (string)($user['privemail'] ?? $email));
-    if (empty($mail['sent'])) {
-        return [
-            'ok' => false,
-            'message' => 'A new verification request was created, but the email could not be sent.',
-            'mail_error' => (string)($mail['error'] ?? 'Unknown mail error.'),
-        ];
-    }
+    corebb_email_verification_send($userid, (string)($user['username'] ?? 'there'), (string)($user['privemail'] ?? $email));
 
     return $generic;
 }
@@ -297,7 +321,6 @@ function corebb_email_verification_normalize_token(string $token): string
  */
 function corebb_email_verification_verify_token(string $token): array
 {
-    $originalToken = $token;
     $token = corebb_email_verification_normalize_token($token);
 
     if ($token === '') {
@@ -321,25 +344,11 @@ function corebb_email_verification_verify_token(string $token): array
     $hash = hash('sha256', $token);
     $row = db_one('SELECT * FROM email_verifications WHERE token_hash = ? LIMIT 1', [$hash]);
 
-    /*
-     * Future-proof fallback: if a developer/testing copy ever stored a raw
-     * token in token_hash during early email-verification testing, allow it
-     * to verify instead of stranding that account. Normal production rows
-     * still use the SHA-256 hash above.
-     */
     if (!$row) {
-        $row = db_one('SELECT * FROM email_verifications WHERE token_hash = ? LIMIT 1', [$token]);
-    }
-
-    if (!$row) {
-        $pendingCount = (int)db_value('SELECT COUNT(*) FROM email_verifications WHERE verified_at IS NULL', []);
-        $detail = $pendingCount > 0
-            ? 'The token in this email does not match any pending verification row. It may be from an older email, a different test account, or a different site/database host.'
-            : 'There are no pending email verification rows. This account may already be verified, or the link is reaching a different site/database host than registration used.';
         return [
             'verified' => false,
             'message' => 'Verification link was not found.',
-            'detail' => $detail,
+            'detail' => 'Request a fresh verification email for this forum.',
         ];
     }
     if ((string)($row['verified_at'] ?? '') !== '') {
@@ -350,9 +359,10 @@ function corebb_email_verification_verify_token(string $token): array
     }
 
     $nowText = convert_to_timestamp_raw(time());
-    $ok = db_run('UPDATE email_verifications SET verified_at = ? WHERE id = ?', [$nowText, (int)$row['id']]);
-    if (!$ok) {
-        return ['verified' => false, 'message' => 'Unable to verify email address right now.', 'detail' => db_error() ?: 'Database update failed.'];
+    $ok = db_run('UPDATE email_verifications SET verified_at = ? WHERE id = ? AND token_hash = ? AND verified_at IS NULL AND expires_at >= ?',
+        [$nowText, (int)$row['id'], $hash, time()]);
+    if (!$ok || corebb_db_last_affected_rows() !== 1) {
+        return ['verified' => false, 'message' => 'Unable to confirm this link.', 'detail' => 'Open the most recent verification email or request a fresh one.'];
     }
     return ['verified' => true, 'message' => 'Email verified. You may now log in.', 'detail' => ''];
 }

@@ -7,6 +7,14 @@
  | import, and admin display paths.
  +-------------------------------------------------------*/
 
+/** Preserve the precision of legacy month/year account dates such as "May 26". */
+function corebb_account_month_label(string $value): ?string
+{
+    if (!preg_match('/^[A-Za-z]{3} \d{2}$/D', $value)) { return null; }
+    $month = DateTimeImmutable::createFromFormat('!M y', $value);
+    return $month === false ? null : $month->format('M Y');
+}
+
 /**
  * Usage: Convert a Unix timestamp to the stored VN/CoreBB datetime string.
  * Referenced by: import and legacy timestamp conversion code.

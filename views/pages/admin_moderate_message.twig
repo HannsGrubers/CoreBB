@@ -1,158 +1,57 @@
-{% include 'partials/admin_messages.twig' with {messages: model.messages|default([]), errors: model.errors|default([])} only %}
-
-<div class="corebb-admin-modern-page">
-    <div class="corebb-admin-modern-header">
-        <div>
-            <div class="corebb-admin-modern-eyebrow">Moderation</div>
-            <h2>Moderate Message</h2>
-            <div class="corebb-admin-modern-meta">
-                {% if not model.missing|default(false) %}
-                    {% set post = model.post|default({}) %}
-                    <span>Reply #{{ post.id|default(0) }}</span>
-                    <span>{{ post.author_username|default('Unknown') }}</span>
-                {% else %}
-                    <span>Message lookup failed.</span>
-                {% endif %}
+{% set r=model.report|default(null) %}{% set p=model.post|default(null) %}
+<div class="admin-overview admin-settings admin-members reports-workspace">
+    <header class="admin-dash-heading"><h1>{{ r ? 'Review post report' : 'Moderate message' }}</h1>
+        <a href="{{ url(model.queue_url|default('/admin/?act=mod_requests')) }}">Back to reports</a></header>
+    {% include 'partials/admin_messages.twig' with {messages:model.messages|default([]),errors:model.errors|default([])} only %}
+    {% if model.missing %}{% if model.message %}<p>{{ model.message }}</p>{% endif %}{% else %}
+    <section class="admin-title-editor">
+        <header class="admin-member-head"><div><h2>{{ p ? p.title : 'Message unavailable' }}</h2>
+            <p class="admin-history-count">{{ r ? r.board : p.board }} · Post #{{ r ? r.postid : p.id }}{% if r %} · Report #{{ r.id }}{% endif %}</p></div>
+            {% if p and p.thread_url and not p.deleted %}<a href="{{ p.thread_url }}">Open in thread</a>{% endif %}
+        </header>
+        <div class="report-reading">
+            {% if r %}<section class="report-complaint"><h3>{{ r.reason ?: 'Report' }}</h3>
+                <p class="admin-history-count">Severity {{ r.severity }} · Reported by {% if model.access.user_pages %}<a href="{{ url('/admin/?act=user_pages&userid=' ~ r.reporterid) }}">{{ r.reporter }}</a>{% else %}{{ r.reporter }}{% endif %} · {{ r.created }}</p>
+                {% if r.comments %}<blockquote>{{ r.comments }}</blockquote>{% endif %}
+                {% if not p and r.reported_userid %}<p class="admin-history-count">Reported member · {% if model.access.user_pages %}<a href="{{ url('/admin/?act=user_pages&userid=' ~ r.reported_userid) }}">#{{ r.reported_userid }}</a>{% else %}#{{ r.reported_userid }}{% endif %}</p>{% endif %}
+            </section>{% endif %}
+            {% if p %}<section><h3>Message</h3><p class="admin-history-count">{% if model.access.user_pages %}<a href="{{ url('/admin/?act=user_pages&userid=' ~ p.author_id) }}">{{ p.author }}</a>{% else %}{{ p.author }}{% endif %} · {{ p.date }}{% if p.deleted %} · In Deleted Posts{% endif %}</p>
+                <div class="message-body">{% include 'partials/formatted_content.twig' with {content:post_body_model(p.body,p.level)} only %}</div>
+                <div class="report-links">
+                    {% if model.can_edit %}<a href="{{ url('/post/edit/' ~ p.id ~ '/?mod=1') }}">Edit or lock message</a>{% endif %}
+                    {% if model.access.admin_notes and p.author_id %}<a href="{{ url('/admin/?act=admin_notes&uid=' ~ p.author_id) }}">Staff notes</a>{% endif %}
+                    {% if model.access.moderation_ban and p.author_id %}<a href="{{ url('/admin/?act=moderation&mode=ban&q=' ~ p.author_id) }}">Review account ban</a>{% endif %}
+                </div>
+                {% if p.user_ip or p.post_ip %}<details class="report-addresses"><summary>IP addresses</summary>
+                    {% for label,ip in {'Last account IP':p.user_ip,'Post IP':p.post_ip} %}{% if ip %}<p>{{ label }} · {{ ip }}
+                        {% if model.access.user_ip_check %}<a href="{{ url('/admin/?act=user_ip_check&ip=' ~ ip|url_encode) }}">IP check</a>{% endif %}
+                        {% if model.access.host_lookup %}<a href="{{ url('/admin/?act=host_lookup&ip_address=' ~ ip|url_encode) }}">Host lookup</a>{% endif %}
+                    </p>{% endif %}{% endfor %}
+                </details>{% endif %}
+            </section>{% endif %}
+        </div>
+        {% if r and r.status != 'new' %}
+            <div class="report-resolution"><h3>{{ r.label }}</h3><p class="admin-history-count">{{ r.handler ?: 'Staff member not recorded' }}{% if r.handled %} · {{ r.handled }}{% endif %}</p>
+                {% if r.note %}<p class="appeal-response">{{ r.note }}</p>{% endif %}
+                <form method="post" action="{{ url(model.action_url) }}" class="admin-settings-save">{{ _self.fields(model,r,p) }}<button name="action" value="reopen_request">Reopen report</button></form>
             </div>
-        </div>
-        <div class="corebb-admin-modern-actions">
-            <a class="corebb-board-action-link" href="/admin/?act=mod_requests">Back to Mod Requests</a>
-            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
-        </div>
-    </div>
-
-    {% if model.missing|default(false) %}
-        <div class="corebb-admin-modern-note is-danger">{{ model.message|default('Unknown message ID.') }}</div>
-    {% else %}
-        {% set post = model.post|default({}) %}
-        {% set request = model.request|default(null) %}
-
-        <table class="corebb-admin-modern-table corebb-admin-detail-table wb-table">
-            <tbody>
-                <tr>
-                    <th>Reply</th>
-                    <td><a class="corebb-admin-text-link" href="{{ post.thread_url|default('#') }}">#{{ post.id|default(0) }}</a></td>
-                </tr>
-                <tr>
-                    <th>Author</th>
-                    <td><a class="corebb-admin-text-link" href="{{ post.author_url|default('#') }}">{{ post.author_username|default('Unknown') }}</a></td>
-                </tr>
-                <tr>
-                    <th>Subject</th>
-                    <td>{{ post.title|default('') }}</td>
-                </tr>
-                <tr>
-                    <th>Date Posted</th>
-                    <td>{{ post.posttime_label|default('') }}</td>
-                </tr>
-                <tr>
-                    <th>User IP Address</th>
-                    <td>
-                        {{ post.user_ip|default('') != '' ? post.user_ip : 'Unknown' }}
-                        {% if post.user_ip|default('') != '' %}
-                            <div class="corebb-admin-modern-submit">
-                                <a class="corebb-board-action-link" href="{{ post.user_ip_check_url }}">IP Check</a>
-                                <a class="corebb-board-action-link" href="{{ post.user_host_lookup_url }}">Host Lookup</a>
-                            </div>
-                        {% endif %}
-                    </td>
-                </tr>
-                <tr>
-                    <th>Message IP Address</th>
-                    <td>
-                        {{ post.post_ip|default('') != '' ? post.post_ip : 'Unknown' }}
-                        {% if post.post_ip|default('') != '' %}
-                            <div class="corebb-admin-modern-submit">
-                                <a class="corebb-board-action-link" href="{{ post.post_ip_check_url }}">IP Check</a>
-                                <a class="corebb-board-action-link" href="{{ post.post_host_lookup_url }}">Host Lookup</a>
-                            </div>
-                        {% endif %}
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-
-        <div class="corebb-admin-modern-note is-muted">
-            Sometimes the user IP address is different than the message IP address because the message IP address is older. Depending on the user's ISP, they may be given a dynamic IP address. The user IP address will always be the most current.
-        </div>
-
-        {% if request %}
-            <table class="corebb-admin-modern-table corebb-admin-detail-table wb-table">
-                <tbody>
-                    <tr>
-                        <th>Reported By</th>
-                        <td><a class="corebb-admin-text-link" href="{{ request._reporter_url|default('#') }}">{{ request._reporter_label|default('Unknown') }}</a></td>
-                    </tr>
-                    <tr>
-                        <th>Reason</th>
-                        <td>{{ request._reason_label|default('') }}</td>
-                    </tr>
-                    <tr>
-                        <th>Severity</th>
-                        <td><span class="corebb-admin-status-pill">{{ request.severity|default(1) }}</span></td>
-                    </tr>
-                    <tr>
-                        <th>Date Added</th>
-                        <td>{{ request.created_at|default('') }}</td>
-                    </tr>
-                    <tr>
-                        <th>Comments</th>
-                        <td><div class="corebb-admin-prewrap">{{ request.comments|default('') }}</div></td>
-                    </tr>
-                </tbody>
-            </table>
-        {% endif %}
-
-        <div class="corebb-admin-modern-panel">
-            <div class="corebb-admin-section-title">Message</div>
-            {% include 'partials/formatted_content.twig' with {content: post_body_model(post.body|default(''), post.author_accesslevel|default(0))} only %}
-        </div>
-
-        <div class="corebb-admin-modern-panel">
-            <div class="corebb-admin-section-title">Moderator Options</div>
-            <div class="corebb-admin-modern-submit">
-                <a class="corebb-board-action-link" href="{{ post.admin_notes_url|default('#') }}">View/Update Admin Notes</a>
-                <a class="corebb-board-action-link is-danger" href="{{ post.ban_url|default('#') }}">Ban User</a>
-                <a class="corebb-board-action-link" href="{{ post.edit_url|default('#') }}">Edit/Lock/Unlock Message</a>
-            </div>
-            <div class="corebb-admin-action-stack">
-                <form class="corebb-admin-modern-form" method="post" action="{{ model.action_url|default('/admin/?act=moderate_message') }}" onsubmit="return confirm('Remove this message?');">
-                    {% include 'partials/csrf_field.twig' %}
-                    <input type="hidden" name="mod_request_token" value="{{ model.token|default('') }}">
-                    <input type="hidden" name="action" value="remove_message">
-                    <input type="hidden" name="postid" value="{{ post.id|default(0) }}">
-                    <input type="hidden" name="request_id" value="{{ model.request_id|default(0) }}">
-                    <button class="corebb-board-action-link is-danger" type="submit">Move Message to Deleted Posts</button>
-                </form>
-
-                <form class="corebb-admin-modern-form" method="post" action="{{ model.action_url|default('/admin/?act=moderate_message') }}" onsubmit="return confirm('Remove this entire topic?');">
-                    {% include 'partials/csrf_field.twig' %}
-                    <input type="hidden" name="mod_request_token" value="{{ model.token|default('') }}">
-                    <input type="hidden" name="action" value="remove_topic">
-                    <input type="hidden" name="postid" value="{{ post.id|default(0) }}">
-                    <input type="hidden" name="request_id" value="{{ model.request_id|default(0) }}">
-                    <button class="corebb-board-action-link is-danger" type="submit">Move Topic to Deleted Posts</button>
-                </form>
-            </div>
-        </div>
-
-        {% if model.can_close_request|default(false) %}
-            <div class="corebb-admin-modern-panel">
-                <form class="corebb-admin-modern-form" method="post" action="{{ model.action_url|default('/admin/?act=moderate_message') }}">
-                    {% include 'partials/csrf_field.twig' %}
-                    <input type="hidden" name="mod_request_token" value="{{ model.token|default('') }}">
-                    <input type="hidden" name="action" value="close_request">
-                    <input type="hidden" name="postid" value="{{ post.id|default(0) }}">
-                    <input type="hidden" name="request_id" value="{{ model.request_id|default(0) }}">
-                    <div class="corebb-admin-modern-grid">
-                        <label for="corebbModeratorResponse">Moderator Response</label>
-                        <textarea id="corebbModeratorResponse" name="handler_note" rows="4" cols="60"></textarea>
-                        <div class="corebb-admin-modern-submit corebb-admin-modern-full">
-                            <button class="corebb-board-action-link" type="submit">Close Request Without Action</button>
-                        </div>
-                    </div>
-                </form>
-            </div>
-        {% endif %}
-    {% endif %}
+        {% elseif r or model.can_remove_post or model.can_remove_topic %}
+        <form class="admin-settings-form appeal-decision" method="post" action="{{ url(model.action_url) }}">
+            {{ _self.fields(model,r,p) }}
+            <fieldset><legend>Decision</legend><div class="appeal-options">
+                {% if r %}<label><input name="action" value="close_request" type="radio" required><span><strong>Close report</strong><small>Keep the content as it is.</small></span></label>{% endif %}
+                {% if model.can_remove_post %}<label><input name="action" value="remove_message" type="radio" required><span><strong>Remove post</strong><small>Move this reply to Deleted Posts.</small></span></label>{% endif %}
+                {% if model.can_remove_topic %}<label><input name="action" value="remove_topic" type="radio" required><span><strong>Remove topic</strong><small>Move the entire thread and its replies to Deleted Posts.</small></span></label>{% endif %}
+            </div></fieldset>
+            {% if model.opening_post and model.can_remove_topic %}<p class="admin-history-count">This is the opening post. Removing it affects the whole topic.</p>{% endif %}
+            {% if r %}<div class="admin-auth-field"><label for="report-note">Handling note (optional)</label><textarea id="report-note" name="handler_note" rows="3" maxlength="65535">{{ model.draft_note|default('') }}</textarea></div>{% endif %}
+            <div class="admin-settings-save"><button type="submit">Confirm decision</button><a href="{{ url(model.queue_url) }}">Cancel</a></div>
+        </form>{% endif %}
+    </section>{% endif %}
 </div>
+{% macro fields(model,r,p) %}
+    {% include 'partials/csrf_field.twig' %}
+    <input type="hidden" name="mod_request_token" value="{{ model.token }}">
+    <input type="hidden" name="postid" value="{{ r ? r.postid : p.id }}">
+    <input type="hidden" name="request_id" value="{{ r.id|default(0) }}">
+{% endmacro %}

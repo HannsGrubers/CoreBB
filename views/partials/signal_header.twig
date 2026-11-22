@@ -1,0 +1,67 @@
+<header class="signal-mast">
+    <div class="signal-identity">
+        {% set activity = layout.chrome.activity %}
+        <div class="signal-name-line">
+            <a class="signal-board-name" href="{{ layout.chrome.board_url }}">{{ layout.chrome.board_name }}</a>
+            {% if activity is not empty %}
+                <span class="signal-today"><span>Today</span><b>{{ activity.today|number_format }} {{ activity.today == 1 ? 'post' : 'posts' }}</b></span>
+            {% endif %}
+        </div>
+        {% if activity is not empty %}
+            <p class="signal-community-size"><strong>{{ activity.messages|number_format }}</strong> {{ activity.messages == 1 ? 'message' : 'messages' }} across <strong>{{ activity.boards|number_format }}</strong> {{ activity.boards == 1 ? 'board' : 'boards' }}</p>
+        {% endif %}
+        <a class="signal-search-link" href="{{ layout.menu.search_url }}">
+            <svg viewBox="0 0 20 20" aria-hidden="true" focusable="false"><circle cx="8" cy="8" r="5.2"/><path d="m12 12 4.2 4.2"/></svg>
+            Search the forum
+        </a>
+    </div>
+    <div class="signal-field" aria-hidden="true">
+        <picture>
+            <source media="(max-width: 600px)" srcset="{{ asset('images/signal/weave-compact.svg') }}" width="510" height="160">
+            <img class="signal-field-image" src="{{ asset('images/signal/weave-wide.svg') }}" width="1260" height="204" alt="" fetchpriority="high">
+        </picture>
+        <div class="signal-luminance"></div>
+        {% for shape, frame in {'wide': '0 0 1260 204', 'compact': '0 0 510 160'} %}
+            <svg class="signal-return signal-return-{{ shape }}" viewBox="{{ frame }}" focusable="false">
+                <use href="{{ asset('images/signal/weave-' ~ shape ~ '.svg') }}#return-thread" class="signal-surge signal-aura"/>
+                <use href="{{ asset('images/signal/weave-' ~ shape ~ '.svg') }}#return-thread" class="signal-surge signal-spark"/>
+            </svg>
+        {% endfor %}
+    </div>
+    <div class="signal-controls">
+    {% if layout.head.signal_preview|default(false) %}<a class="signal-exit" href="{{ url('/?preview_style=default') }}">Exit preview</a>{% endif %}
+    <button type="button" class="signal-motion" hidden aria-pressed="false" aria-label="Pause tapestry animation" title="Pause tapestry animation">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path class="signal-pause" d="M5 3v10m6-10v10"/><path class="signal-play" d="m5 3 8 5-8 5z"/></svg>
+    </button>
+    </div>
+</header>
+<script nonce="{{ csp_nonce() }}">
+(() => {
+    const mast = document.querySelector('.signal-mast');
+    const button = mast.querySelector('.signal-motion');
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+    let paused = false;
+    try { paused = sessionStorage.getItem('corebb.signal.paused') === 'yes'; } catch {}
+    let inView = true;
+    function paint() {
+        button.hidden = reduced.matches;
+        button.setAttribute('aria-pressed', String(paused));
+        button.title = paused ? 'Play tapestry animation' : 'Pause tapestry animation';
+        mast.classList.toggle('signal-running', inView && !document.hidden && !paused && !reduced.matches);
+    }
+    button.addEventListener('click', () => {
+        paused = !paused;
+        try { sessionStorage.setItem('corebb.signal.paused', paused ? 'yes' : 'no'); } catch {}
+        paint();
+    });
+    reduced.addEventListener('change', paint);
+    document.addEventListener('visibilitychange', paint);
+    if ('IntersectionObserver' in window) {
+        new IntersectionObserver(([entry]) => {
+            inView = entry.isIntersecting;
+            paint();
+        }).observe(mast);
+    }
+    paint();
+})();
+</script>

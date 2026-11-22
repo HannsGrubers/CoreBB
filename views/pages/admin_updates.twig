@@ -1,299 +1,104 @@
-{% set status = model.status|default({}) %}
-{% set releases = model.releases|default([]) %}
-
-<div class="corebb-admin-modern-page">
-    {% include 'partials/admin_messages.twig' with {messages: model.messages|default([]), errors: model.errors|default([])} only %}
-
-    <div class="corebb-admin-modern-header">
-        <div>
-            <div class="corebb-admin-modern-eyebrow">System</div>
-            <h2>CoreBB Updates</h2>
-            <div class="corebb-admin-modern-meta">
-                <span>Installed {{ status.installed_version|default('Unknown') }}</span>
-                <span>Schema {{ status.schema_version|default('Unknown') }}</span>
-                <span>Manifest {{ status.signature_status|default('unsigned') }}</span>
-            </div>
-        </div>
-        <div class="corebb-admin-modern-actions">
-            <a class="corebb-board-action-link" href="/upgrade.php">Recovery Upgrader</a>
-            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
-        </div>
-    </div>
-
-    <div class="corebb-admin-modern-note{% if status.severity|default('') == 'danger' %} is-danger{% elseif status.severity|default('') == 'info' %} is-muted{% endif %}">
-        <span>Update Status</span>
-        <strong>{{ status.headline|default('Update status has not been checked.') }}</strong>
-        <span>{{ status.detail|default('') }}</span>
-    </div>
-
-    {% set lock = model.lock|default({}) %}
-    {% if lock.exists|default(false) %}
-        <div class="corebb-admin-modern-panel">
-            <div class="corebb-admin-section-title">Upgrade Recovery</div>
-            <div class="corebb-admin-modern-note{% if lock.stale|default(false) %} is-danger{% else %} is-muted{% endif %}">
-                <span>Upgrade Lock</span>
-                <strong>{% if lock.stale|default(false) %}A stale upgrade lock is present.{% else %}An upgrade lock is present.{% endif %}</strong>
-                <span>Review the server state before clearing it. Maintenance mode may still be enabled after a failed apply.</span>
-            </div>
-            <table class="corebb-admin-modern-table wb-table">
-                <tbody>
-                    <tr><th>Target Version</th><td>{{ lock.target_version|default('Unknown') ?: 'Unknown' }}</td></tr>
-                    <tr><th>Started</th><td>{{ lock.created_label|default('Unknown') }}</td></tr>
-                    <tr><th>Age</th><td>{{ lock.age_label|default('Unknown') }}</td></tr>
-                    <tr><th>Lock Path</th><td>{{ lock.path|default('') }}</td></tr>
-                    {% if lock.pid|default('') != '' %}
-                        <tr><th>Process ID</th><td>{{ lock.pid }}</td></tr>
-                    {% endif %}
-                </tbody>
-            </table>
-            <form class="corebb-admin-modern-form" method="post" action="/admin/?act=updates">
-                {% include 'partials/csrf_field.twig' %}
-                <input type="hidden" name="action" value="clear_update_lock">
-                <label>
-                    <input type="checkbox" name="clear_lock_confirmed" value="1">
-                    I have reviewed the failed upgrade and want to clear this lock.
-                </label>
-                <label>
-                    <input type="checkbox" name="disable_maintenance" value="1" checked>
-                    Disable maintenance mode when clearing the lock.
-                </label>
-                <div class="corebb-admin-modern-submit">
-                    <button class="corebb-board-action-link is-danger" type="submit">Clear Upgrade Lock</button>
-                    <span class="corebb-admin-modern-help">Use this after a failed or interrupted apply has been investigated.</span>
-                </div>
-            </form>
-        </div>
+{% set page = '/admin/?act=updates' %}
+{% set status = model.status %}
+<div class="admin-overview admin-settings admin-updates">
+    <header class="admin-dash-heading">
+        <h1>Updates</h1>
+        <div class="admin-updates-links"><a href="{{ url('/upgrade.php') }}">Recovery upgrader</a><a href="{{ url('/admin/') }}">Dashboard</a></div>
+    </header>
+    {% set banner = model.section == 'route' and status.state == 'current' ? status|merge({headline: 'Current on the stable channel.'}) : status %}
+    {% include 'partials/admin_update_status.twig' with {update: banner, dashboard: false} only %}
+    <nav class="update-sections" aria-label="Updates">
+        {% for key, label in {releases: 'Releases', route: 'Plan upgrade', package: 'Package review'} %}
+            <a href="{{ url(page ~ '&section=' ~ key) }}"{% if model.section == key %} aria-current="page"{% endif %}>
+                <strong>{{ label }}</strong>
+                <span>{% if key == 'releases' %}{{ model.releases|length }} recent {{ model.releases|length == 1 ? 'release' : 'releases' }}
+                    {% elseif key == 'route' %}{% if model.route.active %}Destination · {{ model.route.target }}{% else %}Find a compatible path{% endif %}
+                    {% else %}{{ model.package ? 'Validated · ' ~ model.package.version : 'No package staged' }}{% endif %}</span>
+            </a>
+        {% endfor %}
+    </nav>
+    {% include 'partials/admin_messages.twig' with {messages: model.messages, errors: model.errors} only %}
+    {% if model.lock.exists %}
+        <section class="admin-db-result is-error" aria-labelledby="update-lock">
+            <h2 id="update-lock">{{ model.lock.stale ? 'Stale upgrade lock' : 'Upgrade lock in place' }}</h2>
+            <p>Target {{ model.lock.target_version|default('Unknown') }} · Started {{ model.lock.created_label }} · Age {{ model.lock.age_label }}</p>
+            <details><summary>Review lock and recovery options</summary>
+                <p>Check that the upgrade has stopped before clearing its lock.</p>
+                <dl class="admin-mail-envelope"><dt>Lock file</dt><dd>{{ model.lock.path }}</dd>
+                    {% if model.lock.pid %}<dt>Process ID</dt><dd>{{ model.lock.pid }}</dd>{% endif %}
+                </dl>
+                {% if model.can_manage %}
+                    <form class="admin-settings-form" method="post" action="{{ url(page ~ '&section=' ~ model.section) }}">
+                        {% include 'partials/csrf_field.twig' %}<input type="hidden" name="action" value="clear_update_lock">
+                        <label class="admin-auth-option"><input type="checkbox" name="clear_lock_confirmed" value="1" required> I have reviewed the interrupted upgrade and want to clear the lock.</label>
+                        <label class="admin-auth-option"><input type="checkbox" name="disable_maintenance" value="1" checked> Also disable maintenance mode</label>
+                        <div class="admin-settings-save"><button type="submit">Clear upgrade lock</button></div>
+                    </form>
+                {% endif %}
+            </details>
+        </section>
     {% endif %}
-
-    <div class="corebb-admin-modern-panel">
-        <div class="corebb-admin-section-title">Check for Updates</div>
-        <form class="corebb-admin-modern-form" method="post" action="/admin/?act=updates">
-            {% include 'partials/csrf_field.twig' %}
-            <input type="hidden" name="action" value="check_updates">
-            <div class="corebb-admin-modern-grid">
-                <label>Manifest</label>
-                <span>{{ model.manifest_url|default('') }}</span>
-
-                <label>Last Checked</label>
-                <span>{{ status.last_checked|default('Never') }}</span>
-
-                <label>Last Successful Check</label>
-                <span>{{ status.last_successful_check|default('Never') }}</span>
-
-                <label>Check Result</label>
-                <span>{{ status.check_status|default('never') }}</span>
-
-                {% if status.manifest_generated_at|default('') != '' %}
-                    <label>Manifest Generated</label>
-                    <span>{{ status.manifest_generated_at }}</span>
+    <div class="update-workspace">
+    {% if model.section == 'route' %}
+        {% include 'partials/admin_update_route.twig' with {model: model, route: model.route, page: page} only %}
+    {% elseif model.section == 'package' %}
+        {% include 'partials/admin_update_package.twig' with {model: model, page: page} only %}
+    {% else %}
+        <section aria-labelledby="updates-catalog">
+            <header class="admin-section-head">
+                <div><h2 id="updates-catalog">Release catalog</h2>
+                    <p class="admin-history-count">Last checked · {{ status.last_checked }}</p></div>
+                {% if model.can_manage %}
+                    <form class="admin-settings-save" method="post" action="{{ url(page ~ '&section=releases') }}">
+                        {% include 'partials/csrf_field.twig' %}<input type="hidden" name="action" value="check_updates">
+                        <button type="submit">Check for updates</button>
+                    </form>
                 {% endif %}
-
-                {% if status.error|default('') != '' %}
-                    <label>Last Error</label>
-                    <span>{{ status.error }}</span>
-                {% endif %}
-
-                <div class="corebb-admin-modern-submit corebb-admin-modern-full">
-                    <button class="corebb-board-action-link" type="submit">Check Now</button>
-                </div>
-            </div>
-        </form>
-    </div>
-
-    <div class="corebb-admin-modern-panel">
-        <div class="corebb-admin-section-title">Version Summary</div>
-        <table class="corebb-admin-modern-table wb-table">
-            <tbody>
-                <tr><th>Installed</th><td>{{ status.installed_version|default('Unknown') }}</td></tr>
-                <tr><th>Latest Stable</th><td>{{ status.latest_stable|default('Unknown') ?: 'Unknown' }}</td></tr>
-                <tr><th>Latest Security</th><td>{{ status.latest_security|default('Unknown') ?: 'Unknown' }}</td></tr>
-                <tr><th>Minimum Safe</th><td>{{ status.minimum_safe_version|default('Unknown') ?: 'Unknown' }}</td></tr>
-                {% if status.recommended_next_version|default('') != '' %}
-                    <tr><th>Recommended Next</th><td>CoreBB {{ status.recommended_next_version }}{% if not status.recommended_next_found|default(false) %} (not listed in manifest){% endif %}</td></tr>
-                {% endif %}
-                {% if status.manifest_generated_at|default('') != '' %}
-                    <tr><th>Manifest Generated</th><td>{{ status.manifest_generated_at }}</td></tr>
-                {% endif %}
-                {% if status.advisory|default({}).severity|default('') != '' %}
-                    <tr>
-                        <th>Advisory</th>
-                        <td>
-                            {{ status.advisory.severity }}{% if status.advisory.title|default('') != '' %}: {{ status.advisory.title }}{% endif %}
-                            {% if status.advisory.url|default('') != '' %}<a class="corebb-admin-text-link" href="{{ status.advisory.url }}">Details</a>{% endif %}
-                        </td>
-                    </tr>
-                {% endif %}
-            </tbody>
-        </table>
-    </div>
-
-    <div class="corebb-admin-modern-panel">
-        <div class="corebb-admin-section-title">Upload Update Package</div>
-        <form class="corebb-admin-modern-form" method="post" action="/admin/?act=updates" enctype="multipart/form-data">
-            {% include 'partials/csrf_field.twig' %}
-            <input type="hidden" name="action" value="upload_package">
-            <div class="corebb-admin-modern-grid">
-                <label>ZIP Support</label>
-                <span>{% if model.zip_available|default(false) %}Available{% else %}PHP ZIP extension is not available{% endif %}</span>
-
-                <label>Package ZIP</label>
-                <span>
-                    <input type="file" name="update_package" accept=".zip,application/zip,application/x-zip-compressed">
-                    <span class="corebb-admin-modern-help">Maximum {{ model.package_max_mb|default(100) }} MB. The package is stored and extracted in private update storage before validation.</span>
-                </span>
-
-                <div class="corebb-admin-modern-submit corebb-admin-modern-full">
-                    <button class="corebb-board-action-link" type="submit">Upload and Validate</button>
-                </div>
-            </div>
-        </form>
-
-        {% if model.package|default(null) %}
-            {% set package = model.package %}
-            <table class="corebb-admin-modern-table wb-table">
+            </header>
+            {% if status.recommended_next_version %}
+                <p>Recommended next package · <strong>{{ status.recommended_next_version }}</strong>{% if not status.recommended_next_found %} (missing from the catalog){% endif %}</p>
+            {% endif %}
+            {% if model.releases %}
+            <table class="update-catalog" aria-labelledby="updates-catalog">
+                <thead><tr><th scope="col">Version</th><th scope="col">Channel</th><th scope="col">Released</th><th scope="col">Actions</th></tr></thead>
                 <tbody>
-                    <tr><th>Validated Package</th><td>{{ package.version|default('Unknown') }}</td></tr>
-                    <tr><th>Installed Version</th><td>{{ package.installed_version|default('Unknown') }}</td></tr>
-                    <tr><th>Release Type</th><td>{{ package.release_type|default('Unknown') }}</td></tr>
-                    <tr><th>Schema Version</th><td>{{ package.schema_version|default('Unknown') }}</td></tr>
-                    <tr><th>Copy Root</th><td>{{ package.copy_root|default('Unknown') }}</td></tr>
-                    {% if package.zip_source|default('') != '' %}
-                        <tr><th>Source</th><td>{{ package.zip_source == 'official' ? 'Official corebb.net sideload' : 'Uploaded ZIP' }}</td></tr>
-                    {% endif %}
-                    <tr><th>Files Checked</th><td>{{ package.file_count|default(0) }}{% if package.hash_count|default(0) > 0 %} / {{ package.hash_count }} hashed{% endif %}</td></tr>
-                    {% if package.zip_sha256|default('') != '' %}
-                        <tr><th>ZIP SHA-256</th><td>{{ package.zip_sha256 }}</td></tr>
-                    {% endif %}
-                    <tr><th>Replace Paths</th><td>{{ package.replace|default([])|join(', ') }}</td></tr>
-                    <tr>
-                        <th>Obsolete Files</th>
-                        <td>
-                            {% if package.delete_files|default([]) is empty %}
-                                None
-                            {% else %}
-                                {{ package.delete_files|join(', ') }}
-                            {% endif %}
-                        </td>
-                    </tr>
+                {% for release in model.releases %}
+                <tr{% if release.version == status.installed_version %} class="is-installed"{% endif %}>
+                    <th scope="row">{{ release.version }}
+                        {% if release.version == status.installed_version %}<span class="update-release-tag">Installed</span>
+                        {% elseif release.version == status.recommended_next_version %}<span class="update-release-tag">Recommended next</span>{% endif %}
+                    </th>
+                    <td>{{ release.type|capitalize }}</td><td>{{ release.date }}</td>
+                    <td><div class="admin-updates-links">
+                        {% if release.changelog_url starts with 'https://' %}<a href="{{ release.changelog_url }}">Changelog</a>{% endif %}
+                        {% if release.download_url starts with 'https://' %}<a href="{{ release.download_url }}">Download</a>{% endif %}
+                        {% if model.can_manage and not release.older_than_installed %}
+                            <form class="admin-settings-save" method="post" action="{{ url(page ~ '&section=releases') }}">
+                                {% include 'partials/csrf_field.twig' %}<input type="hidden" name="action" value="sideload_package">
+                                <input type="hidden" name="release_version" value="{{ release.version }}">
+                                <button type="submit" aria-label="Sideload {{ release.version }}"{% if not model.zip_available or not model.official_download_available or not (release.download_url starts with 'https://') or not (release.sha256 matches '/^[a-f0-9]{64}$/iD') %} disabled{% endif %}>Sideload</button>
+                            </form>
+                        {% endif %}
+                    </div></td>
+                </tr>
+                {% endfor %}
                 </tbody>
             </table>
-            <span class="corebb-admin-modern-help">Validation only. This version does not apply package files yet.</span>
-            <form class="corebb-admin-modern-form" method="post" action="/admin/?act=updates">
-                {% include 'partials/csrf_field.twig' %}
-                <input type="hidden" name="action" value="preview_package">
-                <div class="corebb-admin-modern-submit">
-                    <button class="corebb-board-action-link" type="submit">Generate Preview</button>
-                </div>
-            </form>
-        {% endif %}
-    </div>
-
-    {% if model.preview|default(null) %}
-        {% set preview = model.preview %}
-        <div class="corebb-admin-modern-panel">
-            <div class="corebb-admin-section-title">Upgrade Preview</div>
-            <table class="corebb-admin-modern-table wb-table">
-                <tbody>
-                    <tr><th>Installed Version</th><td>{{ preview.installed_version|default('Unknown') }}</td></tr>
-                    <tr><th>Package Version</th><td>{{ preview.package_version|default('Unknown') }}</td></tr>
-                    <tr><th>Release Type</th><td>{{ preview.release_type|default('Unknown') }}</td></tr>
-                    <tr><th>Target Schema</th><td>{{ preview.schema_version|default('Unknown') }}</td></tr>
-                    <tr><th>Will Replace</th><td>{{ preview.replace_paths|default([])|join(', ') }}</td></tr>
-                    <tr><th>Will Preserve</th><td>{{ preview.preserve_paths|default([])|join(', ') }}</td></tr>
-                    <tr>
-                        <th>Will Delete</th>
-                        <td>
-                            {% if preview.delete_files|default([]) is empty %}
-                                None
-                            {% else %}
-                                {{ preview.delete_files|join(', ') }}
-                            {% endif %}
-                        </td>
-                    </tr>
-                    <tr>
-                        <th>Pending Migrations</th>
-                        <td>
-                            {% if preview.migrations|default([]) is empty %}
-                                None
-                            {% else %}
-                                {{ preview.migrations|join(', ') }}
-                            {% endif %}
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-
-            <div class="corebb-admin-section-title">Preflight</div>
-            <table class="corebb-admin-modern-table wb-table">
-                <tbody>
-                    {% for check in preview.preflight|default([]) %}
-                        <tr>
-                            <th>{{ check.label }}</th>
-                            <td>
-                                <strong>{% if check.ok %}OK{% else %}Needs Attention{% endif %}</strong>
-                                {% if check.detail|default('') != '' %}<br><span class="corebb-admin-modern-help">{{ check.detail }}</span>{% endif %}
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-
-            <form class="corebb-admin-modern-form" method="post" action="/admin/?act=updates">
-                {% include 'partials/csrf_field.twig' %}
-                <input type="hidden" name="action" value="apply_package">
-                <label>
-                    <input type="checkbox" name="backup_confirmed" value="1">
-                    I have backed up the CoreBB files and database.
-                </label>
-                <div class="corebb-admin-modern-submit">
-                    <button class="corebb-board-action-link" type="submit"{% if not preview.ok|default(false) %} disabled{% endif %}>Apply Upgrade</button>
-                    <span class="corebb-admin-modern-help">This will enable maintenance mode, copy validated package files, run pending migrations, clear cache, record the new version, and clear the upgrade lock on success.</span>
-                </div>
-            </form>
-        </div>
+            {% if model.can_manage %}<p class="admin-history-count">Sideload downloads and validates the official ZIP for review.</p>{% endif %}
+            {% else %}<p>No releases are cached yet.</p>{% endif %}
+            {% if not model.zip_available %}<p>PHP ZIP support is unavailable.</p>{% endif %}
+            {% if not model.official_download_available %}<p>Outbound HTTPS downloads are unavailable.</p>{% endif %}
+        </section>
+        <details class="admin-update-disclosure"{% if status.check_warning or status.error %} open{% endif %}>
+            <summary>Manifest and version details</summary>
+            <dl class="admin-mail-envelope">
+                {% for label, value in {'Manifest URL': model.manifest_url, 'Signature': status.signature_status, 'Last check result': status.check_status, 'Last successful check': status.last_successful_check, 'Manifest generated': status.manifest_generated_at, 'Installed version': status.installed_version, 'Installed schema': status.schema_version, 'Latest stable': status.latest_stable, 'Latest security': status.latest_security, 'Minimum safe version': status.minimum_safe_version} %}
+                    <dt>{{ label }}</dt><dd>{{ value|default('Unknown') }}</dd>
+                {% endfor %}
+                {% if status.advisory.severity %}<dt>Advisory</dt><dd>{{ status.advisory.severity }} · {{ status.advisory.title }}</dd>{% endif %}
+                {% if status.error %}<dt>Last error</dt><dd>{{ status.error }}</dd>{% endif %}
+            </dl>
+        </details>
     {% endif %}
-
-    <div class="corebb-admin-modern-panel">
-        <div class="corebb-admin-section-title">Recent Manifest Releases</div>
-        <div class="corebb-admin-modern-help">
-            Sideload downloads an official package from the cached corebb.net manifest, stores it privately, and runs the same validation used for manual uploads.
-            {% if not model.official_download_available|default(false) %}Outbound HTTPS downloads are not available in this PHP configuration.{% endif %}
-        </div>
-        {% if releases is empty %}
-            <span class="corebb-admin-modern-help">No release entries are cached yet.</span>
-        {% else %}
-            <table class="corebb-admin-modern-table wb-table">
-                <thead>
-                    <tr>
-                        <th>Version</th>
-                        <th>Type</th>
-                        <th>Date</th>
-                        <th>Links</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for release in releases %}
-                        <tr>
-                            <td>{{ release.version }}{% if release.recommended|default('') == '1' %} <span class="corebb-admin-modern-help">recommended next</span>{% endif %}</td>
-                            <td>{{ release.type }}</td>
-                            <td>{{ release.date }}</td>
-                            <td>
-                                {% if release.changelog_url != '' %}<a class="corebb-admin-text-link" href="{{ release.changelog_url }}">Changelog</a>{% endif %}
-                                {% if release.download_url != '' %}<a class="corebb-admin-text-link" href="{{ release.download_url }}">Download</a>{% endif %}
-                            </td>
-                            <td>
-                                <form method="post" action="/admin/?act=updates">
-                                    {% include 'partials/csrf_field.twig' %}
-                                    <input type="hidden" name="action" value="sideload_package">
-                                    <input type="hidden" name="release_version" value="{{ release.version }}">
-                                    <button class="corebb-board-action-link" type="submit"{% if not model.official_download_available|default(false) or release.download_url == '' or release.sha256 == '' or release.sha256|lower == 'placeholder' %} disabled{% endif %}>Sideload</button>
-                                </form>
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        {% endif %}
     </div>
 </div>

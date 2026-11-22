@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../helpers/corebb_date_helpers.php';
+require_once __DIR__ . '/../helpers/forum_access.php';
 if (!defined('COREBB_VIEW_LOADED')) {
     require_once __DIR__ . '/../helpers/view.php';
 }
@@ -132,7 +133,7 @@ function corebb_profile_public_fields(array $row): array
 {
     $fields = [];
     $map = [
-        'profiletitle' => 'Boards Title',
+        'profiletitle' => 'Member title',
         'country' => 'Country',
         'company' => 'Company',
         'jobtitle' => 'Job Title',
@@ -181,6 +182,7 @@ function corebb_profile_model(int $userId): array
     $level = corebb_user_level_label((int)($row['accesslevel'] ?? 0));
     $postCount = corebb_user_post_count_display((int)$row['id']);
 
+    if (!corebb_forum_access_settings()['member_titles']) { unset($row['profiletitle']); }
     $displayTitle = trim((string)($row['profiletitle'] ?? ''));
 
     return [

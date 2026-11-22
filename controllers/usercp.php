@@ -48,6 +48,11 @@ if (!in_array($action, $allowedActions, true)) {
 
 switch ($action) {
     case 'profile':
+        if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && ($_GET['act'] ?? '') === 'recovery_email') {
+            require_once $root . '/lib/helpers/recovery_email_change.php';
+            $message = corebb_change_recovery_email($uid, $_POST);
+            corebb_usercp_controller_redirect('/user-cp/profile/?msg=' . urlencode($message));
+        }
         if (($_GET['act'] ?? '') === 'submit' && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             if (corebb_usercp_save_profile_from_array($uid, $_POST)) {
                 corebb_usercp_controller_redirect('/user-cp/profile/?msg=Profile+Successfully+Updated!');
@@ -59,6 +64,8 @@ switch ($action) {
         $model = corebb_usercp_base_model($uid);
         $model['profile'] = corebb_usercp_load_profile($uid);
         $model['fields'] = corebb_profile_fields();
+        $pending = $_SESSION['corebb_email_change'] ?? [];
+        $model['pending_email'] = ($pending['uid'] ?? null) === $uid && ($pending['expires'] ?? 0) > time() ? $pending['new'] : '';
         $model['boardName'] = $BoardName ?? 'Board';
         corebb_render_public('pages/edit_profile.twig', ['model' => $model]);
         break;
@@ -110,7 +117,7 @@ switch ($action) {
 
     case 'appearance':
         $viewer = corebb_user_appearance_load_user($uid);
-        if (!$viewer || !corebb_vip_style_user_can_self_manage($uid, $viewer)) {
+        if (!$viewer || (empty($viewer['appearance_preset_id']) && !corebb_vip_style_user_can_self_manage($uid, $viewer))) {
             corebb_usercp_controller_redirect('/denied/');
         }
 

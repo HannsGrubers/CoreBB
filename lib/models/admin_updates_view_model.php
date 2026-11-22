@@ -13,6 +13,7 @@ require_once __DIR__ . '/../helpers/admin_log_helpers.php';
 
 require_once __DIR__ . '/../helpers/corebb_update_helpers.php';
 require_once __DIR__ . '/../helpers/corebb_update_package_helpers.php';
+require_once __DIR__ . '/../helpers/corebb_update_route_helpers.php';
 require_once __DIR__ . '/../helpers/security.php';
 
 /**
@@ -27,19 +28,69 @@ require_once __DIR__ . '/../helpers/security.php';
  */
 function corebb_admin_updates_model(array $viewer, array $request, array $post, array $files = []): array
 {
-    unset($request);
+    $section = in_array($request['section'] ?? '', ['package', 'route'], true) ? $request['section'] : 'releases';
     $messages = [];
     $errors = [];
+    $completionKey = 'corebb_update_complete:' . corebb_update_app_root() . ':' . (int)($viewer['id'] ?? 0);
     $manifest = corebb_update_cached_manifest();
     $packageSummary = corebb_update_last_package_summary();
     $preview = null;
+    $route = null;
+    $routeAction = in_array($post['action'] ?? '', ['route_start', 'route_next', 'route_cancel'], true);
+    if ($routeAction) { $section = 'route'; }
+    if ($section === 'route') {
+        $setting = 'upgrade_route_' . (int)($viewer['id'] ?? 0);
+        $receiptKey = $completionKey . ':route';
+        $requested = $request['target'] ?? '';
+        $target = is_string($requested) && corebb_update_version_valid($requested) ? $requested : '';
+        $route = corebb_update_route_state($manifest ?? [], corebb_update_installed_version(), $target, $setting);
+        $route['automatic'] = false;
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' && isset($_SESSION[$receiptKey])) {
+            $receipt = $_SESSION[$receiptKey];
+            unset($_SESSION[$receiptKey]);
+            if (isset($receipt['error'])) {
+                $errors[] = $receipt['error'];
+            } else {
+                $messages[] = $receipt['message'];
+                $route['automatic'] = isset($receipt['run']) && ($request['run'] ?? '') === $receipt['run']
+                    && $receipt['installed'] === $route['installed'] && $receipt['fingerprint'] === $route['fingerprint'] && $route['next'] !== null;
+            }
+        }
+    }
 
     if ((int)($viewer['accesslevel'] ?? 0) < 5) {
-        $errors[] = 'Administrator access is required.';
+        if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+            $errors[] = 'Administrator access is required.';
+        } else {
+            $messages[] = 'Read-only access. A full administrator can check for updates and apply packages.';
+        }
+    } elseif (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' && isset($_SESSION[$completionKey])) {
+        $messages[] = $_SESSION[$completionKey];
+        unset($_SESSION[$completionKey]);
     } elseif (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
-        $action = (string)($post['action'] ?? '');
+        $action = $post['action'] ?? '';
+        if (in_array($action, ['upload_package', 'preview_package', 'apply_package'], true)) {
+            $section = 'package';
+        }
         if (!corebb_security_csrf_valid($post)) {
             $errors[] = 'Security token expired. Please reload the page and try again.';
+        } elseif ($routeAction) {
+            $location = '/admin/?act=updates&section=route';
+            try {
+                $receipt = corebb_update_route_run($viewer, $route, $post, $setting);
+                if (isset($receipt['installed']) && $receipt['installed'] !== $route['target'] && ($post['automatic'] ?? '') === '1') {
+                    $receipt['run'] = bin2hex(random_bytes(16));
+                    $location .= '&run=' . $receipt['run'];
+                }
+            } catch (Throwable $e) {
+                $receipt = ['error' => 'Route stopped. ' . $e->getMessage()];
+                $location .= '&target=' . rawurlencode($route['target']);
+                corebb_adminlog_viewer($viewer, 'Upgrade route stopped', 'update_route_stopped', $e->getMessage());
+            }
+            $_SESSION[$receiptKey] = $receipt;
+            session_write_close();
+            header('Location: ' . corebb_public_join_base_path($location), true, 303);
+            exit;
         } elseif ($action === 'check_updates') {
             {
                 corebb_adminlog_viewer($viewer, 'CoreBB update check started', 'update_check_started');
@@ -107,6 +158,7 @@ function corebb_admin_updates_model(array $viewer, array $request, array $post, 
             try {
                 $version = trim((string)($post['release_version'] ?? ''));
                 $packageSummary = corebb_update_handle_official_package_download($version);
+                $section = 'package';
                 $messages[] = 'Official package downloaded and validated: CoreBB ' . (string)($packageSummary['version'] ?? 'unknown') . '.';
                 {
                     corebb_adminlog_viewer(
@@ -148,6 +200,9 @@ function corebb_admin_updates_model(array $viewer, array $request, array $post, 
                 if (!$packageSummary) {
                     throw new RuntimeException('Upload and validate an update package before applying an upgrade.');
                 }
+                if (isset($post['package_sha256']) && $post['package_sha256'] !== ($packageSummary['zip_sha256'] ?? '')) {
+                    throw new RuntimeException('The staged package has changed. Generate a new preview before applying it.');
+                }
                 {
                     corebb_adminlog_viewer(
                         $viewer,
@@ -157,9 +212,7 @@ function corebb_admin_updates_model(array $viewer, array $request, array $post, 
                     );
                 }
                 $result = corebb_update_apply_package($packageSummary);
-                $packageSummary = null;
-                $preview = null;
-                $messages[] = 'CoreBB upgrade completed to version ' . (string)($result['version'] ?? 'unknown') . '. Copied '
+                $completion = 'CoreBB upgrade completed to version ' . (string)($result['version'] ?? 'unknown') . '. Copied '
                     . (int)($result['copied_files'] ?? 0) . ' file(s), deleted '
                     . (int)($result['deleted_files'] ?? 0) . ' obsolete file(s), applied '
                     . (int)($result['migrations'] ?? 0) . ' migration(s), and cleared '
@@ -172,25 +225,38 @@ function corebb_admin_updates_model(array $viewer, array $request, array $post, 
                         'Target version: ' . (string)($result['version'] ?? '')
                     );
                 }
+                // This process still has the previous release's PHP functions loaded.
+                // Let a GET load the new renderer before opening the new templates.
+                $_SESSION[$completionKey] = $completion;
+                session_write_close();
+                header('Location: ' . corebb_public_join_base_path('/admin/?act=updates'), true, 303);
+                exit;
             } catch (Throwable $e) {
                 $errors[] = corebb_update_failure_recovery_message($e);
                 {
                     corebb_adminlog_viewer($viewer, 'CoreBB update failed', corebb_update_failure_action_type($e), $e->getMessage());
                 }
             }
+        } else {
+            $errors[] = 'Unknown update action.';
         }
     }
 
     $status = corebb_update_status($manifest);
+    $releases = corebb_update_release_rows($manifest);
+    foreach ($releases as $index => $release) {
+        $releases[$index]['older_than_installed'] = version_compare($release['version'], $status['installed_version'], '<');
+    }
 
     return [
-        'viewer' => $viewer,
-        'viewer_accesslevel' => (int)($viewer['accesslevel'] ?? 0),
+        'can_manage' => (int)($viewer['accesslevel'] ?? 0) >= 5,
+        'section' => $section,
+        'route' => $route,
         'messages' => $messages,
         'errors' => $errors,
         'manifest_url' => COREBB_UPDATE_MANIFEST_URL,
         'status' => $status,
-        'releases' => corebb_update_release_rows($manifest),
+        'releases' => $releases,
         'lock' => corebb_update_lock_status(),
         'package' => $packageSummary,
         'preview' => $preview,

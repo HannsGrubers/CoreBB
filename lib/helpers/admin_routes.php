@@ -32,19 +32,14 @@ function corebb_admin_route_require_model(string $act): void
         'auth_settings' => 'admin_auth_settings_view_model.php',
         'administrator_tools' => 'admin_maintenance_view_model.php',
         'database_tools' => 'admin_maintenance_view_model.php',
-        'db_schema_deploy' => 'admin_db_schema_deploy_view_model.php',
         'updates' => 'admin_updates_view_model.php',
         'api_explorer' => 'admin_api_explorer_view_model.php',
         'forum_sim' => 'admin_forum_sim_view_model.php',
-        'edit_tos' => 'admin_content_view_model.php',
-        'edit_style' => 'admin_content_view_model.php',
         'edit_rights' => 'admin_user_tools_view_model.php',
         'change_user_password' => 'admin_user_tools_view_model.php',
         'add_user' => 'admin_user_tools_view_model.php',
         'view_message' => 'admin_user_tools_view_model.php',
-        'global_message' => 'admin_global_messages_view_model.php',
-        'edit_global_message' => 'admin_global_messages_view_model.php',
-        'remove_global_message' => 'admin_global_messages_view_model.php',
+        'global_messages' => 'admin_global_messages_view_model.php',
         'manage_icons' => 'admin_icons_view_model.php',
         'moderation' => 'admin_moderation_view_model.php',
         'moderate_message' => 'admin_moderation_view_model.php',
@@ -99,7 +94,7 @@ function corebb_admin_route_definitions(): array
         'edit_settings' => [
             'label' => 'System Settings',
             'view' => 'pages/admin_settings.twig',
-            'handler' => static fn(array $viewer): array => corebb_admin_settings_model($viewer, $_GET, $_POST),
+            'handler' => static fn(array $viewer): array => corebb_admin_settings_model($viewer, $_GET, $_POST, !corebb_admin_can_access_tool($viewer, 'edit_settings')),
         ],
         'mail_services' => [
             'label' => 'Mail Services',
@@ -114,17 +109,12 @@ function corebb_admin_route_definitions(): array
         'administrator_tools' => [
             'label' => 'Database Tools',
             'view' => 'pages/admin_maintenance.twig',
-            'handler' => static fn(array $viewer): array => corebb_admin_maintenance_model($viewer, $_GET, $_POST),
+            'handler' => static fn(array $viewer): array => corebb_admin_maintenance_model($viewer, $_GET, $_POST, $_FILES),
         ],
         'database_tools' => [
             'label' => 'Database Tools',
             'view' => 'pages/admin_maintenance.twig',
-            'handler' => static fn(array $viewer): array => corebb_admin_maintenance_model($viewer, $_GET, $_POST),
-        ],
-        'db_schema_deploy' => [
-            'label' => 'DB Schema Deploy',
-            'view' => 'pages/admin_db_schema_deploy.twig',
-            'handler' => static fn(array $viewer): array => corebb_admin_db_schema_deploy_model($viewer, $_GET, $_POST, $_FILES),
+            'handler' => static fn(array $viewer): array => corebb_admin_maintenance_model($viewer, $_GET, $_POST, $_FILES),
         ],
         'updates' => [
             'label' => 'Updates',
@@ -134,22 +124,12 @@ function corebb_admin_route_definitions(): array
         'api_explorer' => [
             'label' => 'API Explorer',
             'view' => 'pages/admin_api_explorer.twig',
-            'handler' => static fn(array $viewer): array => corebb_admin_api_explorer_model($viewer, $_GET),
+            'handler' => static fn(array $viewer): array => corebb_admin_api_explorer_model(),
         ],
         'forum_sim' => [
             'label' => 'Forum Sim-Test',
             'view' => 'pages/admin_forum_sim.twig',
             'handler' => static fn(array $viewer): array => corebb_admin_forum_sim_model($viewer, $_GET, $_POST),
-        ],
-        'edit_tos' => [
-            'label' => 'Terms of Service',
-            'view' => 'pages/admin_tos.twig',
-            'handler' => static fn(array $viewer): array => corebb_admin_tos_model($viewer, $_GET, $_POST),
-        ],
-        'edit_style' => [
-            'label' => 'System Style',
-            'view' => 'pages/admin_style.twig',
-            'handler' => static fn(array $viewer): array => corebb_admin_style_model($viewer, $_GET, $_POST),
         ],
         'edit_rights' => [
             'label' => 'User Rights',
@@ -171,20 +151,10 @@ function corebb_admin_route_definitions(): array
             'view' => 'pages/admin_view_message.twig',
             'handler' => static fn(array $viewer): array => corebb_admin_view_message_model($viewer, $_GET, $_POST),
         ],
-        'global_message' => [
-            'label' => 'Add Global Message',
+        'global_messages' => [
+            'label' => 'Global Messages',
             'view' => 'pages/admin_global_message.twig',
-            'handler' => static fn(array $viewer): array => corebb_admin_global_message_add_model($viewer, $_GET, $_POST),
-        ],
-        'edit_global_message' => [
-            'label' => 'Edit Global Message',
-            'view' => 'pages/admin_edit_global_message.twig',
-            'handler' => static fn(array $viewer): array => corebb_admin_global_message_edit_model($viewer, $_GET, $_POST),
-        ],
-        'remove_global_message' => [
-            'label' => 'Remove Global Message',
-            'view' => 'pages/admin_remove_global_message.twig',
-            'handler' => static fn(array $viewer): array => corebb_admin_global_message_remove_model($viewer, $_GET, $_POST),
+            'handler' => static fn(array $viewer): array => corebb_admin_global_messages_model($viewer, $_GET, $_POST),
         ],
         'manage_icons' => [
             'label' => 'Manage Icons',
@@ -333,6 +303,9 @@ function corebb_admin_route_definitions(): array
  */
 function corebb_admin_resolve_route(string $act): array
 {
+    if (in_array($act, corebb_admin_global_message_tools(), true)) {
+        $act = 'global_messages';
+    }
     $routes = corebb_admin_route_definitions();
     if (isset($routes[$act])) {
         $route = $routes[$act];

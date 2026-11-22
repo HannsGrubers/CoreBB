@@ -1,92 +1,53 @@
-{% set viewer = model.viewer|default({}) %}
-{% set accessLevel = model.viewer_accesslevel|default(0) %}
+<div class="admin-overview">
+    {% if model.message %}<p class="corebb-admin-modern-note">{{ model.message|replace({'+': ' '}) }}</p>{% endif %}
+    <header class="admin-dash-heading">
+        <h1>Dashboard</h1>
+        {% if model.can_view_history %}<a href="{{ url('/admin/?act=version_history') }}">Version history</a>{% endif %}
+    </header>
 
-<div class="corebb-admin-modern-page">
-    {% if model.message|default('') != '' %}
-        <div class="corebb-admin-modern-note">{{ model.message|replace({'+': ' '}) }}</div>
+    {% if model.update_status %}
+        {% include 'partials/admin_update_status.twig' with {update: model.update_status, dashboard: true} only %}
     {% endif %}
 
-    <div class="corebb-admin-modern-header">
-        <div>
-            <div class="corebb-admin-modern-eyebrow">Overview</div>
-            <h2>{{ model.title|default('Control Center') }}</h2>
-            <div class="corebb-admin-modern-meta">
-                <span>Welcome, {% include 'partials/user_name.twig' with {user: user_name_model(viewer.id|default(0))} only %}</span>
-                {% if model.body|default('') != '' %}<span>{{ model.body|default('') }}</span>{% endif %}
-            </div>
-        </div>
-        <div class="corebb-admin-modern-actions">
-            <a class="corebb-board-action-link" href="/admin/?act=action_log">Action Log</a>
-            <a class="corebb-board-action-link" href="/admin/?act=version_history">Version History</a>
-        </div>
-    </div>
+    <section aria-labelledby="snapshot-title">
+        <h2 id="snapshot-title">Forum snapshot</h2>
+        <dl class="admin-metrics">
+            {% for label, value in model.stats %}<div><dt>{{ label }}</dt><dd>{{ value|number_format }}</dd></div>{% endfor %}
+        </dl>
+    </section>
 
-    {% if model.update_status|default(null) %}
-        {% set update = model.update_status %}
-        <div class="corebb-admin-modern-note{% if update.severity|default('') == 'danger' %} is-danger{% elseif update.severity|default('') == 'info' %} is-muted{% endif %}">
-            <span>CoreBB Updates</span>
-            <strong>{{ update.headline }}</strong>
-            <span>Installed: {{ update.installed_version|default('Unknown') }}</span>
-            <span>Latest: {{ update.latest_version|default('Unknown') }}</span>
-            <a class="corebb-board-action-link" href="/admin/?act=updates">View Updates</a>
-        </div>
-    {% endif %}
-
-    <div class="corebb-admin-modern-panel">
-        <div class="corebb-admin-section-title">Forum Snapshot</div>
-        <table class="corebb-admin-modern-table corebb-admin-snapshot-table wb-table">
-            <thead>
-                <tr>
-                    {% for label, value in model.stats|default({}) %}
-                        <th>{{ label }}</th>
-                    {% endfor %}
-                </tr>
-            </thead>
+    {% if model.activity_roles %}
+    <section class="admin-activity" aria-labelledby="activity-title">
+        <header class="admin-section-head">
+            <h2 id="activity-title">Recent activity</h2>
+            {% if model.activity_roles|length > 1 %}
+            <label class="admin-role-filter" hidden>Role
+                <select id="admin-activity-role"><option value="">All roles</option>
+                    {% for level, name in model.activity_roles %}<option value="{{ level }}">{{ name }}</option>{% endfor %}
+                </select>
+            </label>
+            {% endif %}
+            {% if model.can_view_log %}<a href="{{ url('/admin/?act=action_log') }}">Full action log</a>{% endif %}
+        </header>
+        <table class="admin-activity-list" aria-labelledby="activity-title"{% if not model.activity %} hidden{% endif %}>
+            <thead><tr><th scope="col">Action</th><th scope="col">Staff</th><th scope="col">When</th></tr></thead>
             <tbody>
-                <tr>
-                    {% for label, value in model.stats|default({}) %}
-                        <td>{{ value|number_format(0, '.', ',') }}</td>
-                    {% endfor %}
-                </tr>
+            {% for row in model.activity %}
+            <tr data-activity-level="{{ row.userlevel }}">
+                <td class="admin-event"><strong>{{ row.action }}</strong>{% if row.detail %} <span class="admin-event-detail">{{ row.detail }}</span>{% endif %}</td>
+                <td class="admin-event-staff">{% if model.can_view_log %}<a href="{{ row.admin_url }}">{{ row.admin_username }}</a>{% else %}{{ row.admin_username }}{% endif %} <span>· {{ model.activity_roles[row.userlevel] }}</span></td>
+                <td class="admin-event-date">{{ row.date_vn }}</td>
+            </tr>
+            {% endfor %}
             </tbody>
         </table>
-    </div>
-
-    {% if accessLevel >= 4 %}
-        <div class="corebb-admin-modern-panel">
-            <div class="corebb-admin-section-title">Current Administrators</div>
-            {% if model.admins|default([]) is empty %}
-                <span class="corebb-admin-modern-help">No administrator accounts were found.</span>
-            {% else %}
-                <div class="corebb-admin-modern-submit">
-                    {% for admin in model.admins %}
-                        {% include 'partials/user_name.twig' with {user: user_name_model(admin.id|default(0))} only %}
-                    {% endfor %}
-                </div>
-            {% endif %}
-        </div>
+        <p class="admin-activity-empty" role="status"{% if model.activity %} hidden{% endif %}>No recent actions to show.</p>
+    </section>
     {% endif %}
-
-    {% for section in model.log_sections|default([]) %}
-        <div class="corebb-admin-modern-panel">
-            <div class="corebb-admin-section-title">{{ section.title|default('Action Log') }}</div>
-            {% if section.rows|default([]) is empty %}
-                <span class="corebb-admin-modern-help">No actions have been recorded at this time.</span>
-            {% else %}
-                <div class="corebb-admin-dashboard-actions">
-                    {% for log in section.rows %}
-                        <div class="corebb-admin-dashboard-action-row">
-                            <a class="corebb-admin-text-link" href="{{ log.admin_url|default('/admin/?act=action_log') }}">{{ log.admin_username|default('Unknown') }}</a>
-                            <span class="corebb-admin-modern-help">level {{ log.userlevel|default('') }}</span>
-                            <span>{{ log.action|default('') }}</span>
-                        </div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-        </div>
-    {% endfor %}
-
-    {% if accessLevel < 4 %}
-        <div class="corebb-admin-modern-note is-muted">Use the command panel on the left for the tools available to your access level.</div>
+    {% if model.show_staff %}
+    <details class="admin-staff">
+        <summary>Current administrators <span>({{ model.admins|length }})</span></summary>
+        <ul>{% for admin in model.admins %}<li><a href="{{ url('/profile/' ~ admin.id ~ '/') }}">{{ admin.username }}</a></li>{% else %}<li>No administrator accounts were found.</li>{% endfor %}</ul>
+    </details>
     {% endif %}
 </div>

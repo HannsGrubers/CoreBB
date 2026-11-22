@@ -36,7 +36,7 @@
                 <tr><td class="BoardColumn wb-text-right" style="width: 20%;">Account:&nbsp;</td><td class="BoardRowB">{{ model.username|default('') }} <span class="SmallText">#{{ model.user_id|default(0) }}</span></td></tr>
                 <tr><td class="BoardColumn wb-text-right">Contact Email:&nbsp;</td><td class="BoardRowB"><input type="text" name="contact_email" size="40" value="{{ model.form.contact_email|default('') }}"></td></tr>
                 <tr><td class="BoardColumn wb-text-right wb-valign-top">Request:&nbsp;</td><td class="BoardRowB"><textarea name="request_text" cols="70" rows="7">{{ model.form.request_text|default('') }}</textarea><br><span class="SmallText">Explain why the ban should be reviewed. If you already have a pending request, this updates it.</span></td></tr>
-                <tr><td colspan="2" class="BoardRowB"><input type="hidden" name="action" value="submit_unban_request"><input type="hidden" name="unban_request_token" value="{{ model.token|default('') }}"><input type="submit" value="Submit Unban Request"> <input type="button" value="Log Out" onclick="window.location.href='{{ url('auth.php?action=logout') }}';"></td></tr>
+                <tr><td colspan="2" class="BoardRowB"><input type="hidden" name="action" value="submit_unban_request"><input type="hidden" name="unban_request_token" value="{{ model.token|default('') }}"><input type="submit" value="Submit Unban Request"> <input type="button" value="Log Out" data-forum-nav="{{ url('auth.php?action=logout') }}"></td></tr>
             </table>
         </form>
     </td></tr>

@@ -1,0 +1,10 @@
+<form method="post" action="{{ url('/logoff/') }}">
+    {% include 'partials/csrf_field.twig' %}
+    <table class="wb-table wb-w-full wb-cellspace-1 wb-cellpad-3">
+        <tr><td class="BoardColumn">Log off this forum</td></tr>
+        <tr><td class="BoardRowB">
+            <button class="formsubmit" type="submit">Logoff</button>
+            <a class="BoardRowBLink" href="{{ url('/') }}">Return to boards</a>
+        </td></tr>
+    </table>
+</form>

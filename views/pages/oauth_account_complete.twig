@@ -9,6 +9,16 @@
         </td>
     </tr>
 </table>
+{% elseif model.link_required %}
+<h2>Link {{ provider }} to your CoreBB account</h2>
+{% for error in model.errors %}<p class="ErrorFont">{{ error }}</p>{% endfor %}
+<form method="post" action="{{ url('/login/service/done/') }}">
+    {% include 'partials/csrf_field.twig' %}
+    <label>CoreBB username <input name="username" autocomplete="username" required></label>
+    <label>CoreBB password <input type="password" name="password" autocomplete="current-password" required></label>
+    <button type="submit">Confirm and link account</button>
+</form>
+<p>New members can <a href="{{ url('/register/') }}">register a CoreBB account</a> and then return to link it.</p>
 {% else %}
 <table class="wb-cellspace-1 wb-cellpad-3 BoardRowB wb-public-form-workspace wb-table" style="width: 100%;">
     <tr>
@@ -73,7 +83,7 @@
                 <tr><td class="BoardColumn"><b>Already Registered?</b></td></tr>
                 <tr class="BoardRowB">
                     <td>
-                        If this email belongs to an existing account that was not auto-linked, log in with your CoreBB password first.
+                        Existing members confirm their CoreBB password when linking this sign-in provider.
                     </td>
                 </tr>
             </table>

@@ -38,11 +38,16 @@ switch ($action) {
 
         $topicId = (int)($_GET['id'] ?? 0);
         $page = max(1, (int)($_GET['p'] ?? ($_GET['page'] ?? 1)));
-        corebb_mobile_redirect('thread', ['id' => $topicId, 'page' => $page]);
+        $kb = corebb_kb_board(corebb_private_board_row((int)corebb_topic_board_id($topicId)) ?: []);
+        if (!$kb) {
+            corebb_mobile_redirect('thread', ['id' => $topicId, 'page' => $page]);
+        }
+        $GLOBALS['corebb_kb_page'] = $kb;
+        $tab = ($_GET['tab'] ?? '') === 'discussion' || $page > 1 ? 'discussion' : 'article';
 
         $GLOBALS['corebb_layout_script'] = 'forum:thread';
-        $model = corebb_thread_fetch_model($topicId, $page);
-        corebb_render_public('pages/thread.twig', ['model' => $model]);
+        $model = corebb_thread_fetch_model($topicId, $page, $tab, (int)($_GET['post'] ?? 0));
+        corebb_render_public($kb && empty($model['missing']) ? 'pages/kb_topic.twig' : 'pages/thread.twig', ['model' => $model]);
         break;
 
     case 'favorite':
@@ -100,6 +105,15 @@ switch ($action) {
 
         $boardId = (int)($_GET['id'] ?? 0);
         $page = max(1, (int)($_GET['p'] ?? ($_GET['page'] ?? 1)));
+        $board = corebb_private_board_row($boardId);
+        if ($board && corebb_kb_board($board) && corebb_private_user_can_view_board_row($board)) {
+            $GLOBALS['corebb_kb_page'] = true;
+            $GLOBALS['corebb_layout_script'] = 'forum:board';
+            corebb_forum_stats_record_event($boardId, 'board_visit');
+            $model = corebb_kb_index($board, $page, is_string($_GET['q'] ?? null) ? $_GET['q'] : '', is_string($_GET['category'] ?? null) ? $_GET['category'] : '');
+            corebb_render_public('pages/kb_index.twig', ['model' => $model]);
+            break;
+        }
         corebb_mobile_redirect('board', ['id' => $boardId, 'page' => $page]);
 
         if (session_status() !== PHP_SESSION_ACTIVE) {

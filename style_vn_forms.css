@@ -1,0 +1,141 @@
+/* Loaded after the shared styles only when VN EOL is the active skin.
+   Use the board palette for both the original and dark color schemes. */
+html:root body.wb-vn-eol .corebb-login-page.wb-public-form-workspace {
+    --vn-label: 13em;
+    --vn-gutter: var(--corebb-page-bg);
+    display: block;
+    width: 100%;
+    min-width: 0;
+    contain: inline-size;
+    margin: 1px 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: var(--vn-gutter);
+    color: var(--corebb-row-text);
+    font: 10pt/1.35 Verdana, Arial, sans-serif;
+
+    & .corebb-login-header,
+    & .corebb-login-section-head,
+    & .corebb-login-panel,
+    & .corebb-login-footer,
+    & .corebb-login-alert,
+    & .corebb-search-pagination {
+        display: block;
+        min-height: 0;
+        max-width: none;
+        margin: 1px 0;
+        padding: 3px 6px;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+        background: var(--corebb-row-b-bg);
+        color: var(--corebb-row-text);
+    }
+    & .corebb-login-header { background: var(--corebb-column-bg); color: var(--corebb-column-text); }
+    & .corebb-login-header h2, & .corebb-login-header h2 span,
+    & .corebb-login-section-head h3 { margin: 0; color: inherit; font: bold 10pt/1.4 Verdana, Arial, sans-serif; }
+    & .corebb-login-eyebrow { display: none; }
+    & .corebb-login-grid, & .corebb-login-form { display: block; margin: 0; padding: 0; }
+    & .corebb-login-panel { padding: 0; background: transparent; }
+    & .corebb-login-section-head { background: var(--corebb-menu-bg); color: var(--corebb-menu-text); }
+    & .corebb-login-section-head span { color: inherit; font: inherit; }
+    & .corebb-login-field {
+        display: grid;
+        grid-template-columns: var(--vn-label) minmax(0, 1fr);
+        align-items: center;
+        gap: 0;
+        margin: 1px 0;
+        padding: 0;
+        background: var(--corebb-row-b-bg);
+        color: var(--corebb-row-text);
+    }
+    & .corebb-login-field > span:first-child {
+        grid-column: 1; grid-row: 1 / span 2;
+        align-self: stretch; padding: 4px 7px;
+        border-right: 1px solid var(--vn-gutter);
+        background: var(--corebb-row-a-bg); color: inherit;
+        text-align: right;
+        font: bold 10pt/1.4 Verdana, Arial, sans-serif;
+    }
+    & .corebb-login-field :is(input, select) {
+        grid-column: 2; justify-self: start;
+        box-sizing: border-box; width: min(30em, calc(100% - 12px));
+        min-height: 0; margin: 3px 6px; padding: 2px 4px;
+        border: 1px solid var(--corebb-divider); border-radius: 0;
+        box-shadow: none; background: var(--corebb-input-bg); color: var(--corebb-input-text);
+        font: 10pt Verdana, Arial, sans-serif;
+    }
+    & .corebb-login-field small {
+        grid-column: 2; margin: 0 6px 4px; color: var(--corebb-row-text);
+        font: normal 8pt/1.4 Verdana, Arial, sans-serif;
+    }
+    & .corebb-search-choice-row { grid-column: 2; flex-wrap: wrap; gap: .8em; padding: 3px 6px; }
+    & .corebb-search-choice-row label, & .corebb-search-choice-row label span {
+        min-height: 0; margin: 0; padding: 0; border: 0; border-radius: 0;
+        background: transparent; color: inherit; font: inherit; box-shadow: none;
+    }
+    & .corebb-search-choice-row input[type="radio"] { width: auto; margin: 0 .2em 0 0; padding: 0; }
+    & .corebb-register-tos {
+        grid-column: 2; max-height: 10em; min-height: 0; overflow: auto;
+        margin: 4px 6px; padding: 5px; border: 1px solid var(--corebb-divider); border-radius: 0;
+        background: var(--corebb-input-bg); color: var(--corebb-input-text);
+    }
+    & .corebb-login-check, & .corebb-login-actions, & .corebb-login-help-links {
+        display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start;
+        gap: .55em; min-height: 0; margin: 1px 0; padding: 4px 6px 4px calc(var(--vn-label) + 6px);
+        border: 0; border-radius: 0; background: var(--corebb-row-b-bg);
+    }
+    & .corebb-login-check span { font-weight: normal; }
+    & .formsubmit {
+        width: auto; min-width: 0; min-height: 0; margin: 0; padding: 2px 9px;
+        border: 2px outset ButtonFace; border-radius: 0; box-shadow: none;
+        background: ButtonFace; color: ButtonText; font: bold 9pt Verdana, Arial, sans-serif;
+    }
+    & .formsubmit:active { border-style: inset; }
+    /* The shared login button sets these three properties with !important. */
+    & .corebb-login-submit {
+        border-radius: 0 !important; font-size: 9pt !important; padding: 2px 9px !important;
+    }
+    & .corebb-login-create-button {
+        display: inline; min-height: 0; padding: 0; border: 0; border-radius: 0;
+        background: transparent; color: var(--corebb-link); box-shadow: none; text-decoration: underline;
+    }
+    & .corebb-login-side, & .corebb-login-footer, & .corebb-search-tip-list {
+        padding: 4px 6px; background: var(--corebb-menu-bg); color: var(--corebb-menu-text);
+    }
+    & .corebb-login-side .corebb-login-section-head {
+        display: inline; margin: 0; padding: 0; background: transparent;
+    }
+    & .corebb-login-side .corebb-login-section-head h3 { display: inline; margin-right: .4em; }
+    & .corebb-login-side > .corebb-login-create-button { margin: 0 .5em; }
+    & .corebb-login-side .corebb-login-create-button + .corebb-login-section-head {
+        display: block; margin-top: .35em;
+    }
+    & .corebb-login-divider { display: block; margin: .5em 0 .2em; text-align: left; }
+    & .corebb-login-divider::before, & .corebb-login-divider::after { display: none; }
+    & .corebb-login-provider-stack { display: flex; flex-wrap: wrap; gap: .5em; }
+    & .corebb-oauth-providers { display: flex; flex-wrap: wrap; gap: .5em; margin: 0; }
+    & .corebb-oauth-provider-button { width: auto; min-height: 24px; padding: 2px 6px; border-radius: 2px; }
+    & .corebb-oauth-provider-mark { width: 18px; height: 18px; }
+    & .corebb-search-tip-list { padding: 0; display: block; }
+    & .corebb-search-tip-list p { display: inline; margin: 0 .7em 0 0; padding: 0; border: 0; background: transparent; color: inherit; }
+    & .corebb-search-results-panel { min-width: 0; max-width: 100%; overflow-x: auto; }
+    & .corebb-search-results-table { width: 100%; min-width: 0; border-collapse: separate; border-spacing: 1px; }
+    & .corebb-search-results-table :is(th, td) { padding: 3px 5px; border: 0; border-radius: 0; }
+    & .corebb-search-results-table th { background: var(--corebb-column-bg); color: var(--corebb-column-text); }
+    & .corebb-search-results-table td { background: var(--corebb-row-b-bg); color: var(--corebb-row-text); }
+    & .corebb-search-results-table tr:nth-child(even) td { background: var(--corebb-row-a-bg); }
+    & .corebb-search-result-main { overflow-wrap: anywhere; }
+}
+
+@media (max-width: 620px) {
+    html:root body.wb-vn-eol .corebb-login-page.wb-public-form-workspace {
+        --vn-label: 0px;
+        & .corebb-login-field { grid-template-columns: minmax(0, 1fr); }
+        & .corebb-login-field > span:first-child { grid-row: auto; padding: 3px 6px; border: 0; text-align: left; }
+        & .corebb-login-field > :is(input, select, small, .corebb-register-tos, .corebb-search-choice-row) { grid-column: 1; }
+        & .corebb-login-field :is(input, select) { max-width: calc(100% - 12px); }
+    }
+}

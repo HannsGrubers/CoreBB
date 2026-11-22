@@ -255,6 +255,10 @@ function corebb_formatted_content_html(array $content): string
     $body = (string)($content['body'] ?? '');
     $options = is_array($content['options'] ?? null) ? $content['options'] : [];
 
+    if ($type === 'release_notes') {
+        return corebb_render_markdown_block($body, false);
+    }
+
     if ($type === 'post_body') {
         return corebb_markup_post($body, (int)($options['author_access_level'] ?? 0));
     }

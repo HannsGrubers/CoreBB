@@ -1,255 +1,123 @@
-{% include 'partials/admin_messages.twig' with {messages: model.messages|default([]), errors: model.errors|default([])} only %}
-{% set search = model.search|default({username: '', userid: ''}) %}
-{% set user = model.selected_user|default(null) %}
-{% set recentPosts = model.recent_posts|default([]) %}
-{% set recentNotes = model.recent_notes|default([]) %}
-
-<div class="corebb-admin-modern-page corebb-admin-user-pages">
-    <div class="corebb-admin-modern-header">
-        <div>
-            <div class="corebb-admin-modern-eyebrow">People</div>
-            <h2>User Pages</h2>
-            <div class="corebb-admin-modern-meta">
-                {% if user %}
-                    <span>{{ user.username|default('Unknown User') }}</span>
-                    <span>#{{ user.id|default(0) }}</span>
-                    <span>{{ user.moderator_role|default('') }}</span>
-                {% else %}
-                    <span>Find a user by username or ID.</span>
-                {% endif %}
-            </div>
+{% macro cleanup(user, token, action, label, question) %}
+    <form method="post" action="{{ url('/admin/?act=user_pages&userid=' ~ user.id ~ '&section=profile') }}" data-confirm-submit="{{ question }}">
+        {% include 'partials/csrf_field.twig' %}
+        <input type="hidden" name="userid" value="{{ user.id }}">
+        <input type="hidden" name="admin_user_pages_token" value="{{ token }}">
+        <input type="hidden" name="action" value="{{ action }}">
+        <button type="submit" class="admin-member-remove">{{ label }}</button>
+    </form>
+{% endmacro %}
+{% set user = model.selected_user %}
+<div class="admin-overview admin-settings admin-members">
+    <header class="admin-dash-heading"><h1>User Pages</h1><a href="{{ url('/admin/') }}">Dashboard</a></header>
+    <form class="admin-settings-form admin-member-search" action="{{ url('/admin/') }}" method="get">
+        <input type="hidden" name="act" value="user_pages">
+        <div class="admin-auth-field"><label for="member-lookup">Username or user ID</label>
+            <input id="member-lookup" type="search" name="username" value="{{ model.search.username ?: model.search.userid }}" required autocomplete="off">
         </div>
-        <div class="corebb-admin-modern-actions">
-            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
-        </div>
-    </div>
-
-    <div class="corebb-admin-modern-panel">
-        <form class="corebb-admin-modern-form" method="get" action="/admin/">
-            <input type="hidden" name="act" value="user_pages">
-            <div class="corebb-admin-modern-grid">
-                <label for="corebbUserPagesUsername">User Name</label>
-                <input id="corebbUserPagesUsername" name="username" type="text" value="{{ search.username|default('') }}">
-
-                <label for="corebbUserPagesUserId">User ID</label>
-                <span>
-                    <input id="corebbUserPagesUserId" name="userid" type="text" value="{{ search.userid|default('') }}">
-                    <button class="corebb-board-action-link" type="submit">Find</button>
-                </span>
-            </div>
-        </form>
-    </div>
-
+        <div class="admin-settings-save"><button type="submit">Find member</button></div>
+    </form>
+    {% include 'partials/admin_messages.twig' with {messages:model.messages, errors:model.errors} only %}
     {% if user %}
-        <table class="corebb-admin-modern-table corebb-admin-user-pages-table wb-table">
-            <tbody>
-                <tr>
-                    <th>User ID</th>
-                    <td>{{ user.id|default(0) }}</td>
-                </tr>
-                <tr>
-                    <th>User Name</th>
-                    <td>
-                        <a class="corebb-admin-text-link" target="_top" href="{{ user.profile_url|default('#') }}">{{ user.username|default('Unknown') }}</a>
-                        <div class="corebb-admin-modern-submit">
-                            <a class="corebb-board-action-link" href="/admin/?act=admin_notes&amp;userid={{ user.id|default(0) }}">Admin Notes</a>
-                            <a class="corebb-board-action-link" href="/private-messages/send/{{ user.id|default(0) }}/">Send PM</a>
-                            <a class="corebb-board-action-link" href="#last_posts">Post History</a>
-                            {% if user.can_edit_appearance|default(false) %}
-                                <a class="corebb-board-action-link" href="{{ user.appearance_url|default('#') }}">Appearance</a>
-                            {% endif %}
-                        </div>
-                    </td>
-                </tr>
-                <tr>
-                    <th>Public Profile</th>
-                    <td><a class="corebb-admin-text-link" href="{{ user.public_profile_url|default('#') }}">{{ user.public_profile_url|default('#') }}</a></td>
-                </tr>
-                <tr>
-                    <th>Remote User ID</th>
-                    <td>{{ user.remote_user_id|default('') }}</td>
-                </tr>
-                <tr>
-                    <th>Moderator Role</th>
-                    <td>
-                        <a class="corebb-admin-text-link" href="/admin/?act=edit_rights&amp;user={{ user.id|default(0) }}">{{ user.moderator_role|default('') }}</a>
-                        <span class="corebb-admin-modern-help">User Type: {{ user.user_type|default('') }}</span>
-                    </td>
-                </tr>
-                <tr>
-                    <th>Special Access</th>
-                    <td>
-                        {% if user.special_access|default([]) %}
-                            {% for tool in user.special_access %}
-                                {% if not loop.first %}, {% endif %}<span>{{ tool.label|default(tool.key|default('')) }}</span>
-                            {% endfor %}
-                        {% else %}
-                            <span>None</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                <tr>
-                    <th>IP Address</th>
-                    <td>
-                        <a class="corebb-admin-text-link" href="/admin/?act=user_ip_check&amp;ip={{ user.last_ip|default('')|url_encode }}">{{ user.last_ip_display|default('') }}</a>
-                        <a class="corebb-board-action-link" href="/admin/?act=host_lookup&amp;ip_address={{ user.last_ip|default('')|url_encode }}">Host Lookup</a>
-                    </td>
-                </tr>
-                <tr>
-                    <th>Banned?</th>
-                    <td>
-                        <span>{{ user.banned|default('False') }}</span>
-                        {% if user.banned_raw|default(false) %}
-                            <a class="corebb-board-action-link" href="/admin/?act=moderation&amp;mode=unban&amp;username={{ user.username_plain|default(user.username|default(''))|url_encode }}">Unban</a>
-                        {% else %}
-                            <a class="corebb-board-action-link is-danger" href="/admin/?act=moderation&amp;mode=ban&amp;q={{ user.username_plain|default(user.username|default(''))|url_encode }}">Ban</a>
-                        {% endif %}
-                    </td>
-                </tr>
-                <tr>
-                    <th>Actual Post Count</th>
-                    <td>{{ user.actual_post_count|default(0)|number_format }}</td>
-                </tr>
-                <tr>
-                    <th>Virtual Post Count</th>
-                    <td>{{ user.virtual_post_count|default(0)|number_format }}</td>
-                </tr>
-                <tr>
-                    <th>Title</th>
-                    <td>
-                        <span>{% include 'partials/user_title.twig' with {title: user_title_model(user.title|default(''))} only %}{% if user.title|default('')|trim == '' %}&nbsp;{% endif %}</span>
-                        <div class="corebb-admin-modern-submit">
-                            {% if user.can_assign_title|default(false) %}
-                                <a class="corebb-board-action-link" href="/admin/?act=assign_title&amp;userid={{ user.id|default(0) }}">Assign Title</a>
-                            {% endif %}
-                            {% if user.can_assign_title|default(false) and user.title|default('')|trim != '' %}
-                                <form class="corebb-admin-inline-form" method="post" action="/admin/?act=user_pages&amp;userid={{ user.id|default(0) }}">
-                                    {% include 'partials/csrf_field.twig' %}
-                                    <input type="hidden" name="action" value="clear_title">
-                                    <input type="hidden" name="userid" value="{{ user.id|default(0) }}">
-                                    <input type="hidden" name="admin_user_pages_token" value="{{ model.token|default('') }}">
-                                    <button type="submit" class="corebb-board-action-link is-danger" onclick="return confirm('Are you sure you want to clear this user title?');">Clear Title</button>
-                                </form>
-                            {% endif %}
-                        </div>
-                    </td>
-                </tr>
-                <tr>
-                    <th>Icon</th>
-                    <td>
-                        {% set icon = user.icon|default(null) %}
-                        {% if icon and icon.src|default('') != '' and icon.approved|default(0) == 1 %}
-                            <a class="corebb-admin-icon-preview" href="/admin/?act=manage_icons&amp;icon_id={{ icon.id|default(0) }}"><img alt="{{ icon.filename|default('Icon ' ~ icon.id|default(0)) }}" src="{{ icon.src }}"></a>
-                            {% if user.can_manage_icons|default(false) %}
-                                <form class="corebb-admin-inline-form" method="post" action="/admin/?act=user_pages&amp;userid={{ user.id|default(0) }}">
-                                    {% include 'partials/csrf_field.twig' %}
-                                    <input type="hidden" name="action" value="remove_icon">
-                                    <input type="hidden" name="userid" value="{{ user.id|default(0) }}">
-                                    <input type="hidden" name="admin_user_pages_token" value="{{ model.token|default('') }}">
-                                    <button type="submit" class="corebb-board-action-link is-danger" onclick="return confirm('Are you sure you want to remove this user icon?');">Remove Icon</button>
-                                </form>
-                            {% endif %}
-                        {% elseif icon %}
-                            <span class="corebb-admin-modern-help">Icon #{{ icon.id|default(0) }} is missing or unapproved.</span>
-                            {% if user.can_manage_icons|default(false) %}
-                                <form class="corebb-admin-inline-form" method="post" action="/admin/?act=user_pages&amp;userid={{ user.id|default(0) }}">
-                                    {% include 'partials/csrf_field.twig' %}
-                                    <input type="hidden" name="action" value="remove_icon">
-                                    <input type="hidden" name="userid" value="{{ user.id|default(0) }}">
-                                    <input type="hidden" name="admin_user_pages_token" value="{{ model.token|default('') }}">
-                                    <button type="submit" class="corebb-board-action-link is-danger" onclick="return confirm('Are you sure you want to remove this user icon?');">Remove Icon</button>
-                                </form>
-                            {% endif %}
-                        {% else %}
-                            <span class="corebb-admin-modern-help">None</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                <tr>
-                    <th>Signature</th>
-                    <td>
-                        <strong>---sig text---</strong>
-                        <div class="corebb-admin-user-content">
-                            {% include 'partials/formatted_content.twig' with {content: admin_note_body_model(user.signature|default(''))} only %}
-                        </div>
-                        {% if user.can_edit_profile|default(false) and user.signature|default('')|trim != '' %}
-                            <form class="corebb-admin-inline-form" method="post" action="/admin/?act=user_pages&amp;userid={{ user.id|default(0) }}">
-                                {% include 'partials/csrf_field.twig' %}
-                                <input type="hidden" name="action" value="clear_signature">
-                                <input type="hidden" name="userid" value="{{ user.id|default(0) }}">
-                                <input type="hidden" name="admin_user_pages_token" value="{{ model.token|default('') }}">
-                                <button type="submit" class="corebb-board-action-link is-danger" onclick="return confirm('Are you sure you want to clear this user signature?');">Clear Signature</button>
-                            </form>
-                        {% endif %}
-                    </td>
-                </tr>
-                <tr>
-                    <th>Is Disabled</th>
-                    <td>{{ user.is_disabled|default('False') }}</td>
-                </tr>
-                <tr>
-                    <th>Date Account Added</th>
-                    <td>{{ user.date_account_added|default('') }}</td>
-                </tr>
-                <tr>
-                    <th>Last Login Date</th>
-                    <td>{{ user.last_login_date|default('') }}</td>
-                </tr>
-                <tr>
-                    <th>Last Post Date</th>
-                    <td>{{ user.last_post_date|default('') }}</td>
-                </tr>
-            </tbody>
-        </table>
-
-        <div class="corebb-admin-modern-split">
-            <section class="corebb-admin-modern-panel-fixed-scroll" id="last_posts">
-                <div class="corebb-admin-section-title">Last 5 Messages</div>
-                {% if recentPosts is empty %}
-                    <span class="corebb-admin-modern-help">No recent messages for this user.</span>
-                {% else %}
-                    {% for post in recentPosts %}
-                        <article class="corebb-admin-activity-item">
-                            <div><strong>Subject:</strong> <a class="corebb-admin-text-link" href="{{ post.post_url|default('#') }}">{{ post.title|default('') != '' ? post.title : '(no subject)' }}</a></div>
-                            <div><strong>Board:</strong> <a class="corebb-admin-text-link" href="{{ post.board_url|default('#') }}">{{ post.board_name|default('') != '' ? post.board_name : 'Board #' ~ post.boardid|default(0) }}</a></div>
-                            <div><strong>Date Added:</strong> <span>{{ post.date_vn|default('') }}</span></div>
-                            <div class="corebb-admin-user-content">{% include 'partials/formatted_content.twig' with {content: admin_note_body_model(post.body|default(''))} only %}</div>
-                            <a class="corebb-board-action-link" href="{{ post.view_url|default('#') }}">View Message</a>
-                        </article>
-                    {% endfor %}
-                {% endif %}
-            </section>
-
-            <section class="corebb-admin-modern-panel">
-                <div class="corebb-admin-section-title">
-                    Notes For: <a class="corebb-admin-text-link" target="_top" href="{{ user.profile_url|default('#') }}">{{ user.username|default('Unknown') }}</a>
-                </div>
-                <div class="corebb-admin-modern-note is-danger">
-                    Admin Notes are proprietary private information. Do not distribute them outside authorized staff workflows.
-                </div>
-
-                {% if recentNotes is empty %}
-                    <span class="corebb-admin-modern-help">No admin notes for this user.</span>
-                {% else %}
-                    {% for note in recentNotes %}
-                        <article class="corebb-admin-activity-item">
-                            <div>
-                                <strong>Date:</strong> <span>{{ note.date_vn|default('') != '' ? note.date_vn : note.addtime|default('') }}</span>,
-                                <strong>Type:</strong> <span>{{ note.reason|default('') != '' ? note.reason : 'Misc' }}</span>
-                            </div>
-                            <div>
-                                <strong>Author:</strong>
-                                {% if note.author_id|default(0) > 0 %}
-                                    <a class="corebb-admin-text-link" target="_top" href="/profile/{{ note.author_id }}/">{{ note.author_username|default('User ' ~ note.author_id) }}</a>
-                                {% else %}
-                                    {{ note.author_username|default('Unknown') }}
-                                {% endif %}
-                            </div>
-                            <div class="corebb-admin-user-content">{% include 'partials/formatted_content.twig' with {content: admin_note_body_model(note.note|default(''))} only %}</div>
-                        </article>
-                    {% endfor %}
-                {% endif %}
-            </section>
+    {% set record = '/admin/?act=user_pages&userid=' ~ user.id %}
+    <section class="admin-member-head" aria-label="Selected member">
+        <div><h2>{{ user.username }}</h2><p class="admin-history-count">#{{ user.id }} · {{ user.user_type }}{% if user.is_disabled == 'True' %} · Disabled{% endif %}{% if user.banned_raw %} · Banned{% endif %}</p></div>
+        <div class="admin-member-links">
+            <a href="{{ url(user.public_profile_url) }}">Public profile</a>
+            <a href="{{ url('/private-messages/send/' ~ user.id ~ '/') }}">Send PM</a>
         </div>
+    </section>
+    <div class="member-workspace">
+    <nav class="member-record-nav" aria-label="Member record">
+        {% for key, label in model.sections %}<a href="{{ url(record ~ '&section=' ~ key) }}"{% if key == model.section %} aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}
+    </nav>
+    <div class="member-record-content">
+    {% if model.section == 'overview' %}
+        <section aria-labelledby="member-account"><h2 id="member-account">Account overview</h2>
+            <div class="member-overview-grid">
+                <section class="member-overview-card"><header><h3>Role &amp; access</h3>{% if model.can_edit_rights %}<a href="{{ url('/admin/?act=edit_rights&user=' ~ user.id) }}">Edit rights</a>{% endif %}</header>
+                    <p class="member-base-role">{{ user.moderator_role }}</p>
+                    <h4>Direct grants</h4>
+                    {% if user.special_access %}<ul class="member-grants">{% for tool in user.special_access %}<li>{{ tool.label }}</li>{% endfor %}</ul>
+                    {% else %}<p class="admin-history-count">None</p>{% endif %}
+                </section>
+                <section class="member-overview-card"><header><h3>Account standing</h3></header>
+                    <dl class="member-standing">
+                        <dt>Status</dt><dd>{{ user.is_disabled == 'True' ? 'Disabled' : 'Enabled' }}</dd>
+                        <dt>Ban</dt><dd>{{ user.banned_raw ? 'Banned' : 'No active ban' }}</dd>
+                    </dl>
+                    {% if model.can_moderate %}
+                        {% if user.banned_raw %}<a href="{{ url('/admin/?act=moderation&mode=unban&username=' ~ user.username|url_encode) }}">Unban member</a>
+                        {% else %}<a href="{{ url('/admin/?act=moderation&mode=ban&q=' ~ user.username|url_encode) }}">Ban member</a>{% endif %}
+                    {% endif %}
+                </section>
+            </div>
+            <h3 class="member-activity-title">Activity</h3>
+            <dl class="admin-member-facts">
+                <dt>Account added</dt><dd>{{ user.date_account_added|default('Unknown') }}</dd>
+                <dt>Last login</dt><dd>{{ user.last_login_date|default('Unknown') }}</dd>
+                <dt>Last post</dt><dd>{{ user.last_post_date|default('Unknown') }}</dd>
+                {% if user.remote_user_id %}<dt>Remote user ID</dt><dd>{{ user.remote_user_id }}</dd>{% endif %}
+                {% if user.last_ip %}<dt>Last IP address</dt><dd><a href="{{ url('/admin/?act=user_ip_check&ip=' ~ user.last_ip_display|url_encode) }}">{{ user.last_ip_display }}</a>
+                    {% if model.can_host_lookup %}<a href="{{ url('/admin/?act=host_lookup&ip_address=' ~ user.last_ip_display|url_encode) }}">Host lookup</a>{% endif %}</dd>{% endif %}
+            </dl>
+            <dl class="admin-metrics"><div><dt>Actual posts</dt><dd>{{ user.actual_post_count|number_format }}</dd></div><div><dt>Virtual posts</dt><dd>{{ user.virtual_post_count|number_format }}</dd></div></dl>
+        </section>
+    {% elseif model.section == 'profile' %}
+        <section><header class="admin-section-head"><h2>Profile content</h2><div class="admin-member-links">
+            {% if user.can_edit_profile %}<a href="{{ url('/admin/?act=edit_profile&userid=' ~ user.id) }}">Edit profile</a>{% endif %}
+            {% if user.can_edit_appearance %}<a href="{{ url(user.appearance_url) }}">Edit appearance</a>{% endif %}
+        </div></header>
+        <dl class="admin-member-facts">
+            <dt>Title</dt><dd>
+                {% if user.title|trim %}{% include 'partials/user_title.twig' with {title:user_title_model(user.title)} only %}{% else %}None{% endif %}
+                {% if user.can_assign_title %}<div class="admin-member-links"><a href="{{ url('/admin/?act=assign_title&userid=' ~ user.id) }}">Assign title</a>
+                    {% if user.title|trim %}{{ _self.cleanup(user,model.token,'clear_title','Clear title','Clear the title for ' ~ user.username ~ '?') }}{% endif %}</div>{% endif %}
+            </dd>
+            <dt>User icon</dt><dd>
+                {% if user.icon.src %}<img class="admin-member-icon" src="{{ url(user.icon.src) }}" alt="{{ user.icon.filename|default('User icon') }}">
+                {% elseif user.icon %}Icon #{{ user.icon.id }} is missing or unapproved.{% else %}None{% endif %}
+                {% if user.icon and user.can_manage_icons %}<div class="admin-member-links"><a href="{{ url('/admin/?act=manage_icons&icon_id=' ~ user.icon.id) }}">Manage icon</a>
+                    {{ _self.cleanup(user,model.token,'remove_icon','Remove icon','Remove the icon for ' ~ user.username ~ '?') }}</div>{% endif %}
+            </dd>
+            <dt>Signature</dt><dd>{% if user.signature|trim %}
+                {% include 'partials/formatted_content.twig' with {content:admin_note_body_model(user.signature)} only %}
+                {% if user.can_edit_profile %}{{ _self.cleanup(user,model.token,'clear_signature','Clear signature','Clear the signature for ' ~ user.username ~ '?') }}{% endif %}
+            {% else %}None{% endif %}</dd>
+        </dl></section>
+    {% elseif model.section == 'posts' %}
+        <section id="last_posts" class="admin-member-posts" aria-label="Last five visible posts">
+        {% if model.recent_posts %}
+            <div class="admin-member-post-head" aria-hidden="true"><span>Subject</span><span>Board</span><span>Posted</span></div>
+            {% for post in model.recent_posts %}
+            <details class="admin-member-post" name="member-recent-post">
+                <summary>
+                    <strong>{{ post.title|default('(no subject)') }}</strong>
+                    <span>{{ post.board_name|default('Board #' ~ post.boardid) }}</span>
+                    <span>{{ post.date_vn }}</span>
+                </summary>
+                <div class="admin-member-post-detail">
+                    <div class="admin-member-body">{% include 'partials/formatted_content.twig' with {content:admin_note_body_model(post.body)} only %}</div>
+                    <div class="admin-member-links">
+                        <a href="{{ url(post.post_url) }}">Open in thread</a>
+                        <a href="{{ url(post.board_url) }}">Open board</a>
+                        {% if model.can_view_message %}<a href="{{ url(post.view_url) }}">View in admin</a>{% endif %}
+                    </div>
+                </div>
+            </details>
+            {% endfor %}
+        {% else %}<p class="admin-history-count">No visible posts for this member.</p>{% endif %}
+        </section>
+    {% elseif model.section == 'notes' %}
+        <section><header class="admin-section-head"><h2>Last five staff notes</h2><a href="{{ url('/admin/?act=admin_notes&userid=' ~ user.id) }}">Manage notes</a></header>
+        <p class="admin-history-count">Private to authorized staff.</p>
+        {% for note in model.recent_notes %}<article class="admin-member-entry">
+            <h3>{{ note.reason|default('Misc') }}</h3><p class="admin-history-count">{% if note.author_id %}<a href="{{ url('/profile/' ~ note.author_id ~ '/') }}">{{ note.author_username|default('User ' ~ note.author_id) }}</a>{% else %}Unknown author{% endif %} · {{ note.date_vn|default(note.addtime) }}</p>
+            <div class="admin-member-body">{% include 'partials/formatted_content.twig' with {content:admin_note_body_model(note.note)} only %}</div>
+        </article>{% else %}<p>No staff notes for this member.</p>{% endfor %}
+        </section>
+    {% endif %}
+    </div>
+    </div>
     {% endif %}
 </div>

@@ -632,9 +632,10 @@ function corebb_sanitize_markdown_links(string $html): string
  * Referenced by: corebb_render_markup() before regular BBCode parsing begins.
  *
  * @param mixed $markdown Raw Markdown body between [md] tags.
+ * @param bool $beforeNl2br Whether the surrounding formatter will convert newlines to HTML breaks.
  * @return string Sanitized HTML fragment.
  */
-function corebb_render_markdown_block($markdown): string
+function corebb_render_markdown_block($markdown, bool $beforeNl2br = true): string
 {
     $markdown = (string)$markdown;
     $markdown = str_replace(["\r\n", "\r"], "\n", $markdown);
@@ -656,6 +657,9 @@ function corebb_render_markdown_block($markdown): string
     $html = corebb_sanitize_markdown_links($html);
     // Keep image rendering inside the existing [image] and [a_image] policies.
     $html = preg_replace('~<img\b[^>]*>~i', '', $html) ?? $html;
+    if (!$beforeNl2br) {
+        return $html;
+    }
     $html = preg_replace_callback('~<pre><code([^>]*)>(.*?)</code></pre>~is', static function ($m): string {
         $code = str_replace(["\r\n", "\r", "\n"], '<br>', (string)($m[2] ?? ''));
         return '<pre><code' . (string)($m[1] ?? '') . '>' . $code . '</code></pre>';

@@ -1,146 +1,40 @@
-{% set endpoints = model.endpoints|default([]) %}
-{% set defaultEndpoint = model.default_endpoint|default('/api/v1/health') %}
-{% set apiBasePath = model.api_base_path|default('/api/v1') %}
+<div class="admin-overview admin-api" data-api-base="{{ model.api_base_path }}">
+    <header class="admin-dash-heading">
+        <h1>API Explorer</h1>
+        <a href="{{ url('/admin/') }}">Dashboard</a>
+    </header>
 
-<div class="corebb-admin-modern-page">
-    <div class="corebb-admin-modern-header">
-        <div>
-            <div class="corebb-admin-modern-eyebrow">System</div>
-            <h2>{{ model.title|default('API Explorer') }}</h2>
-            <div class="corebb-admin-modern-meta">
-                <span>{{ endpoints|length|number_format }} presets</span>
-                <span id="corebbApiStatus">Ready</span>
+    <section aria-labelledby="api-request-title">
+        <h2 id="api-request-title">Request</h2>
+        <form class="admin-settings-form admin-api-request" id="api-request">
+            <div class="admin-auth-field">
+                <label for="api-preset">Preset</label>
+                <select id="api-preset">
+                    {% for endpoint in model.endpoints %}
+                        <option value="{{ endpoint.path }}">{{ endpoint.label }}</option>
+                    {% endfor %}
+                    <option value="">Custom endpoint</option>
+                </select>
             </div>
-        </div>
-        <div class="corebb-admin-modern-actions">
-            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
-        </div>
-    </div>
+            <div class="admin-auth-field">
+                <label for="api-endpoint">Endpoint</label>
+                <input id="api-endpoint" type="text" value="{{ model.default_endpoint }}" autocomplete="off" spellcheck="false" aria-describedby="api-endpoint-help">
+            </div>
+            <div class="admin-settings-save"><button id="api-send" type="submit" disabled>Send GET</button></div>
+        </form>
+        <p id="api-endpoint-help" class="admin-history-count">Edit the path to change a record ID or add query parameters.</p>
+        <noscript>Enable JavaScript to send a request.</noscript>
+    </section>
 
-    <div class="corebb-admin-modern-panel">
-        <div class="corebb-admin-modern-grid">
-            <label for="corebbApiPreset">Preset</label>
-            <select id="corebbApiPreset">
-                {% for endpoint in endpoints %}
-                    <option value="{{ endpoint.path|default('') }}">{{ endpoint.label|default(endpoint.path|default('Endpoint')) }}</option>
-                {% endfor %}
-            </select>
-
-            <label for="corebbApiPath">Endpoint</label>
-            <span>
-                <input id="corebbApiPath" type="text" value="{{ defaultEndpoint }}">
-                <button class="corebb-board-action-link" id="corebbApiRun" type="button">GET</button>
-                <button class="corebb-board-action-link" id="corebbApiCopy" type="button">Copy</button>
-                <label><input id="corebbApiRaw" type="checkbox"> Raw</label>
-            </span>
-        </div>
-    </div>
-
-    <div class="corebb-admin-modern-panel">
-        <div class="corebb-admin-section-title">Response</div>
-        <pre id="corebbApiOutput" class="corebb-admin-output corebb-admin-api-output"></pre>
-    </div>
+    <section class="admin-api-response" aria-labelledby="api-response-title">
+        <header class="admin-section-head">
+            <h2 id="api-response-title">Response</h2>
+            <label><input id="api-raw" type="checkbox" disabled> Raw JSON</label>
+            <button id="api-copy" type="button" disabled>Copy response</button>
+        </header>
+        <div class="admin-api-meta" role="status"><strong id="api-status">Ready</strong><span id="api-elapsed"></span><code id="api-requested"></code></div>
+        <pre id="api-output" aria-label="Response body" tabindex="0"></pre>
+        <span id="api-copy-status" class="admin-history-count" role="status"></span>
+    </section>
 </div>
-
-<script type="text/javascript">
-(function(){
-    var preset = document.getElementById('corebbApiPreset');
-    var path = document.getElementById('corebbApiPath');
-    var run = document.getElementById('corebbApiRun');
-    var copy = document.getElementById('corebbApiCopy');
-    var raw = document.getElementById('corebbApiRaw');
-    var status = document.getElementById('corebbApiStatus');
-    var output = document.getElementById('corebbApiOutput');
-    var apiBasePath = {{ apiBasePath|json_encode|raw }};
-    var lastText = '';
-    var lastJson = null;
-
-    function joinApiBase(pathValue) {
-        var base = String(apiBasePath || '/api/v1').replace(/\/+$/, '');
-        var path = String(pathValue || '').replace(/^\/+/, '');
-        return base + (path ? '/' + path : '');
-    }
-
-    function normalizeEndpoint(value) {
-        value = String(value || '').replace(/^\s+|\s+$/g, '');
-        if (value === '') {
-            return joinApiBase('health');
-        }
-        if (/^https?:\/\//i.test(value)) {
-            return value;
-        }
-        if (value.indexOf(apiBasePath + '/') === 0 || value === apiBasePath) {
-            return value;
-        }
-        if (value.indexOf('/api/v1/') === 0) {
-            return joinApiBase(value.substring('/api/v1/'.length));
-        }
-        if (value === '/api/v1') {
-            return apiBasePath;
-        }
-        if (value.indexOf('api/v1/') === 0) {
-            return joinApiBase(value.substring('api/v1/'.length));
-        }
-        if (value === 'api/v1') {
-            return apiBasePath;
-        }
-        return value.charAt(0) === '/' ? value : joinApiBase(value);
-    }
-
-    function renderResponse() {
-        if (raw.checked || lastJson === null) {
-            output.textContent = lastText;
-            return;
-        }
-        output.textContent = JSON.stringify(lastJson, null, 2);
-    }
-
-    function loadEndpoint() {
-        var endpoint = normalizeEndpoint(path.value);
-        path.value = endpoint;
-        status.textContent = 'Loading...';
-        output.textContent = '';
-        lastText = '';
-        lastJson = null;
-
-        fetch(endpoint, {
-            method: 'GET',
-            credentials: 'same-origin',
-            headers: {'Accept': 'application/json'}
-        }).then(function(response){
-            status.textContent = response.status + ' ' + response.statusText;
-            return response.text().then(function(text){
-                lastText = text;
-                try {
-                    lastJson = JSON.parse(text);
-                } catch (err) {
-                    lastJson = null;
-                }
-                renderResponse();
-            });
-        }).catch(function(err){
-            status.textContent = 'Request failed';
-            lastText = String(err && err.message ? err.message : err);
-            lastJson = null;
-            renderResponse();
-        });
-    }
-
-    preset.onchange = function(){
-        path.value = preset.value;
-    };
-    raw.onchange = renderResponse;
-    run.onclick = loadEndpoint;
-    copy.onclick = function(){
-        var text = output.textContent || '';
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(text);
-            status.textContent = 'Copied response';
-            return;
-        }
-        window.prompt('Copy response', text);
-    };
-
-    loadEndpoint();
-})();
-</script>
+<script defer src="{{ asset('scripts/admin_api_explorer.js') }}"></script>

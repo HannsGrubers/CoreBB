@@ -30,80 +30,60 @@ require_once __DIR__ . '/../helpers/performance_helpers.php';
  * @param array $post Posted form data from admin.php.
  * @return array Data prepared for the admin template or caller.
  */
-function corebb_admin_maintenance_model(array $viewer, array $request, array $post): array
+function corebb_admin_maintenance_model(array $viewer, array $request, array $post, array $files = []): array
 {
-    $messages = [];
-    $errors = [];
-    $ranAction = '';
-    $backupResult = null;
-
-    $isPost = (strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET')) === 'POST');
-    $action = (string)($post['action'] ?? '');
-
-    if ($isPost) {
-        if ($action === 'rebuild_counts') {
-            $ranAction = 'rebuild_counts';
-            @set_time_limit(0);
-            $messages = corebb_perf_rebuild_cached_counts();
-
-            {
-                corebb_adminlog_entry(
-                    (string)($viewer['username'] ?? 'Unknown'),
-                    (int)($viewer['accesslevel'] ?? 0),
-                    'Rebuilt forum counts from Database Tools',
-                    'maintenance',
-                    'Rebuilt cached topic, reply, forum, and user post counts from visible posts.'
-                );
-            }
-        } elseif ($action === 'prepare_search_indexes') {
-            $ranAction = 'prepare_search_indexes';
-            @set_time_limit(0);
-            $messages = corebb_perf_prepare_search_indexes();
-
-            {
-                corebb_adminlog_entry(
-                    (string)($viewer['username'] ?? 'Unknown'),
-                    (int)($viewer['accesslevel'] ?? 0),
-                    'Prepared search indexes from Database Tools',
-                    'maintenance',
-                    'Checked/created fulltext indexes for CoreBB search.'
-                );
-            }
-        } elseif ($action === 'create_backup') {
-            $ranAction = 'create_backup';
-            $backupResult = corebb_db_backup_run($viewer);
-            if (!empty($backupResult['ok'])) {
-                $messages[] = (string)($backupResult['message'] ?? 'Database backup created.');
-
-                {
-                    corebb_adminlog_entry(
-                        (string)($viewer['username'] ?? 'Unknown'),
-                        (int)($viewer['accesslevel'] ?? 0),
-                        'Created database backup from Database Tools',
-                        'maintenance',
-                        'Created backup file ' . (string)($backupResult['file'] ?? '') . ' containing ' . number_format((int)($backupResult['tables'] ?? 0)) . ' table(s).'
-                    );
+    $canDeploy = corebb_admin_can_access_tool($viewer, 'db_schema_deploy');
+    if (($request['section'] ?? '') === 'schema') {
+        require_once __DIR__ . '/admin_db_schema_deploy_view_model.php';
+        $schema = corebb_admin_db_schema_deploy_model($viewer, $request, $post, $files);
+        return ['section' => 'schema', 'can_deploy' => $canDeploy, 'schema' => $schema, 'result' => $schema['result']];
+    }
+    $section = ($request['section'] ?? '') === 'backups' ? 'backups' : 'maintenance';
+    $result = null;
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+        $action = $post['action'] ?? '';
+        $section = $action === 'create_backup' ? 'backups' : 'maintenance';
+        $details = [];
+        $ok = false;
+        switch (is_string($action) ? $action : '') {
+            case 'rebuild_counts':
+                @set_time_limit(0);
+                $details = corebb_perf_rebuild_cached_counts($ok);
+                $summary = $ok ? 'Counts rebuilt. The count cache is enabled.' : 'Count rebuild did not complete.';
+                break;
+            case 'prepare_search_indexes':
+                @set_time_limit(0);
+                $details = corebb_perf_prepare_search_indexes($ok);
+                $summary = $ok ? 'Search indexes are ready.' : 'Search index preparation did not complete.';
+                break;
+            case 'create_backup':
+                $backup = corebb_db_backup_run($viewer);
+                $ok = $backup['ok'];
+                $summary = $backup['message'];
+                if ($ok) {
+                    $details[] = sprintf('%s tables, %s views, %s rows exported.',
+                        number_format($backup['tables']), number_format($backup['views']), number_format($backup['rows']));
                 }
-            } else {
-                $errors[] = (string)($backupResult['message'] ?? 'Database backup failed.');
-            }
-        } else {
-            $errors[] = 'Unknown database tool action.';
+                break;
+            default:
+                $summary = 'Unknown database tool action.';
         }
+        if (in_array($action, ['rebuild_counts', 'prepare_search_indexes', 'create_backup'], true)) {
+            $auditDetail = $action === 'create_backup' && $ok ? $details[0] : $summary;
+            corebb_adminlog_viewer($viewer, $summary, 'maintenance', $auditDetail);
+        }
+        $result = ['ok' => $ok, 'summary' => $summary, 'details' => $details];
     }
 
-    return [
-        'viewer' => $viewer,
-        'viewer_accesslevel' => (int)($viewer['accesslevel'] ?? 0),
-        'messages' => $messages,
-        'errors' => $errors,
-        'ran_action' => $ranAction,
-        'cache_ready' => corebb_perf_cache_ready(),
-        'cache_rebuilt_at' => corebb_perf_get_setting('perf_cache_rebuilt_at', 'never'),
-        'search_ready' => corebb_perf_search_fulltext_ready(),
-        'search_prepared_at' => corebb_perf_get_setting('search_fulltext_prepared_at', 'never'),
-        'backup_directory' => corebb_db_backup_directory(),
-        'backup_recent' => corebb_db_backup_recent(5),
-        'backup_result' => $backupResult,
-    ];
+    $model = ['section' => $section, 'result' => $result, 'can_deploy' => $canDeploy];
+    if ($section === 'backups') {
+        $model['backup_directory'] = corebb_db_backup_directory();
+        $model['backup_recent'] = corebb_db_backup_recent(5);
+    } else {
+        $model['cache_ready'] = corebb_perf_cache_ready();
+        $model['cache_rebuilt_at'] = corebb_perf_get_setting('perf_cache_rebuilt_at');
+        $model['search_ready'] = corebb_perf_search_fulltext_ready();
+        $model['search_prepared_at'] = corebb_perf_get_setting('search_fulltext_prepared_at');
+    }
+    return $model;
 }

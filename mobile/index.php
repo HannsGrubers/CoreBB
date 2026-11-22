@@ -20,14 +20,20 @@ if (!defined('IN_BOARDS')) {
     define('IN_BOARDS', true);
 }
 require_once dirname(__DIR__) . '/config.php';
+require_once dirname(__DIR__) . '/lib/helpers/security.php';
+corebb_security_bootstrap();
 require_once dirname(__DIR__) . '/lib/helpers/corebb_url_helpers.php';
+require_once dirname(__DIR__) . '/lib/helpers/forum_access.php';
+$access = corebb_forum_access_settings();
+if ($access['maintenance']) { corebb_forum_maintenance_page($access); }
 
 $screen = preg_replace('/[^a-z0-9_-]/i', '', (string)($_GET['screen'] ?? 'index')) ?: 'index';
 $defaultReturnUrl = corebb_public_base_path();
 $returnUrl = (string)($_GET['return'] ?? $defaultReturnUrl);
 // The return URL is only used for the Classic link; keep it site-local so a
 // mobile redirect cannot become an open redirect.
-if ($returnUrl === '' || $returnUrl[0] !== '/') {
+if (!str_starts_with($returnUrl, '/') || str_starts_with($returnUrl, '//')
+    || str_contains($returnUrl, '\\') || preg_match('/[\x00-\x20\x7f]/', $returnUrl)) {
     $returnUrl = $defaultReturnUrl;
 }
 $desktopJoin = str_contains($returnUrl, '?') ? '&' : '?';

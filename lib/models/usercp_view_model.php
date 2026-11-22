@@ -145,7 +145,7 @@ function corebb_fetch_usercp_model(int $userId): array
 
     $model['unreadPmCount'] = corebb_pm_count($userId, 'unread');
     $model['notificationCount'] = corebb_notifications_uncleared_count($userId, false);
-    $model['canEditAppearance'] = corebb_vip_style_user_can_self_manage($userId);
+    $model['canEditAppearance'] = corebb_user_can_view_appearance($userId);
 
     [$visibleSql, $visibleParams] = corebb_private_sql_visible_board_clause('f', 'b');
     $topics = db_all(

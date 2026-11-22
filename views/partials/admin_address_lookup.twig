@@ -1,0 +1,67 @@
+{% set page = host ? 'host_lookup' : 'user_ip_check' %}
+<div class="admin-overview admin-settings admin-members admin-address">
+    <header class="admin-dash-heading"><h1>{{ host ? 'Host Address Lookup' : 'User IP Check' }}</h1><a href="{{ url('/admin/') }}">Dashboard</a></header>
+    <form class="admin-settings-form admin-member-search" method="get" action="{{ url('/admin/') }}">
+        <input type="hidden" name="act" value="{{ page }}">
+        <div class="admin-auth-field"><label for="address-query">{{ host ? 'Hostname or IP address' : 'Username, user ID, or IP address' }}</label>
+            <input type="search" id="address-query" name="q" value="{{ model.query }}" autocomplete="off" autocapitalize="none" spellcheck="false" required aria-describedby="address-hint">
+        </div>
+        <div class="admin-settings-save"><button type="submit">{{ host ? 'Look up address' : 'Find matches' }}</button></div>
+    </form>
+    <p id="address-hint" class="admin-history-count">{{ host ? 'Look up IPv4 addresses for a hostname, or the hostname associated with an IP.' : 'Matches include the last IP recorded for each member and addresses recorded on their posts.' }}</p>
+    {% include 'partials/admin_messages.twig' with {errors:model.errors, messages:[]} only %}
+
+    {% if host and model.lookups %}
+    <section class="address-record" aria-label="DNS results">
+        <header class="address-heading"><h2>DNS results</h2></header>
+        {% for record in model.lookups %}
+            <div class="address-answer">
+                <div><span>{{ record.source }}</span><strong>{{ record.source == 'Reverse lookup' ? record.ip : record.host }}</strong></div>
+                <div><span>{{ record.source == 'Reverse lookup' ? 'Hostname' : 'IP address' }}</span>
+                    <strong>{{ record.source == 'Reverse lookup' ? (record.host ?: 'No hostname returned') : (record.ip ?: 'No IPv4 address returned') }}</strong></div>
+                {% if record.ip and model.access.user_ip_check %}<a href="{{ url('/admin/?act=user_ip_check&ip=' ~ record.ip|url_encode) }}">Check this IP</a>{% endif %}
+            </div>
+        {% endfor %}
+    </section>
+    {% endif %}
+    {% if (host and model.searched_ips) or (not host and model.ip) %}
+    <section class="address-record admin-latest-list" aria-label="Matching accounts">
+        <header class="address-heading">
+            <div><h2>{{ host ? 'Account matches' : model.ip }}</h2>
+                <p class="admin-history-count">{% if model.selected_user|default(null) %}{{ model.selected_user.username }} · {% endif %}{{ model.rows|length|number_format }} {{ model.rows|length == 1 ? 'match' : 'matches' }} shown</p>
+            </div>
+            {% if not host and model.access.host_lookup %}<a href="{{ url('/admin/?act=host_lookup&ip_address=' ~ model.ip|url_encode) }}">Look up host</a>{% endif %}
+        </header>
+        {% if model.rows %}
+        <div class="admin-latest-head" aria-hidden="true"><span>Member</span><span>Address found in</span><span>Status</span></div>
+        {% for row in model.rows %}
+        <details class="admin-latest-row" name="address-member">
+            <summary>
+                <span class="admin-latest-name"><strong>{{ row.username }}</strong> <small>#{{ row.id }}</small></span>
+                <span class="admin-latest-date">{{ row.match }}{% if host %} · {{ row.matched_ip }}{% endif %}</span>
+                <span class="admin-latest-state" data-status="{{ row.status|lower }}">{{ row.status }}</span>
+            </summary>
+            <div class="admin-latest-detail">
+                <dl>
+                    <div><dt>Last account IP</dt><dd>
+                        {% if row.last_ip and model.access[page] %}<a href="{{ url('/admin/?act=' ~ page ~ '&ip=' ~ row.last_ip|url_encode) }}">{{ row.last_ip }}</a>{% else %}{{ row.last_ip ?: 'Unknown' }}{% endif %}
+                    </dd></div>
+                    <div><dt>Last login</dt><dd>{{ row.last_login ?: 'Unknown' }}</dd></div>
+                    <div><dt>Last post</dt><dd>{{ row.last_post ?: 'Unknown' }}</dd></div>
+                    <div><dt>Registered</dt><dd>{{ row.registered ?: 'Unknown' }}</dd></div>
+                </dl>
+                <div class="admin-member-links">
+                    {% if model.access.user_pages %}<a href="{{ url('/admin/?act=user_pages&userid=' ~ row.id) }}">User Pages</a>{% endif %}
+                    {% if model.access.admin_notes %}<a href="{{ url('/admin/?act=admin_notes&userid=' ~ row.id) }}">Staff notes</a>{% endif %}
+                    {% if row.moderation_url is defined %}<a href="{{ url(row.moderation_url) }}">{{ row.status == 'Banned' ? 'Unban member' : 'Ban member' }}</a>{% endif %}
+                </div>
+            </div>
+        </details>
+        {% endfor %}
+        {% if model.limited|default(false) or (not host and model.rows|length >= model.limit) %}<p class="admin-history-count">Up to {{ model.limit }} matching accounts are shown per address.</p>{% endif %}
+        {% elseif not model.errors %}<p class="address-empty">No matching accounts found.</p>{% endif %}
+    </section>
+    {% endif %}
+    {% if host and model.access.user_ip_check and not model.lookups %}<p><a href="{{ url('/admin/?act=user_ip_check') }}">User IP Check</a></p>{% endif %}
+    {% if not host and model.access.host_lookup and not model.ip %}<p><a href="{{ url('/admin/?act=host_lookup') }}">Host Address Lookup</a></p>{% endif %}
+</div>

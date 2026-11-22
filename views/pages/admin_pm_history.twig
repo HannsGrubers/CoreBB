@@ -1,103 +1,69 @@
-{% include 'partials/admin_messages.twig' with {messages: model.messages|default([]), errors: model.errors|default([])} only %}
-{% set rows = model.rows|default([]) %}
-
-<div class="corebb-admin-modern-page">
-    <div class="corebb-admin-modern-header">
-        <div>
-            <div class="corebb-admin-modern-eyebrow">Moderation</div>
-            <h2>Private Message History</h2>
-            <div class="corebb-admin-modern-meta">
-                <span>{{ rows|length|number_format }} shown</span>
-                {% if model.q|default('') != '' %}<span>Query: {{ model.q }}</span>{% endif %}
-                {% if model.show_deleted|default(false) %}<span>Deleted messages included</span>{% endif %}
-            </div>
-        </div>
-        <div class="corebb-admin-modern-actions">
-            <a class="corebb-board-action-link" href="/admin/?act=pm_reports">PM Reports</a>
-            <a class="corebb-board-action-link" href="/admin/">Admin Home</a>
-        </div>
-    </div>
-
-    <div class="corebb-admin-modern-note is-muted">
-        Administrator-only PM history review. Moderators cannot browse this section; they only see private messages that users report.
-    </div>
-
-    <div class="corebb-admin-filter-bar">
-        <form method="get" action="/admin/">
+{% set pm = model.detail|default(null) %}
+<div class="admin-overview admin-settings admin-members appeals-workspace contact-inbox pm-history">
+    <header class="admin-dash-heading">
+        <h1>Private Message History</h1>
+        {% if model.rows is defined %}<div class="admin-member-links">{% if model.can_view_reports %}<a href="{{ url('/admin/?act=pm_reports') }}">PM reports</a>{% endif %}<a href="{{ url('/admin/') }}">Dashboard</a></div>
+        {% elseif model.queue_url %}<a href="{{ url(model.queue_url) }}">Back to results</a>{% endif %}
+    </header>
+    {% include 'partials/admin_messages.twig' with {messages:model.messages|default([]), errors:model.errors|default([])} only %}
+    {% if model.rows is defined %}
+        <form class="admin-settings-form pm-history-search" method="get" action="{{ url('/admin/') }}">
             <input type="hidden" name="act" value="pm_history">
-            <label class="corebb-admin-modern-label" for="corebbPmHistorySearch">Search</label>
-            <input id="corebbPmHistorySearch" type="text" name="q" size="30" value="{{ model.q|default('') }}">
-            <label><input type="checkbox" name="deleted" value="yes"{% if model.show_deleted|default(false) %} checked{% endif %}> include deleted</label>
-            <button class="corebb-board-action-link" type="submit">Search</button>
+            <div class="admin-auth-field"><label for="history-query">Search messages</label>
+                <input type="search" name="q" id="history-query" value="{{ model.q }}" maxlength="255" placeholder="Name, message text, subject, or ID"></div>
+            <div class="admin-auth-field"><label for="history-scope">Mailbox status</label>
+                <select name="deleted" id="history-scope">
+                    {% for key,caption in {'no':'In mailboxes','yes':'All messages','only':'Removed only'} %}<option value="{{ key }}"{% if model.scope == key %} selected{% endif %}>{{ caption }}</option>{% endfor %}
+                </select></div>
+            <div class="admin-settings-save"><button type="submit">Search</button>
+                {% if model.q != '' or model.scope != 'no' %}<a href="{{ url('/admin/?act=pm_history') }}">Reset</a>{% endif %}</div>
         </form>
-    </div>
-
-    <table class="corebb-admin-modern-table wb-table">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>From</th>
-                <th>To</th>
-                <th>Subject / Message</th>
-                <th>Date Sent</th>
-                <th>Status</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% if rows is empty %}
-                <tr>
-                    <td colspan="7" class="corebb-admin-modern-empty">No private messages found.</td>
-                </tr>
-            {% else %}
-                {% for row in rows %}
-                    <tr>
-                        <td>#{{ row.id|default(0) }}</td>
-                        <td><a class="corebb-admin-text-link" href="{{ row._sender_url|default('#') }}">{{ row.sender_username|default('') != '' ? row.sender_username : '#' ~ row.senderid|default(0) }}</a></td>
-                        <td><a class="corebb-admin-text-link" href="{{ row._receiver_url|default('#') }}">{{ row.receiver_username|default('') != '' ? row.receiver_username : '#' ~ row.recieveid|default(0) }}</a></td>
-                        <td>
-                            <strong>{{ row.title|default('') }}</strong><br>
-                            <span class="corebb-admin-prewrap">{{ row.message|default('')|slice(0, 500) }}</span>{% if row.message|default('')|length > 500 %}...{% endif %}
-                        </td>
-                        <td class="wb-nowrap">{{ row.datesent|default('') }}</td>
-                        <td>
-                            {% if row.is_deleted|default(0) == 1 %}
-                                <span class="corebb-admin-status-pill">Deleted</span><br>
-                                <span class="corebb-admin-modern-help">{{ row.deleted_at|default('') }} by {{ row.deleted_by_username|default('') != '' ? row.deleted_by_username : '#' ~ row.deleted_by|default(0) }}</span><br>
-                                {% if row.delete_reason|default('')|trim != '' %}<span class="corebb-admin-modern-help">Reason: {{ row.delete_reason }}</span>{% endif %}
-                            {% else %}
-                                <span class="corebb-admin-status-pill">Active</span>
-                                <span class="corebb-admin-modern-help">{{ row.markread|default(0) == 1 ? 'read' : 'unread' }}</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if not row._can_act|default(false) %}
-                                <span class="corebb-admin-modern-help">{{ row._block_reason|default('No action available.') }}</span>
-                            {% elseif row.is_deleted|default(0) == 1 %}
-                                <form class="corebb-admin-modern-form" method="post" action="/admin/?act=pm_history&amp;q={{ model.q|default('')|url_encode }}&amp;deleted={{ model.show_deleted|default(false) ? 'yes' : 'no' }}" onsubmit="return confirm('Restore this private message to user mailboxes?');">
-                                    {% include 'partials/csrf_field.twig' %}
-                                    <input type="hidden" name="action" value="restore_pm">
-                                    <input type="hidden" name="pmid" value="{{ row.id|default(0) }}">
-                                    <button class="corebb-board-action-link" type="submit">Restore</button>
-                                </form>
-                            {% else %}
-                                <form class="corebb-admin-modern-form corebb-admin-action-stack" method="post" action="/admin/?act=pm_history&amp;q={{ model.q|default('')|url_encode }}&amp;deleted={{ model.show_deleted|default(false) ? 'yes' : 'no' }}" onsubmit="return confirm('Delete this private message from user mailboxes? It remains visible here when deleted messages are included.');">
-                                    {% include 'partials/csrf_field.twig' %}
-                                    <input type="hidden" name="action" value="delete_pm">
-                                    <input type="hidden" name="pmid" value="{{ row.id|default(0) }}">
-                                    <label class="corebb-admin-modern-label" for="corebbPmDeleteReason{{ row.id|default(0) }}">Reason</label>
-                                    <input id="corebbPmDeleteReason{{ row.id|default(0) }}" type="text" name="delete_reason" maxlength="255" size="25" value="Deleted by administrator from PM History.">
-                                    <button class="corebb-board-action-link is-danger" type="submit">Delete</button>
-                                </form>
-                            {% endif %}
-                        </td>
-                    </tr>
-                {% endfor %}
+        {% if model.rows %}
+            <p class="admin-history-count">{% if model.total == 1 %}1 message{% else %}{{ model.first|number_format }}–{{ model.last|number_format }} of {{ model.total|number_format }} · Newest first{% endif %}</p>
+            <table class="contact-list">
+                <thead><tr><th scope="col">Subject</th><th scope="col">From</th><th scope="col">To</th><th scope="col">Sent</th><th scope="col">Status</th></tr></thead>
+                <tbody>{% for item in model.rows %}<tr>
+                    <td><a class="report-subject" href="{{ url(model.detail_base ~ item.id) }}">{{ item.title ?: 'Untitled message' }}</a> <small>#{{ item.id }}</small></td>
+                    <td><span class="contact-mobile-label">From </span>{{ item.sender_username ?: 'Member #' ~ item.senderid }}</td>
+                    <td><span class="contact-mobile-label">To </span>{{ item.receiver_username ?: 'Member #' ~ item.recieveid }}</td>
+                    <td>{{ item.datesent ?: 'Date unavailable' }}</td>
+                    <td>{{ item.is_deleted ? 'Removed' : (item.markread ? 'Read' : 'Unread') }}</td>
+                </tr>{% endfor %}</tbody>
+            </table>
+            {% include 'partials/admin_queue_pager.twig' with {pager:model.pagination, label:'Message history pages'} only %}
+        {% else %}<p class="appeal-empty">No messages match these filters.</p>{% endif %}
+    {% elseif pm %}
+        <article class="admin-title-editor">
+            <header class="admin-member-head"><div>
+                <h2>{{ pm.title ?: 'Untitled message' }}</h2>
+                <p class="admin-history-count">From {{ _self.member(pm.sender_username,pm.senderid,model.can_view_member) }} to {{ _self.member(pm.receiver_username,pm.recieveid,model.can_view_member) }}</p>
+                <p class="admin-history-count">PM #{{ pm.id }}{% if pm.datesent %} · {{ pm.datesent }}{% endif %} · {{ pm.markread ? 'Read' : 'Unread' }}</p>
+            </div></header>
+            <div class="contact-message"><div class="contact-body">{{ pm.message }}</div></div>
+            {% if pm.is_deleted %}
+                <section class="contact-compose"><h3>Removed from mailboxes</h3>
+                    {% if pm.deleted_by or pm.deleted_at %}<p class="admin-history-count">{{ pm.deleted_by_username ?: (pm.deleted_by ? 'Staff #' ~ pm.deleted_by : 'Staff member unavailable') }}{% if pm.deleted_at %} · {{ pm.deleted_at }}{% endif %}</p>{% endif %}
+                    {% if pm.delete_reason %}<div class="contact-body">{{ pm.delete_reason }}</div>{% endif %}
+                </section>
             {% endif %}
-        </tbody>
-    </table>
-
-    {% if model.pagination.visible|default(false) %}
-        <div class="corebb-admin-modern-panel wb-text-center">{% include 'partials/board_pagination.twig' with {pagination: model.pagination} only %}</div>
+            {% if model.can_remove or model.can_restore %}
+                <details class="admin-title-remove"{% if model.errors %} open{% endif %}>
+                    <summary>{{ model.can_restore ? 'Restore to mailboxes' : 'Remove from mailboxes' }}</summary>
+                    <form class="admin-settings-form" method="post" action="{{ url(model.action_url) }}">
+                        {% include 'partials/csrf_field.twig' %}
+                        <input type="hidden" name="pmid" value="{{ pm.id }}">
+                        <input type="hidden" name="action" value="{{ model.can_restore ? 'restore_pm' : 'delete_pm' }}">
+                        <p>{{ model.can_restore ? 'The sender and recipient will see this message again. Previously handled reports stay closed.' : 'This removes the message from both mailboxes and closes its open reports.' }}</p>
+                        {% if model.can_remove %}<div class="admin-auth-field"><label for="history-reason">Removal reason (optional)</label>
+                            <textarea name="delete_reason" id="history-reason" rows="3" maxlength="255">{{ model.draft_reason }}</textarea>
+                        </div>{% endif %}
+                        <div class="admin-settings-save"><button type="submit">{{ model.can_restore ? 'Restore message' : 'Remove message' }}</button></div>
+                    </form>
+                </details>
+            {% elseif model.blocked %}<p class="contact-compose">{{ model.blocked }}</p>{% endif %}
+        </article>
     {% endif %}
 </div>
+{% macro member(name,id,linked) %}
+    {% if linked and name %}<a href="{{ url('/admin/?act=user_pages&userid=' ~ id) }}">{{ name }}</a>{% else %}{{ name ?: 'Member #' ~ id }}{% endif %}
+{% endmacro %}
